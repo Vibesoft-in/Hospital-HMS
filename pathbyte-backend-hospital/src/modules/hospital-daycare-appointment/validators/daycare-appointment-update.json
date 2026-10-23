@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["Scheduled", "In Progress", "Completed", "Cancelled"]
+    },
+    "appointmentDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "procedureIds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "discount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "discountPassword": {
+      "type": "string"
+    },
+    "doctorId": {
+      "type": "string"
+    },
+    "doctorVisitCharges": {
+      "type": "boolean"
+    },
+    "daycareChargesType": {
+      "type": "string",
+      "enum": ["Private", "Semi-Private", "General", "Custom", "None"]
+    },
+    "daycareChargesHours": {
+      "type": "number",
+      "minimum": 0
+    },
+    "customDaycareRate": {
+      "type": "number",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["procedure"] },
+        "procedureId": { "type": "string", "minLength": 1 },
+        "units": { "type": "number", "minimum": 1 }
+      },
+      "required": ["type", "procedureId"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["procedure_package"] },
+        "packageId": { "type": "string", "minLength": 1 },
+        "units": { "type": "number", "minimum": 1 }
+      },
+      "required": ["type", "packageId"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["doctor"] },
+        "doctorId": { "type": "string", "minLength": 1 },
+        "units": { "type": "number", "minimum": 1 }
+      },
+      "required": ["type", "doctorId"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["test"] },
+        "caseId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["type", "caseId"]
+    },
+    {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["procedure", "procedure_package", "doctor", "test"]
+          },
+          "procedureId": { "type": "string" },
+          "packageId": { "type": "string" },
+          "doctorId": { "type": "string" },
+          "caseId": { "type": "string" },
+          "units": { "type": "number", "minimum": 1 }
+        },
+        "required": ["type"]
+      }
+    }
+  ]
+}

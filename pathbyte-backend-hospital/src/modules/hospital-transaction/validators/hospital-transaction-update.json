@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "transactionType": {
+      "type": "string",
+      "enum": ["Payment", "Refund", "Adjustment", "Advance"]
+    },
+    "amount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "paymentMode": {
+      "type": "string",
+      "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance", "Govt Backed"]
+    },
+    "referenceNo": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "transactionDate": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "additionalProperties": false
+}

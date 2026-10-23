@@ -1,0 +1,242 @@
+{
+  "info": {
+    "name": "Xray Session API",
+    "_postman_id": "xray-session-collection-v3",
+    "description": "Xray Session & Token Queue API.\n\nFlow:\n1. Mark a procedure as xray via Setup.\n2. Add that procedure to IPD or Daycare — XraySession auto-created with daily token.\n3. Walk-in patients: POST /hospital/xray-sessions/token\n4. Display screen connects to SSE stream once for live updates.\n5. Staff updates session status and fills report via Update Session.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "token",       "value": "YOUR_JWT_TOKEN_HERE",           "type": "string" },
+    { "key": "sessionId",   "value": "",                              "type": "string", "description": "MongoDB _id of an xray session" },
+    { "key": "patientId",   "value": "",                              "type": "string" },
+    { "key": "procedureId", "value": "",                              "type": "string", "description": "MongoDB _id of a procedure" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "Mark Procedure as Xray",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/procedures/{{procedureId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "procedures", "{{procedureId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isXray\": true\n}"
+            },
+            "description": "One-time setup per procedure. After this, any IPD or Daycare that includes this procedure will auto-create an XraySession with a daily token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "Upload Xray Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/upload/hospital?folder=hospital/xray",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload", "hospital"],
+              "query": [{ "key": "folder", "value": "hospital/xray" }]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "", "description": "Xray image or PDF" }
+              ]
+            },
+            "description": "Upload xray document before updating a session.\nReturns { originalUrl, signedUrl }.\nSend originalUrl as docUrl when updating the session."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"originalUrl\": \"hospital/xray/uuid-filename.jpg\",\n    \"signedUrl\": \"https://s3.amazonaws.com/...signed...\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Token Queue",
+      "item": [
+        {
+          "name": "SSE — Live Queue Stream",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/event-stream" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/xray-sessions/stream?date=2026-06-25",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "xray-sessions", "stream"],
+              "query": [{ "key": "date", "value": "2026-06-25", "description": "Omit to use today IST" }]
+            },
+            "description": "NO AUTH REQUIRED — for display screens.\nConnect once. Receives the full queue immediately on connect, then live updates on every token creation or status change.\n\nEvent types:\n  type: 'initial'             — full queue sent on connect\n  eventType: 'token-created'  — new session added to queue\n  eventType: 'status-change'  — session status updated\n  type: 'date-change'         — midnight IST rollover\n\nEach payload: { date, eventType, token, queue[], summary: { total, pending, inProgress, completed, cancelled } }"
+          },
+          "response": [
+            {
+              "name": "SSE stream example",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "body": "data: {\"type\":\"initial\",\"date\":\"2026-06-25\",\"queue\":[{\"xrayTokenId\":1,\"status\":\"Completed\",\"patient\":{\"name\":\"Alice\"}},{\"xrayTokenId\":2,\"status\":\"In Progress\",\"patient\":{\"name\":\"Bob\"}},{\"xrayTokenId\":3,\"status\":\"Pending\",\"patient\":{\"name\":\"John\"}}],\"summary\":{\"total\":3,\"pending\":1,\"inProgress\":1,\"completed\":1,\"cancelled\":0}}\n\n:keepalive\n\ndata: {\"date\":\"2026-06-25\",\"eventType\":\"status-change\",\"token\":{\"xrayTokenId\":2,\"status\":\"Completed\",...},\"queue\":[...],\"summary\":{...}}\n\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Xray Session CRUD",
+      "item": [
+        {
+          "name": "List All Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/xray-sessions?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "xray-sessions"],
+              "query": [
+                { "key": "page",                 "value": "1" },
+                { "key": "limit",                "value": "20" },
+                { "key": "search",               "value": "", "disabled": true, "description": "Patient name or sessionId (XRA...)" },
+                { "key": "status",               "value": "", "disabled": true, "description": "Pending | In Progress | Completed | Cancelled" },
+                { "key": "allowCancelled",        "value": "true", "disabled": true, "description": "Set true to include Cancelled in results" },
+                { "key": "tokenDate",            "value": "", "disabled": true, "description": "YYYY-MM-DD — filter by queue date" },
+                { "key": "patientId",            "value": "", "disabled": true },
+                { "key": "procedureId",          "value": "", "disabled": true },
+                { "key": "source",               "value": "", "disabled": true, "description": "manual | ipd | daycare" },
+                { "key": "ipdId",                "value": "", "disabled": true },
+                { "key": "daycareAppointmentId", "value": "", "disabled": true },
+                { "key": "createdFrom",          "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+                { "key": "createdTo",            "value": "", "disabled": true, "description": "YYYY-MM-DD" }
+              ]
+            },
+            "description": "Paginated list of all xray sessions with full patient and procedure details.\nEnable any query param to filter — all filters can be combined."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"sessions\": [\n      {\n        \"_id\": \"6679abc...\",\n        \"sessionId\": \"XRA00001\",\n        \"xrayTokenId\": 1,\n        \"tokenDate\": \"2026-06-25\",\n        \"source\": \"ipd\",\n        \"status\": \"Completed\",\n        \"patient\": { \"name\": \"John Doe\", \"mrd\": \"MRD00042\", \"age\": 35, \"gender\": \"Male\" },\n        \"procedure\": { \"procedureName\": \"Chest X-Ray\", \"department\": \"Radiology\" }\n      }\n    ],\n    \"pagination\": {\n      \"currentPage\": 1,\n      \"limit\": 20,\n      \"totalCount\": 42,\n      \"hasMore\": true\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Session — Status Change",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/xray-session/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "xray-session", "{{sessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"In Progress\"\n}"
+            },
+            "description": "Update status only. Fires an SSE event to all connected display screens.\nValid values: Pending | In Progress | Completed | Cancelled"
+          }
+        },
+        {
+          "name": "Update Session — Complete with Report",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/xray-session/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "xray-session", "{{sessionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Completed\",\n  \"bodyPart\": \"Chest\",\n  \"projectionType\": \"PA\",\n  \"technique\": \"Standard\",\n  \"contrast\": \"None\",\n  \"radiologistName\": \"Dr. Sharma\",\n  \"findings\": \"Lungs are clear. No pleural effusion. Cardiac size normal.\",\n  \"impression\": \"Normal chest X-ray. No acute cardiopulmonary abnormality.\",\n  \"reportDate\": \"2026-06-25\",\n  \"reportHtml\": \"<p><strong>CHEST</strong> is clear.</p><p><strong><em>*IMPRESSION:</em></strong> Normal.</p>\",\n  \"docUrl\": \"hospital/xray/uuid-filename.jpg\"\n}"
+            },
+            "description": "Fill in the full report when scan is done.\ndocUrl: send the S3 key (originalUrl) from the Upload API — returned as a signed URL in the response.\nFires an SSE event to all connected display screens."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"session\": {\n      \"_id\": \"6679abc...\",\n      \"sessionId\": \"XRA00001\",\n      \"xrayTokenId\": 1,\n      \"tokenDate\": \"2026-06-25\",\n      \"source\": \"ipd\",\n      \"bodyPart\": \"Chest\",\n      \"projectionType\": \"PA\",\n      \"radiologistName\": \"Dr. Sharma\",\n      \"findings\": \"Lungs are clear.\",\n      \"impression\": \"Normal chest X-ray.\",\n      \"reportHtml\": \"<p><strong>CHEST</strong> is clear.</p>\",\n      \"docUrl\": \"https://s3.amazonaws.com/...signed...\",\n      \"status\": \"Completed\",\n      \"patient\": { \"name\": \"John Doe\", \"mrd\": \"MRD00042\" },\n      \"procedure\": { \"procedureName\": \"Chest X-Ray\" }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/xray-session/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "xray-session", "{{sessionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD & Daycare Auto-creation",
+      "description": "When a procedure with isXray=true is added to an IPD or Daycare, an XraySession is auto-created and xraySessionId is stored on the charge. No extra steps needed.",
+      "item": [
+        {
+          "name": "Create IPD with Xray Procedure",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/ipd",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "ipd"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"DOCTOR_MONGO_ID\",\n  \"billingCharges\": [\n    {\n      \"type\": \"procedure\",\n      \"procedureId\": \"{{procedureId}}\"\n    }\n  ]\n}"
+            },
+            "description": "If the procedure has isXray: true, the system automatically:\n1. Creates an XraySession with status=Pending\n2. Assigns a daily xrayTokenId\n3. Stores xraySessionId on the billing charge\n4. Fires an SSE event to the display screen\n\nRemoving the procedure on update cancels the session."
+          }
+        },
+        {
+          "name": "Create Daycare Appointment with Xray Procedure",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/hospital/daycare-appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospital", "daycare-appointments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"procedureIds\": [\"{{procedureId}}\"],\n  \"daycareChargesType\": \"None\",\n  \"doctorVisitCharges\": false\n}"
+            },
+            "description": "Same auto-creation behaviour as IPD. xraySessionId is stored in the procedures array entry."
+          }
+        }
+      ]
+    }
+  ]
+}

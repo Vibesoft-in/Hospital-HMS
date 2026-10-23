@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "patientUhid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "enum": ["Mr.", "Mrs.", "Ms.", "Dr.", "Master", "Baby of", "Baby"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phone": {
+      "type": "string",
+      "pattern": "^\\+?[0-9]{10,15}$"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "dob": {
+      "type": "string",
+      "format": "date"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 150
+    },
+    "months": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 11
+    },
+    "days": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 31
+    },
+    "gender": {
+      "type": "string",
+      "enum": ["Male", "Female", "Other"]
+    },
+    "bloodGroup": {
+      "type": "string",
+      "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Not Known"]
+    },
+    "address": {
+      "type": "string"
+    },
+    "aadharNo": {
+      "type": "string",
+      "pattern": "^[0-9]{12}$"
+    },
+    "aadharS3Url": {
+      "type": "string"
+    },
+    "ayushmanCardNo": {
+      "type": "string"
+    },
+    "ayushmanCardS3Url": {
+      "type": "string"
+    },
+    "imageS3Url": {
+      "type": "string"
+    },
+    "companyName": {
+      "type": "string"
+    },
+    "division": {
+      "type": "string"
+    },
+    "maritalStatus": {
+      "type": "string",
+      "enum": ["Single", "Married", "Divorced", "Widowed", "Separated", "Other"]
+    },
+    "occupation": {
+      "type": "string"
+    },
+    "drugSensitivity": {
+      "type": "string"
+    },
+    "otherDocsS3Urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "emergencyContacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "number": {
+            "type": "string",
+            "pattern": "^\\+?[0-9]{10,15}$"
+          }
+        },
+        "required": ["name", "number"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["title", "name", "phone", "gender"]
+}

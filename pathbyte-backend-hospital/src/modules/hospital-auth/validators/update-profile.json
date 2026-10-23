@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "User full name"
+    },
+    "phoneNumber": {
+      "type": "string",
+      "description": "User phone number"
+    }
+  },
+  "additionalProperties": false
+}

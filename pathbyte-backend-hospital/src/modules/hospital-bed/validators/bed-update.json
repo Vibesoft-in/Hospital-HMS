@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "minProperties": 1,
+  "properties": {
+    "bedNumber": { "type": "string", "minLength": 1 },
+    "wardId":    { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["Available", "Maintenance"]
+    },
+    "chargePerDay": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Set to a number to override the ward rate for this bed. Set to null to remove the override and fall back to the ward rate."
+    }
+  }
+}

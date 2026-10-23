@@ -1,0 +1,238 @@
+{
+  "info": {
+    "_postman_id": "hospital-dashboard-collection",
+    "name": "Hospital Dashboard APIs",
+    "description": "Dashboard statistics and analytics for hospital management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Overview Statistics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Overview statistics retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains all metrics', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.all.keys('doctors', 'patients', 'visits', 'revenue');",
+              "    pm.expect(response.data.doctors).to.have.all.keys('total', 'growthRate');",
+              "    pm.expect(response.data.patients).to.have.all.keys('total', 'growthRate');",
+              "    pm.expect(response.data.visits).to.have.all.keys('total', 'growthRate');",
+              "    pm.expect(response.data.revenue).to.have.all.keys('total', 'growthRate');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/{{version}}/hospital/dashboard/overview",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "{{version}}", "hospital", "dashboard", "overview"]
+        },
+        "description": "Get overview statistics for dashboard top 4 cards. Returns total counts and 7-day growth rates for doctors, patients, visits, and revenue."
+      }
+    },
+    {
+      "name": "Get Visit Statistics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Visit statistics retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains summary and period data', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.all.keys('summary', 'periodData', 'period');",
+              "    pm.expect(response.data.summary).to.have.all.keys('all', 'scheduled', 'inProgress', 'completed', 'cancelled', 'noShow');",
+              "    pm.expect(response.data.periodData).to.be.an('array');",
+              "    pm.expect(response.data.period).to.be.oneOf(['week', 'month', 'year']);",
+              "    if (response.data.periodData.length > 0) {",
+              "        pm.expect(response.data.periodData[0]).to.have.all.keys('period', 'scheduled', 'inProgress', 'completed', 'cancelled', 'noShow');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/{{version}}/hospital/dashboard/visit-statistics?period=month",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "{{version}}", "hospital", "dashboard", "visit-statistics"],
+          "query": [
+            {
+              "key": "period",
+              "value": "month",
+              "description": "Time period: 'week' (last 7 days with day names), 'month' (last 12 months), 'year' (last 12 years). Default: month"
+            }
+          ]
+        },
+        "description": "Get visit statistics with summary counts (all, scheduled, inProgress, completed, cancelled, noShow) and breakdown by period. Week shows last 7 days (Sunday-Saturday), month shows last 12 months (Jan-Dec), year shows last 12 years."
+      }
+    },
+    {
+      "name": "Get Visit Breakdown Statistics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Visit breakdown statistics retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains range and data', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('range');",
+              "    pm.expect(response.data).to.have.property('data');",
+              "    pm.expect(response.data.data).to.be.an('array');",
+              "    if (response.data.data.length > 0) {",
+              "        pm.expect(response.data.data[0]).to.have.property('_id');",
+              "        pm.expect(response.data.data[0]).to.have.all.keys('_id', 'scheduled', 'inProgress', 'completed', 'cancelled', 'noShow', 'total');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/{{version}}/hospital/dashboard/visit-breakdown-statistics?range=daily",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "{{version}}", "hospital", "dashboard", "visit-breakdown-statistics"],
+          "query": [
+            {
+              "key": "range",
+              "value": "daily",
+              "description": "Time range: 'daily', 'weekly', or 'monthly'. Default: daily"
+            }
+          ]
+        },
+        "description": "Get visit breakdown statistics grouped by range. Similar to pathlab case statistics. Returns visit counts by status (scheduled, inProgress, completed, cancelled, noShow) grouped by day/week/month."
+      }
+    },
+    {
+      "name": "Get Recent Transactions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Recent transactions retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains transactions array', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('transactions');",
+              "    pm.expect(response.data.transactions).to.be.an('array');",
+              "    pm.expect(response.data).to.have.property('count');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/{{version}}/hospital/dashboard/recent-transactions?limit=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "{{version}}", "hospital", "dashboard", "recent-transactions"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "5",
+              "description": "Number of transactions to return (default: 5)"
+            }
+          ]
+        },
+        "description": "Get recent transactions with visit, patient, and procedure details. Returns transaction ID, patient name, service name, amount, payment mode, and transaction date."
+      }
+    },
+    {
+      "name": "Get Recent Visits",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Recent visits retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains visits array', function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('visits');",
+              "    pm.expect(response.data.visits).to.be.an('array');",
+              "    pm.expect(response.data).to.have.property('count');",
+              "    if (response.data.visits.length > 0) {",
+              "        pm.expect(response.data.visits[0]).to.have.all.keys('visitId', 'doctorName', 'patientName', 'dateTime', 'appointmentType', 'visitType', 'status', '_id');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/{{version}}/hospital/dashboard/recent-visits?limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "{{version}}", "hospital", "dashboard", "recent-visits"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Number of visits to return (default: 10)"
+            }
+          ]
+        },
+        "description": "Get recent visits with doctor and patient details. Returns visit ID, doctor name, patient name, date & time, appointment type, visit type, and status."
+      }
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "version",
+      "value": "v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

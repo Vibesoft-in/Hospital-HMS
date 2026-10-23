@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JJM Hospital - Lab Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; line-height: 1.4; background: transparent; }
+
+    .patient-card { border: 1px solid #dee2e6; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; }
+    .card-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .patient-name { display: flex; font-size: 12px; gap: 4px; }
+    .patient-name p:nth-child(2) { font-weight: 600; }
+    .info-label { font-size: 11px; color: #555; }
+    .info-value { font-size: 12px; font-weight: 600; }
+    .date-details { font-size: 12px; font-weight: 600; }
+    .align-right { text-align: right; }
+
+    .results-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    .results-table th { font-weight: 700; font-size: 12px; text-transform: uppercase; padding: 10px 8px 6px 8px; text-align: left; border: none; color: #0a1b39; }
+    .results-table td { border: 1px solid #a2a2a3; padding: 6px 10px; font-size: 12px; vertical-align: middle; }
+    .results-table td:nth-child(1) { text-align: left; }
+    .results-table td:nth-child(2) { width: 110px; text-align: left; }
+    .results-table td:nth-child(3) { width: 60px; text-align: left; }
+    .results-table td:nth-child(4) { width: 130px; text-align: right; padding-right: 10px; }
+    .category-row td { background: #f1feff; padding: 6px 12px !important; }
+    .category-title { font-weight: 700; font-size: 12px; text-align: center; letter-spacing: 0.5px; }
+    .group-row td { background: #e0e0ff; }
+    .group-title { font-size: 12px; font-weight: 600; }
+    .sub-row td:nth-child(1) { padding-left: 28px; }
+    .red-value-inline { font-weight: 700; margin-left: 6px; }
+    .red-value-inline.flag-high { color: #cc1100; }
+    .red-value-inline.flag-low  { color: #0055cc; }
+    /* Color the result value cell itself */
+    .results-table td.flag-high { color: #cc1100 !important; font-weight: 700; }
+    .results-table td.flag-low  { color: #0055cc !important; font-weight: 700; }
+    .footnote-row td { font-size: 10px; padding: 4px 8px; }
+    .test-footnotes pre { white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 10px; line-height: 1.4; margin: 0; }
+    .end-of-report { text-align: center; margin-top: 16px; font-size: 11px; color: #555; }
+
+    @media print {
+      .master-results tr { page-break-inside: avoid; page-break-after: auto; }
+      .footnote-row { page-break-inside: avoid; }
+      thead { display: table-header-group; }
+      .print-on-new-page { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="patient-card">
+    <div class="card-layout">
+      <div>
+        <div class="patient-name"><p>Case ID:</p><p>#{{caseId}}</p></div>
+        <div class="patient-name"><p>Name:</p><p>{{patient.firstName}} {{patient.lastName}}</p></div>
+        <div class="patient-name">
+          <p>{{#if patient.hmsMrd}}MRD No:{{else}}UHID:{{/if}}</p>
+          <p>#{{#if patient.hmsMrd}}{{patient.hmsMrd}}{{else}}{{patient.patientId}}{{/if}}</p>
+        </div>
+        <div class="patient-name"><p>Age/Sex:</p><p>{{ageDisplay patient.age patient.months patient.days}} / {{patient.gender}}</p></div>
+      </div>
+      <div>
+        <div class="info-label">Referred By</div>
+        <div class="info-value">{{doctor.firstName}} {{doctor.lastName}}</div>
+      </div>
+      <div class="align-right">
+        <div class="info-label">Registered On</div>
+        <div class="date-details">{{createdAt}}</div>
+        <div class="info-label" style="margin-top:6px">Reported On</div>
+        <div class="date-details">{{updatedAt}}</div>
+      </div>
+    </div>
+  </div>
+
+  <table class="results-table master-results">
+    <thead>
+      <tr>
+        <th>Investigation</th>
+        <th>Results</th>
+        <th>Units</th>
+        <th>Normal Range</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each categories}}
+      {{#each groupedTests}}
+      {{#each caseTests}}
+      {{#if (or characteristics.length numberValue stringValue)}}
+      {{#if @first}}
+      {{#if ../../isFirstCategory}}
+      <tr class="category-row"><td colspan="4"><h2 class="category-title">{{../../name}}</h2></td></tr>
+      {{else}}
+      <tr class="category-row print-on-new-page"><td colspan="4"><h2 class="category-title">{{../../name}}</h2></td></tr>
+      {{/if}}
+      <tr class="group-row {{#if ../groupFootnote.newPage}}print-on-new-page{{/if}}">
+        <td colspan="4" style="padding-left:8px"><h3 class="group-title">{{../name}}</h3></td>
+      </tr>
+      {{/if}}
+      <tr class="{{#unless @first}}print-on-new-page{{/unless}}">
+        <td>
+          {{#if (endsWithAsterisk test.name)}}
+            <strong>{{removeEndAsterisk test.name}}</strong>
+          {{else}}
+            <strong>{{test.name}}</strong>
+          {{/if}}
+          <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+        </td>
+        <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+          {{#if (endsWithAsterisk test.name)}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{else if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{/if}}
+        </td>
+        <td>{{unit}}</td>
+        <td>{{#unless characteristics.length}}{{formatReferenceRange appliedReferenceRange comment}}{{/unless}}</td>
+      </tr>
+      {{#each characteristics}}
+      {{#unless (isHeaderWithNoValue name numberValue stringValue)}}
+      <tr class="sub-row">
+        <td>
+          {{#if (startsWithAsterisk name)}}
+            <strong>{{removeEndAsterisk (removeAsterisk name)}}</strong>
+          {{else}}
+            <span>{{removeEndAsterisk name}}</span>
+          {{/if}}
+          <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+        </td>
+        <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+          {{#if (endsWithAsterisk name)}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{else if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{/if}}
+        </td>
+        <td>{{unit}}</td>
+        <td>{{formatReferenceRange appliedReferenceRange comment}}</td>
+      </tr>
+      {{/unless}}
+      {{/each}}
+      {{#if footnotes}}{{#if footnotes.footnote}}
+      <tr class="footnote-row"><td colspan="4"><div class="test-footnotes"><pre>{{{footnotes.footnote}}}</pre></div></td></tr>
+      {{/if}}{{/if}}
+      {{/if}}
+      {{/each}}
+      {{#if ../groupFootnote}}{{#if ../groupFootnote.groupFootnote}}
+      <tr class="footnote-row"><td colspan="4"><div class="test-footnotes"><pre>{{{../groupFootnote.groupFootnote}}}</pre></div></td></tr>
+      {{/if}}{{/if}}
+      {{/each}}
+
+      {{#each ungroupedTests}}
+      {{#if (or characteristics.length numberValue stringValue)}}
+      {{#if @first}}
+      {{#if ../isFirstCategory}}
+      <tr class="category-row"><td colspan="4"><h2 class="category-title">{{../name}}</h2></td></tr>
+      {{else}}
+      <tr class="category-row print-on-new-page"><td colspan="4"><h2 class="category-title">{{../name}}</h2></td></tr>
+      {{/if}}
+      {{/if}}
+      <tr class="{{#unless @first}}print-on-new-page{{/unless}}">
+        <td>
+          {{#if (endsWithAsterisk test.name)}}
+            <strong>{{removeEndAsterisk test.name}}</strong>
+          {{else}}
+            <strong>{{test.name}}</strong>
+          {{/if}}
+          <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+        </td>
+        <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+          {{#if (endsWithAsterisk test.name)}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{else if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{/if}}
+        </td>
+        <td>{{unit}}</td>
+        <td>{{#unless characteristics.length}}{{formatReferenceRange appliedReferenceRange comment}}{{/unless}}</td>
+      </tr>
+      {{#each characteristics}}
+      {{#unless (isHeaderWithNoValue name numberValue stringValue)}}
+      <tr class="sub-row">
+        <td>
+          {{#if (startsWithAsterisk name)}}
+            <strong>{{removeEndAsterisk (removeAsterisk name)}}</strong>
+          {{else}}
+            <span>{{removeEndAsterisk name}}</span>
+          {{/if}}
+          <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+        </td>
+        <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+          {{#if (endsWithAsterisk name)}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{else if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+            <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+          {{else}}
+            {{valueWithDecimal numberValue stringValue decimal}}
+          {{/if}}
+        </td>
+        <td>{{unit}}</td>
+        <td>{{formatReferenceRange appliedReferenceRange comment}}</td>
+      </tr>
+      {{/unless}}
+      {{/each}}
+      {{#if footnotes}}{{#if footnotes.footnote}}
+      <tr class="footnote-row"><td colspan="4"><div class="test-footnotes"><pre>{{{footnotes.footnote}}}</pre></div></td></tr>
+      {{/if}}{{/if}}
+      {{/if}}
+      {{/each}}
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="end-of-report">
+    <p>This is a computer generated copy and doesn't require a signature.</p>
+    <p>-----(END OF REPORT)------</p>
+  </div>
+
+  {{#if attachmentBase64List.length}}
+  <div style="page-break-before: always; margin: 0; padding: 20px; line-height: normal;">
+    {{#each attachmentBase64List}}
+    {{#if (startsWith this "__PDF__:")}}
+    <div style="page-break-inside: avoid; text-align: center; padding: 40px 20px; border: 2px dashed #aaa; margin-bottom: 10px; font-family: Arial, sans-serif; font-size: 13px; color: #333;">
+      <p style="font-size: 16px; margin-bottom: 8px;">PDF Document Attached</p>
+      <p style="color: #666; font-size: 11px;">This attachment is a PDF file and cannot be previewed inline.</p>
+    </div>
+    {{else}}
+    <div style="page-break-inside: avoid; text-align: center; margin: 0; padding: 0; line-height: 0;">
+      <img src="{{this}}" style="max-width: 154mm; max-height: 190mm; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
+    </div>
+    {{/if}}
+    {{/each}}
+  </div>
+  {{/if}}
+
+</body>
+</html>
+

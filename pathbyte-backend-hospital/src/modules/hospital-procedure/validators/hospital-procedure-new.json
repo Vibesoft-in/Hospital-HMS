@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "procedureName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "department": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Active", "Inactive"]
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "dayCareBilling": {
+      "type": "boolean"
+    },
+    "consumables": {
+      "type": "boolean"
+    },
+    "nursingCharges": {
+      "type": "number",
+      "minimum": 0
+    },
+    "roomCharges": {
+      "type": "number",
+      "minimum": 0
+    },
+    "metaData": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "isDialysis": {
+      "type": "boolean",
+      "description": "Whether this procedure requires a dialysis session"
+    },
+    "isXray": {
+      "type": "boolean",
+      "description": "Whether this procedure requires an xray session"
+    },
+    "isUltrasound": {
+      "type": "boolean",
+      "description": "Whether this xray procedure is an ultrasound (only applicable when isXray is true)"
+    },
+    "isPackage": {
+      "type": "boolean",
+      "description": "When true, this procedure is treated as a package — IPD may suppress bed/nursing charges"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["daycare", "ipd", "opd", "both"],
+      "description": "Where this procedure is applicable"
+    }
+  },
+  "required": ["procedureName", "price"]
+}

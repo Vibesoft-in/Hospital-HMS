@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "dischargeType": { "type": "string", "enum": ["Normal", "LAMA", "DOR", "Death", "Refer"] },
+    "dischargeDate": { "type": "string" },
+    "clinicalSummary": { "type": "string" },
+    "provisionalDiagnosis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "icdCode": { "type": "string" },
+          "diagnosisName": { "type": "string", "minLength": 1 }
+        },
+        "required": ["diagnosisName"]
+      }
+    },
+    "finalDiagnosis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "icdCode": { "type": "string" },
+          "diagnosisName": { "type": "string", "minLength": 1 }
+        },
+        "required": ["diagnosisName"]
+      }
+    },
+    "courseInHospital": { "type": "string" },
+    "treatmentGiven": { "type": "string" },
+    "conditionOnDischarge": { "type": "string" },
+    "medicinesOnDischarge": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "medicineName": { "type": "string", "minLength": 1 },
+          "type": { "type": "string" },
+          "duration": { "type": "string" },
+          "dosage": { "type": "string" },
+          "instructions": { "type": "string" }
+        },
+        "required": ["medicineName"]
+      }
+    },
+    "adviceOnDischarge": { "type": "array", "items": { "type": "string" } },
+    "followUp": { "type": "string" },
+    "dorRequestedBy": { "type": "string" },
+    "dorReason": { "type": "string" },
+    "lamaReason": { "type": "string" },
+    "deathDateTime": { "type": "string" },
+    "deathCause": { "type": "string" },
+    "referHospitalName": { "type": "string" },
+    "referReason": { "type": "string" },
+    "allergies": { "type": "string" },
+    "dischargeBp": { "type": "string" },
+    "dischargePulse": { "type": "string" },
+    "dischargeSpO2": { "type": "string" },
+    "dischargeTemp": { "type": "string" }
+  }
+}

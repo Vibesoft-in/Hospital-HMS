@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hospitalName": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string" },
+    "referDate": { "type": "string" },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transactionType", "amount", "paymentMode"],
+      "properties": {
+        "transactionType": { "type": "string", "enum": ["Payment", "Refund", "Advance", "Adjustment"] },
+        "amount": { "type": "number", "minimum": 0 },
+        "paymentMode": { "type": "string", "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance", "Govt Backed"] },
+        "referenceNo": { "type": "string" },
+        "transactionDate": { "type": "string" },
+        "isAdvance": { "type": "boolean" }
+      }
+    }
+  }
+}

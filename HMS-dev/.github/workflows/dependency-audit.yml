@@ -1,0 +1,35 @@
+name: Dependency patch management
+
+on:
+  pull_request:
+  push:
+    branches:
+      - production
+      - dev
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  inventory-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Production dependency audit
+        run: npm run audit:ci
+      - name: Generate third-party inventory
+        run: npm run inventory
+      - name: Generate SBOM
+        run: npm run sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: third-party-inventory
+          path: |
+            inventory/npm-inventory.json
+            inventory/sbom.cdx.json
+            inventory/accepted-risks.json

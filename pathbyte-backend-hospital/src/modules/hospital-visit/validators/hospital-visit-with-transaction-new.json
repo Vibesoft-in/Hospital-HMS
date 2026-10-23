@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "patientId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "MongoDB ObjectId for patient"
+    },
+    "doctorId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "MongoDB ObjectId for doctor"
+    },
+    "visitType": {
+      "type": "string",
+      "enum": ["New", "Emergency", "Follow-up", "Follow-up-report", "MR"]
+    },
+    "appointmentType": {
+      "type": "string",
+      "enum": ["OPD", "Day Care", "IPD", "ICU", "Emergency"]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "visitDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "visitTime": {
+      "type": "string",
+      "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "description": "Time in HH:MM format (24-hour)"
+    },
+    "sessionSlot": {
+      "type": "string",
+      "enum": ["Morning", "Noon", "Afternoon", "Evening", "Night"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Scheduled", "In Progress", "Completed", "Cancelled", "No Show"]
+    },
+    "discount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Discount amount to be applied to the visit price"
+    },
+    "discountPassword": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Password required when discount > 0"
+    },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionType": {
+          "type": "string",
+          "enum": ["Payment", "Refund", "Advance", "Adjustment"]
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance"]
+        },
+        "referenceNo": {
+          "type": "string"
+        },
+        "transactionDate": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": ["transactionType", "amount", "paymentMode"]
+    },
+    "attendantName": {
+      "type": "string"
+    },
+    "attendantRelation": {
+      "type": "string"
+    },
+    "companyName": {
+      "type": "string",
+      "description": "Company name for MR visit — saved to patient record"
+    },
+    "division": {
+      "type": "string",
+      "description": "Division for MR visit — saved to patient record"
+    },
+    "procedures": {
+      "type": "array",
+      "description": "Optional OPD procedures to add to this visit",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "procedureId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{24}$",
+            "description": "MongoDB ObjectId of the procedure"
+          }
+        },
+        "required": ["procedureId"]
+      }
+    }
+  },
+  "required": ["patientId", "doctorId", "visitType", "appointmentType", "visitDate"]
+}

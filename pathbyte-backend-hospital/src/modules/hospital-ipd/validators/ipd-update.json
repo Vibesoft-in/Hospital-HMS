@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "patientId": { "type": "string" },
+    "doctorId": { "type": "string" },
+    "bedId": { "type": "string" },
+    "visitId": { "type": "string" },
+    "admissionDate": { "type": "string" },
+    "reason": { "type": "string" },
+    "notes": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["Admitted", "Discharged", "LAMA", "Cancelled"]
+    },
+    "billingCharges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["procedure", "procedure_package", "doctor", "test", "bed"]
+          },
+          "procedureId": { "type": "string" },
+          "packageId": { "type": "string" },
+          "doctorId": { "type": "string" },
+          "caseId": { "type": "string" },
+          "bedId": { "type": "string" },
+          "units": { "type": "number", "minimum": 1 },
+          "fromDate": { "type": "string" },
+          "toDate": { "type": "string" }
+        },
+        "required": ["type"]
+      }
+    },
+    "discount": { "type": "number", "minimum": 0 },
+    "discountPassword": { "type": "string", "minLength": 1 },
+    "isMLC": { "type": "boolean" },
+    "mlc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "markOfIdentification": { "type": "string" },
+        "thanaName": { "type": "string" },
+        "patientBroughtBy": { "type": "string" },
+        "placeOfAccident": { "type": "string" },
+        "documentUrl": { "type": "string" }
+      }
+    },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionType": {
+          "type": "string",
+          "enum": ["Payment", "Refund", "Advance", "Adjustment"]
+        },
+        "amount": { "type": "number", "minimum": 0 },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance", "Govt Backed"]
+        },
+        "referenceNo": { "type": "string" },
+        "transactionDate": { "type": "string" },
+        "isAdvance": { "type": "boolean" }
+      },
+      "required": ["transactionType", "amount", "paymentMode"]
+    }
+  }
+}

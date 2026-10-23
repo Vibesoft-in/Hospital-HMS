@@ -1,0 +1,322 @@
+# IPD Schema Design — CURRENT STATE
+# Last updated to match actual codebase implementation
+
+================================================================================
+## 1. WARD MODEL
+================================================================================
+
+Collection: hospitalwards
+
+Fields:
+  _id             : ObjectId (auto)
+  wardId          : String, required, unique  (e.g. "WARD00001")
+  name            : String, required
+  chargePerDay    : Number, required, min 0
+  imageUrl        : String, optional          (S3 key)
+  description     : String, optional
+  metadata        : Mixed, optional
+  isDeleted       : Boolean, default false
+  deletedAt       : Date
+  deletedBy       : String
+  createdBy       : String
+  timestamps      : createdAt, updatedAt
+
+Indexes:
+  { isDeleted: 1 }
+  { wardId: 1 }
+
+Notes:
+  - chargePerDay is used for automatic bed charge computation on every IPD GET
+  - Bed charges are NOT stored in billingCharges — computed on the fly (see IPD notes)
+
+================================================================================
+## 2. BED MODEL
+================================================================================
+
+Collection: hospitalbeds
+
+Fields:
+  _id                    : ObjectId (auto)
+  bedId                  : String, required, unique  (e.g. "BED00001")
+  bedNumber              : String, required
+  wardId                 : String, required           (reference to Ward _id as string)
+  status                 : enum ["Available", "Occupied", "Reserved", "Maintenance"]
+                           default "Available"
+  currentPatientDetails  : Object, optional
+    {
+      name        : String
+      mrd         : String
+      ipdId       : String   (IPD MongoDB _id)
+      contact     : String
+      admittedAt  : Date
+    }
+  isDeleted              : Boolean, default false
+  deletedAt              : Date
+  deletedBy              : String
+  createdBy              : String
+  timestamps             : createdAt, updatedAt
+
+Indexes:
+  { isDeleted: 1 }
+  { wardId: 1, status: 1 }
+  { bedId: 1 }
+
+Notes:
+  - On IPD create with bedId → status = "Occupied", currentPatientDetails set
+  - On IPD discharge or delete → status = "Available", currentPatientDetails = null
+  - On IPD bed change → old bed released, new bed occupied
+
+================================================================================
+## 3. PROCEDURE PACKAGE MODEL
+================================================================================
+
+Collection: hospitalprocedurepackages
+
+Fields:
+  _id           : ObjectId (auto)
+  packageId     : String, required, unique  (e.g. "PKG00001")
+  name          : String, required
+  description   : String, optional
+  procedures    : Array of embedded objects
+    {
+      procedureId   : String
+      procedureName : String   (snapshot at package creation)
+      price         : Number   (snapshot at package creation)
+      isDialysis    : Boolean
+    }
+  totalPrice    : Number, required  (sum of procedure prices at creation time)
+  isDeleted     : Boolean, default false
+  deletedAt     : Date
+  deletedBy     : String
+  createdBy     : String
+  timestamps    : createdAt, updatedAt
+
+Indexes:
+  { isDeleted: 1 }
+  { packageId: 1 }
+
+Notes:
+  - When added to IPD billing, each procedure's price is fetched LIVE from
+    HospitalProcedure (not from the package snapshot). Live prices are used.
+
+================================================================================
+## 4. IPD MODEL
+================================================================================
+
+Collection: hospitalipds
+
+Fields:
+  _id                  : ObjectId (auto)
+  ipdId                : String, required, unique  (e.g. "IPD00001")
+  patientId            : String, required           (HospitalPatient _id)
+  doctorId             : String, required           (HospitalDoctor _id — admitting doctor)
+  bedId                : String, optional, default null  (HospitalBed _id)
+
+  admissionDate        : Date, required
+  dischargeDate        : Date, optional, default null
+  isDischarge          : Boolean, default false
+
+  reason               : String, optional
+  notes                : String, optional
+
+  billingCharges       : Array of discriminated charge objects (see below)
+                         NOTE: does NOT include bed charges — those are computed on the fly
+
+  subtotal             : Number, default 0   (sum of billingCharges totalCharge values only)
+  discount             : Number, default 0
+  discountAuthorizedAt : Date, optional
+  totalPrice           : Number, default 0   (subtotal - discount, stored without bed charge)
+
+  NOTE ON TOTALS IN RESPONSES:
+    On every GET (single or list), the bed charge is computed on the fly and
+    injected into the response. The response subtotal and totalPrice are
+    OVERRIDDEN to include the bed charge. The stored DB values do NOT include it.
+    Response also includes a separate `bedCharge` object (see below).
+
+  status               : enum ["Admitted", "Discharged", "LAMA", "Cancelled"]
+                         default "Admitted"
+
+  isMLC                : Boolean, default false
+  mlc                  : Object, optional, default null  (only relevant when isMLC = true)
+    {
+      markOfIdentification : String, optional
+      thanaName            : String, optional   (police station name)
+      patientBroughtBy     : String, optional
+      placeOfAccident      : String, optional
+      documentUrl          : String, optional   (S3 key — served as signed URL on read)
+    }
+
+  receiptId            : String, unique sparse  (e.g. "IPDREC00001")
+  createdBy            : String                 (hospital user _id)
+  isDeleted            : Boolean, default false
+  deletedAt            : Date
+  deletedBy            : String
+  timestamps           : createdAt, updatedAt
+
+Indexes:
+  { isDeleted: 1 }
+  { patientId: 1, admissionDate: -1 }
+  { doctorId: 1, admissionDate: -1 }
+  { ipdId: 1 }
+  { bedId: 1 }
+  { status: 1 }
+
+---
+### billingCharges — item types (discriminated by `type` field)
+---
+
+All charge types share these common fields:
+  chargeId    : String (UUID, generated on resolve)
+  type        : String (discriminator)
+  units       : Number, default 1, min 1   (quantity)
+  totalCharge : Number                     (= unit price × units)
+  addedAt     : Date
+
+TYPE: "procedure"
+  {
+    chargeId      : String
+    type          : "procedure"
+    procedureId   : String
+    procedureName : String   (snapshot)
+    price         : Number   (unit price — live at time of adding)
+    units         : Number   (default 1)
+    totalCharge   : Number   (price × units)
+    isDialysis    : Boolean
+    dialysisSessionId : String | null
+    addedAt       : Date
+  }
+
+TYPE: "procedure_package"
+  {
+    chargeId      : String
+    type          : "procedure_package"
+    packageId     : String
+    packageName   : String
+    procedures    : Array of
+      {
+        procedureId       : String
+        procedureName     : String
+        price             : Number   (live price at time of adding)
+        isDialysis        : Boolean
+        dialysisSessionId : String | null
+      }
+    packageTotal  : Number   (sum of live procedure prices for 1 unit)
+    units         : Number   (default 1)
+    totalCharge   : Number   (packageTotal × units)
+    addedAt       : Date
+  }
+
+TYPE: "doctor"
+  {
+    chargeId   : String
+    type       : "doctor"
+    doctorId   : String
+    doctorName : String
+    charge     : Number   (unit charge — from doctor.visitTypes where appointmentType = "IPD")
+    units      : Number   (default 1, can represent multiple consultations)
+    totalCharge: Number   (charge × units)
+    addedAt    : Date
+  }
+  NOTE: auto-injected from the IPD's main doctorId on creation if not already present.
+
+TYPE: "test"
+  {
+    chargeId      : String
+    type          : "test"
+    caseId        : String   (pathlab Case MongoDB _id)
+    caseReadableId: String   (e.g. "CASE00001")
+    totalAmount   : Number   (snapshot of case.totalAmount)
+    units         : Number   (always 1)
+    totalCharge   : Number   (= totalAmount)
+    addedAt       : Date
+  }
+  NOTE: on GET /ipd/:id the full case is populated (patient, casetests, transactions).
+
+---
+### bedCharge — computed on every GET, NOT stored in DB
+---
+
+  {
+    wardId       : String
+    wardName     : String
+    chargePerDay : Number
+    fromDate     : String   (YYYY-MM-DD — admissionDate)
+    toDate       : String   (YYYY-MM-DD — dischargeDate if discharged, else today)
+    days         : Number   (Math.ceil(toDate - fromDate), minimum 1)
+    totalCharge  : Number   (chargePerDay × days)
+  }
+
+  Returns null if IPD has no bed assigned or ward has no chargePerDay.
+  The response subtotal and totalPrice include this value even though it is not stored.
+
+---
+### Case model (pathlab) — ipdId field
+---
+
+  ipdId : String, optional, default null
+  When a pathlab case is created with ipdId:
+    - ipdId stored on case
+    - "test" billing item pushed to IPD.billingCharges
+    - IPD subtotal/totalPrice recalculated
+
+================================================================================
+## 5. TRANSACTION MODEL
+================================================================================
+
+Collection: hospitaltransactions (unchanged schema)
+
+Fields:
+  transactionId   : String, required, unique
+  visitId         : String, required   (MongoDB _id of visit / daycare / IPD)
+  transactionType : enum ["Payment", "Refund", "Adjustment", "Advance"]
+  amount          : Number, required   (negative for refunds)
+  paymentMode     : enum ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance", "Govt Backed"]
+  referenceNo     : String, optional
+  transactionDate : Date, required
+  isAdvance       : Boolean, default false
+  isDeleted       : Boolean, default false
+  deletedAt       : Date
+  deletedBy       : String
+  timestamps      : createdAt, updatedAt
+
+Payment status calculation (computed on read, not stored):
+  totalPaid = sum of (Payment + Advance + Adjustment amounts) - Refund amounts
+  "Paid"           if totalPaid >= totalPrice (bed-charge-inclusive)
+  "Partially Paid" if totalPaid > 0
+  "Unpaid"         if totalPaid = 0
+
+================================================================================
+## 6. RESPONSE SHAPE — GET /ipd/:id and GET /ipd (list)
+================================================================================
+
+Both endpoints return the same enriched shape:
+
+  {
+    _id, ipdId, receiptId,
+    patientId, doctorId, bedId,
+    admissionDate, dischargeDate, isDischarge,
+    reason, notes, status,
+    isMLC, mlc (with documentUrl as signed URL if present),
+
+    billingCharges: [ ...stored charges with chargeId, type, units, totalCharge, ... ],
+
+    bedCharge: {                    ← computed on the fly, null if no bed
+      wardId, wardName, chargePerDay,
+      fromDate, toDate, days, totalCharge
+    },
+
+    subtotal,                       ← stored subtotal + bedCharge.totalCharge
+    discount,
+    totalPrice,                     ← stored totalPrice recalculated with bed charge
+
+    patient:  { _id, mrd, title, name, phone, age, months, days, gender, bloodGroup, address },
+    doctor:   { _id, doctorId, name, department, designation, phone },
+    bed:      { _id, bedId, bedNumber, wardId, status, ward: { _id, wardId, name, chargePerDay } },
+
+    transactions: [ ...HospitalTransaction docs ],
+    amountPaid,
+    paymentStatus,                  ← "Paid" | "Partially Paid" | "Unpaid"
+
+    createdBy, createdByUser (single GET only): { name, role, username },
+    createdAt, updatedAt
+  }

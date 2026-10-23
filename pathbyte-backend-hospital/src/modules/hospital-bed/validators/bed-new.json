@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bedNumber", "wardId"],
+  "properties": {
+    "bedNumber": { "type": "string", "minLength": 1 },
+    "wardId":    { "type": "string", "minLength": 1 },
+    "chargePerDay": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Optional bed-level daily charge. When set, overrides the ward's chargePerDay for this bed."
+    }
+  }
+}

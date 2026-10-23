@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["Created", "InProgress", "PayNow", "Completed", "Cancelled"],
+      "description": "New status for the pharma token"
+    }
+  },
+  "required": ["status"],
+  "additionalProperties": false
+}

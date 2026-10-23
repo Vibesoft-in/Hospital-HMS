@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goel Diagnostics Center - Diagnostic Report</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Tahoma, Arial, sans-serif;
+      }
+
+      body {
+        line-height: 0.9;
+        font-family: Tahoma, Arial, sans-serif;
+        background: #f5f5f5;
+        color: black;
+        line-height: 1.4;
+        font-size: 14px;
+        padding: 20px;
+      }
+
+      body::before,
+      body::after {
+        display: none !important;
+      }
+
+      .report-container {
+        display: flex;
+        justify-content: center;
+      }
+
+      .report {
+        width: 100%;
+        max-width: 900px;
+        background: #fff;
+        border-radius: 8px;
+        padding: 30px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+      }
+
+      .logo-section {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .logo {
+        color: #2e37a4;
+        font-weight: 800;
+        font-size: 65px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .company-info {
+        flex: 1;
+      }
+
+      .company-name {
+        color: #2e37a4;
+        font-size: 25px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .contact-info p {
+        font-size: 15px;
+      }
+
+      .business-address {
+        text-align: right;
+      }
+
+      .business-address p {
+        font-size: 13px;
+      }
+
+      .patient-card {
+        border-radius: 12px;
+        padding: 8px;
+      }
+
+      .patient-info-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      .patient-info-table td {
+        padding: 6px 8px;
+        border: 1px solid #dee2e6;
+        vertical-align: middle;
+        font-size: 13px;
+      }
+
+      .info-label-cell {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        width: 20%;
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      .info-value-cell {
+        background-color: #ffffff;
+        font-weight: 500;
+        color: #212529;
+        width: 30%;
+        text-align: left;
+      }
+
+      /* Right column alignment for symmetry */
+      .info-value-cell:nth-child(4) {
+        text-align: left;
+      }
+
+      .info-value-cell-full {
+        background-color: #ffffff;
+        font-weight: 500;
+        color: #212529;
+        text-align: left;
+      }
+
+      /* Ensure proper spacing for empty cells */
+      .info-value-cell:empty::after {
+        content: "\00a0"; /* Non-breaking space */
+      }
+
+      .card-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+      }
+
+      .section-title {
+        margin-bottom: 2px;
+        font-size: 13px;
+      }
+
+      .patient-name {
+        display: flex;
+        font-size: 14px;
+      }
+
+      .patient-name p:nth-child(2) {
+        font-weight: 600;
+        margin-left: 3px;
+      }
+
+      .case-info {
+        display: flex;
+        font-size: 14px;
+      }
+
+      .case-info p:nth-child(2) {
+        font-weight: 600;
+        margin-left: 3px;
+      }
+
+      .patient-info {
+        display: flex;
+        font-size: 14px;
+        color: black;
+        line-height: 1.55;
+      }
+
+      .patient-info p:nth-child(2) {
+        font-weight: 600;
+        margin-left: 3px;
+      }
+
+      .info-label {
+        font-size: 13px;
+      }
+
+      .info-value,
+      .date-details {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .doctor-lastname {
+        font-size: 11px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .align-right {
+        text-align: right;
+      }
+
+      .test-category {
+        margin-bottom: 15px;
+        padding-top: 6px;
+      }
+
+      .category-title {
+        text-decoration: underline;
+        text-align: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: #0a1b39;
+        position: relative;
+        margin: 0;
+      }
+
+      .category-subtitle {
+        display: block;
+        width: max-content;
+        margin: 8px auto 18px;
+        text-align: center;
+        font-weight: 700;
+        color: #0a1b39;
+        position: relative;
+      }
+
+      .category-subtitle::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -6px;
+        width: 64px;
+        height: 2px;
+        background: #0a1b39;
+        border-radius: 1px;
+      }
+
+      .group-title {
+        color: black;
+        font-size: 14px;
+        margin: 10px 0 1px 0;
+      }
+
+      .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        background: #fff;
+        border: none;
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 13.5px;
+      }
+
+      .results-table th,
+      .results-table td {
+        padding: 1.5px 1.5px;
+        font-size: 14px;
+        font-weight: 500;
+        color: black;
+        vertical-align: middle;
+      }
+
+      .group-row td {
+        border-right: none;
+        border-left: none;
+      }
+
+      .show-colors .group-row td {
+        background: #e0e0ff;
+      }
+
+      .results-table th {
+        color: black;
+        font-weight: 700;
+        padding: 17px 8px 8px 8px;
+        text-align: left;
+        border: none;
+        text-decoration: underline;
+      }
+
+      .results-table td:nth-child(1),
+      .results-table th:nth-child(1) {
+        text-align: left;
+        padding-left: 8px;
+        max-width: 200px;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.3;
+      }
+
+      .results-table th:nth-child(2) {
+        text-align: left;
+      }
+
+      .results-table td:nth-child(2) {
+        text-align: left;
+        width: 160px !important;
+        min-width: 140px;
+        padding-left: 24px;
+        position: relative;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.3;
+      }
+
+      .results-table th:nth-child(3),
+      .results-table td:nth-child(3) {
+        width: 80px !important;
+        text-align: left;
+        padding-left: 12px;
+        white-space: nowrap;
+      }
+
+      .results-table th:nth-child(4),
+      .results-table td:nth-child(4) {
+        width: 160px !important;
+        min-width: 160px;
+        text-align: right;
+        padding-right: 12px;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+
+      .results-table th:nth-child(5) {
+        width: 90px !important;
+        text-align: left;
+      }
+
+      .results-table th:nth-child(6) {
+        text-align: left;
+      }
+
+      .results-table tbody {
+        line-height: 1;
+      }
+
+      .results-table td.red-value,
+      .results-table td .red-value,
+      .low-value {
+        font-weight: 700;
+        padding-right: 15px;
+      }
+
+      .results-table tr.sub-row td:nth-child(1) {
+        padding-left: 32px;
+      }
+
+      .results-table tr.sub-row td {
+        padding-top: 1px;
+        padding-bottom: 1px;
+      }
+
+      /* Preserve spaces/tabs in test and characteristic names only */
+      .results-table tbody td:nth-child(1) strong,
+      .results-table tbody td:nth-child(1) span {
+        white-space: pre-wrap;
+      }
+
+      .clinical-notes {
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        color: #0a1b39;
+      }
+
+      .clinical-notes h3 {
+        font-size: 17px;
+        margin-bottom: 10px;
+      }
+
+      .clinical-notes p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #0a1b39;
+        font-weight: 600;
+      }
+
+      .image-slot {
+        margin: 25px 0;
+        text-align: center;
+      }
+
+      .image-placeholder {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px;
+        background: #f9f9f9;
+        font-size: 15px;
+        color: #0a1b39;
+      }
+
+      .possible-causes {
+        margin-bottom: 30px;
+      }
+
+      .possible-causes h3 {
+        font-size: 17px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 5px;
+      }
+
+      .causes-grid {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .cause-category {
+        flex: 1;
+        min-width: 200px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+      }
+
+      .cause-category h4 {
+        color: #0a1b39;
+        font-size: 15px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+
+      .dashed-lines {
+        height: 60px;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 8px,
+          #ccc 8px,
+          #ccc 10px
+        );
+        border-radius: 4px;
+      }
+
+      .signatures {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+      }
+
+      .signature-left,
+      .signature-right {
+        flex: 1;
+        min-width: 200px;
+        text-align: center;
+      }
+
+      .signature-line {
+        width: 150px;
+        height: 2px;
+        background: #0a1b39;
+        margin: 0 auto 10px;
+        position: relative;
+      }
+
+      .signature-line::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -8px;
+        height: 18px;
+        background: linear-gradient(
+          45deg,
+          transparent 30%,
+          #0a1b39 30%,
+          #0a1b39 70%,
+          transparent 70%
+        );
+        background-size: 20px 20px;
+        animation: signature 2s ease-in-out infinite;
+      }
+
+      .test-footnotes pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: Consolas, Monaco, 'Courier New', monospace;
+        font-size: 10px;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      .category-row td {
+        padding: 6px 12px !important;
+      }
+
+      @keyframes signature {
+        0%,
+        100% {
+          opacity: 0.3;
+        }
+
+        50% {
+          opacity: 1;
+        }
+      }
+
+      .signature-right p:first-of-type {
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .signature-stamp {
+        width: 120px;
+        height: 80px;
+        margin: 0 auto 15px;
+        border: 2px solid #8b5cf6;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stamp-content {
+        text-align: center;
+        padding: 5px;
+      }
+
+      .stamp-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #8b5cf6;
+        margin: 2px 0;
+        line-height: 1.2;
+      }
+
+      .stamp-qualification,
+      .stamp-number {
+        font-size: 10px;
+        color: #6b7280;
+        margin: 2px 0;
+      }
+
+      .footer {
+        text-align: center;
+        border-top: 2px solid #e9ecef;
+        padding-top: 18px;
+      }
+
+      .not-valid {
+        color: #0a1b39;
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+      }
+
+      .work-timings {
+        font-size: 15px;
+        color: #0a1b39;
+        font-weight: 700;
+      }
+
+      .work-timings span {
+        color: #6b7280;
+      }
+
+      .footnotes-section {
+        margin-top: 30px;
+        padding-top: 10px;
+        border-top: 1px solid #ccc;
+        font-size: 0.85em;
+        color: #555;
+      }
+
+      .footnotes-section h3 {
+        font-size: 1em;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .footnotes-section ol {
+        padding-left: 20px;
+      }
+
+      .footnotes-section li {
+        margin-bottom: 4px;
+        line-height: 1.4;
+      }
+
+      .results-table .footnote-row {
+        page-break-inside: auto;
+        line-height: 1.2;
+      }
+
+      .results-table .footnote-row td {
+        padding: 4px 8px;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .results-table .footnote-row .test-footnotes {
+        margin: 0;
+      }
+
+      .red-value-inline {
+        font-weight: 700;
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .red-value-inline.flag-high {
+        color: #d10;
+      }
+
+      .red-value-inline.flag-low {
+        color: #0066cc;
+      }
+
+      /* -----------------------------------------------------------
+         COLOR PRINT MODE  �  only active when showColors=true
+         ----------------------------------------------------------- */
+
+      /* Force background printing */
+      .show-colors * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      /* -- H/L flag letter -- */
+      .show-colors .red-value-inline.flag-high {
+        color: #cc1100 !important;
+        font-weight: 800 !important;
+      }
+      .show-colors .red-value-inline.flag-low {
+        color: #0066cc !important;
+        font-weight: 800 !important;
+      }
+
+      /* -- Out-of-range value cell + all children -- */
+      .show-colors .results-table td.flag-high {
+        color: #cc1100 !important;
+        font-weight: 700 !important;
+      }
+      .show-colors .results-table td.flag-high strong,
+      .show-colors .results-table td.flag-high span:not(.red-value-inline) {
+        color: #cc1100 !important;
+        font-weight: 700 !important;
+      }
+      .show-colors .results-table td.flag-low {
+        color: #0066cc !important;
+        font-weight: 700 !important;
+      }
+      .show-colors .results-table td.flag-low strong,
+      .show-colors .results-table td.flag-low span:not(.red-value-inline) {
+        color: #0066cc !important;
+        font-weight: 700 !important;
+      }
+
+      /* -- Sibling strong after flag span (single-column layout) -- */
+      .show-colors .red-value-inline.flag-high ~ strong,
+      .show-colors .red-value-inline.flag-high + strong {
+        color: #cc1100 !important;
+        font-weight: 700 !important;
+      }
+      .show-colors .red-value-inline.flag-low ~ strong,
+      .show-colors .red-value-inline.flag-low + strong {
+        color: #0066cc !important;
+        font-weight: 700 !important;
+      }
+      .results-header td {
+        border: none !important;
+      }
+
+      .fixed-header {
+        border-collapse: collapse;
+      }
+
+      .fixed-header td {
+        border: none !important;
+      }
+
+      .fixed-header thead tr:first-child td {
+        border: none !important;
+        background: white !important; /* ensure no shading */
+        padding: 0 !important;
+      }
+
+      /* Single column layout specific styles */
+      .single-column-row td[colspan="3"] {
+        text-align: left !important;
+        padding-left: 8px !important;
+        padding-right: 12px !important;
+      }
+
+      @media print {
+        body {
+          background: white !important;
+          padding: 0 !important;
+          counter-reset: page;
+        }
+
+        body.show-colors {
+          background: #eef2f7 !important;
+        }
+
+        .report {
+          padding: 0 !important;
+        }
+
+        .print-on-new-page {
+          page-break-before: always;
+          border-top: none;
+        }
+
+        thead {
+          display: table-row-group;
+        }
+
+        .results-header thead {
+          display: table-header-group;
+        }
+        .results-header tfoot {
+          display: table-footer-group;
+        }
+        /* force header/footer repeating for the master table */
+        .master-results thead {
+          display: table-header-group !important;
+        }
+        .master-results tfoot {
+          display: table-footer-group !important;
+        }
+
+        /* table and rows printing behavior */
+        .master-results {
+          page-break-inside: auto;
+          border-collapse: collapse;
+          width: 100%;
+        }
+        .master-results tbody {
+          display: table-row-group;
+        }
+        .master-results tr {
+          page-break-inside: avoid;
+          page-break-after: auto;
+        }
+
+        /* small tweak so patient-card doesn't add extra page gap */
+        .master-results .patient-card {
+          margin: 0;
+        }
+
+        .patient-info-table {
+          page-break-inside: avoid;
+        }
+
+        .patient-info-table td {
+          border: 1px solid #000 !important;
+          font-size: 12px !important;
+        }
+
+        /* preserve color-mode borders */
+        .show-colors .patient-info-table td {
+          border: 1px solid #b3c6e8 !important;
+        }
+
+        /* keep footnote / footnote-row from splitting awkwardly */
+        .footnote-row {
+          page-break-inside: avoid;
+        }
+
+        /* Attachment pages � each image on its own page, no splitting */
+        .attachment-section {
+          page-break-before: always;
+        }
+        .attachment-image-page {
+          page-break-inside: avoid;
+          page-break-before: always;
+          text-align: center;
+          width: 100%;
+        }
+        .attachment-img {
+          max-width: 190mm !important;
+          max-height: 250mm !important;
+          width: auto !important;
+          height: auto !important;
+          object-fit: contain !important;
+          display: block !important;
+          margin: 0 auto !important;
+        }
+        .attachment-pdf-placeholder {
+          page-break-inside: avoid;
+          text-align: center;
+          padding: 40px 20px;
+          border: 2px dashed #aaa;
+          margin-bottom: 10px;
+          font-size: 13px;
+          color: #333;
+        }
+      }
+    </style>
+  </head>
+
+  <body{{#if showColors}} class="show-colors"{{/if}}>
+    <div class="report-container">
+      <div class="report">
+        <!-- MASTER TABLE: patient-card + repeating header -->
+        <table class="results-table master-results" id="master-results">
+          <thead>
+            <!-- patient-card inside thead so it repeats -->
+            <tr>
+              <td colspan="4" style="border: none; padding: 0">
+                <div class="patient-card">
+                  <!-- Table-formatted header matching the reference image -->
+                  <table class="patient-info-table">
+                    <tbody>
+                      <tr>
+                        <td class="info-label-cell">{{#if patient.hmsMrd}}MRD No:{{else}}UHID:{{/if}}</td>
+                        <td class="info-value-cell">{{#if patient.hmsMrd}}{{patient.hmsMrd}}{{else}}{{patient.patientId}}{{/if}}</td>
+                        <td class="info-label-cell">Registered On:</td>
+                        <td class="info-value-cell">{{createdAt}}</td>
+                      </tr>
+                      <tr>
+                        <td class="info-label-cell">Patient Name:</td>
+                        <td class="info-value-cell">{{capitalize patient.title}} {{patient.firstName}} {{patient.lastName}}</td>
+                        <td class="info-label-cell">Printed On:</td>
+                        <td class="info-value-cell">{{updatedAt}}</td>
+                      </tr>
+                      <tr>
+                        <td class="info-label-cell">Age / Gender:</td>
+                        <td class="info-value-cell">{{ageDisplay patient.age patient.months patient.days}} / {{patient.gender}}</td>
+                        <td class="info-label-cell">Case ID:</td>
+                        <td class="info-value-cell">{{caseId}}</td>
+                      </tr>
+                      <tr>
+                        <td class="info-label-cell">Ref. Consultant:</td>
+                        <td class="info-value-cell" colspan="3">Dr. {{doctor.firstName}} {{doctor.lastName}}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+
+            <!-- column headers (will repeat) -->
+            <tr>
+              <th>Investigation</th>
+              <th>Results</th>
+              <th>Units</th>
+              <th>Normal Range</th>
+            </tr>
+          </thead>
+
+          <!-- START tbody � we will inject all rows into this single tbody -->
+          <tbody>
+            {{#each categories}}
+            {{#if groupedTests.length}}
+            <!-- Category title row -->
+            <tr class="category-row {{#if categoryNewPage}}print-on-new-page{{/if}}">
+              <td colspan="4" style="padding:0;margin:0;line-height:0;font-size:0;border:none;">
+                {{#if @root.showColors}}<h2 class="category-title" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f1feff;border:1px solid #a2a2a3;padding:5px 12px;text-decoration:underline;line-height:normal;font-size:15px;">{{name}}</h2>{{else}}<h2 class="category-title">{{name}}</h2>{{/if}}
+              </td>
+            </tr>
+            {{else}}
+              {{#if ungroupedTests.length}}
+              <!-- Category title row -->
+              <tr class="category-row {{#if categoryNewPage}}print-on-new-page{{/if}}">
+                <td colspan="4" style="padding:0;margin:0;line-height:0;font-size:0;border:none;">
+                  {{#if @root.showColors}}<h2 class="category-title" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f1feff;border:1px solid #a2a2a3;padding:5px 12px;text-decoration:underline;line-height:normal;font-size:15px;">{{name}}</h2>{{else}}<h2 class="category-title">{{name}}</h2>{{/if}}
+                </td>
+              </tr>
+              {{/if}}
+            {{/if}}
+
+            {{#each groupedTests}}
+            {{#each caseTests}}
+            {{#if (or characteristics.length numberValue stringValue)}}
+            {{#if @first}}
+            <!-- Group title row -->
+            <tr
+              class="group-row {{#if ../groupFootnote.newPage}}print-on-new-page{{/if}}"
+            >
+              <td colspan="4" {{#if @root.showColors}}style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e0e0ff;padding-left:8px;border-top:none;"{{else}}style="padding-left: 8px; border-top: none"{{/if}}>
+                <h3 class="group-title">{{../name}}</h3>
+              </td>
+            </tr>
+            {{/if}}
+            {{#if singleColumn}}
+            <!-- Single column layout: test name in first column, result spans remaining 3 columns -->
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}} single-column-row">
+              <td style="padding: 6px 8px;">
+                <strong>{{removeEndAsterisk test.name}}</strong>
+              </td>
+              <td colspan="3" style="text-align: left !important; padding: 6px 8px 6px 8px !important;"><div style="white-space: normal; word-wrap: break-word; line-height: 1.4; text-align: left !important;">
+                  <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                    >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                  {{#if (endsWithAsterisk test.name)}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{else}}
+                    {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                      <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                      <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{/if}}
+                  {{/if}}
+                </div>
+              </td>
+            </tr>
+            {{else}}
+            <!-- Normal 4-column layout -->
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}}">
+              <td>
+                <strong>{{removeEndAsterisk test.name}}</strong>
+              </td>
+              <td class="{{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}">
+                <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                  >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span
+                >
+                {{#if (endsWithAsterisk test.name)}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{else}}
+                  {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                    <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                  {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                    <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                  {{else}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{/if}}
+                {{/if}}
+              </td>
+
+              <td>{{unit}}</td>
+              <td>
+                {{#unless characteristics.length}}
+                  {{formatReferenceRange appliedReferenceRange comment}}
+                {{/unless}}
+              </td>
+            </tr>
+            {{/if}}
+            {{/if}}
+
+            {{#each characteristics}}
+            {{#if singleColumn}}
+            <!-- Single column layout for characteristic -->
+            <tr class="sub-row single-column-row">
+              <td colspan="4" style="padding: 6px 8px 6px 32px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  {{#if (startsWithAsterisk name)}}
+                    <strong>{{removeEndAsterisk (removeAsterisk name)}}</strong>
+                  {{else}}
+                    <span>{{removeEndAsterisk name}}</span>
+                  {{/if}}
+                  {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                  {{else}}
+                  <div style="white-space: normal; word-wrap: break-word; line-height: 1.4;">
+                    <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                      >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                    {{#if (endsWithAsterisk name)}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{else}}
+                      {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                        <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                      {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                        <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                      {{else}}
+                        {{valueWithDecimal numberValue stringValue decimal}}
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                  {{/if}}
+                </div>
+              </td>
+            </tr>
+            {{else}}
+            <!-- Normal 4-column layout for characteristic -->
+            <tr class="sub-row">
+              <td>
+                {{#if (startsWithAsterisk name)}}
+                  <span><strong>{{removeEndAsterisk (removeAsterisk name)}}</strong></span>
+                {{else}}
+                  <span>{{removeEndAsterisk name}}</span>
+                {{/if}}
+              </td>
+              <td class="{{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}">
+                <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                  >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{#if (endsWithAsterisk name)}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{else}}
+                    {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                      <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                      <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{/if}}
+                  {{/if}}
+                {{/if}}
+              </td>
+
+              <td>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{unit}}
+                {{/if}}
+              </td>
+              <td>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{formatReferenceRange appliedReferenceRange comment}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/if}}
+            {{/each}} {{#if footnotes}} {{#if footnotes.footnote}}
+            <tr class="footnote-row">
+              <td colspan="4">
+                <div class="test-footnotes">
+                  <pre>{{{footnotes.footnote}}}</pre>
+                </div>
+              </td>
+            </tr>
+            {{/if}} {{/if}} {{/each}} {{#if groupFootnote}} {{#if
+            groupFootnote.groupFootnote}}
+            <tr class="footnote-row">
+              <td colspan="4">
+                <div class="test-footnotes">
+                  <pre>{{{groupFootnote.groupFootnote}}}</pre>
+                </div>
+              </td>
+            </tr>
+            {{/if}} {{/if}} {{/each}} 
+            
+            {{#each ungroupedTests}}
+            {{#if (or characteristics.length numberValue stringValue)}}
+            {{#if singleColumn}}
+            <!-- Single column layout: test name in first column, result spans remaining 3 columns -->
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}} single-column-row">
+              <td style="padding: 6px 8px;">
+                <strong>{{removeEndAsterisk test.name}}</strong>
+              </td>
+              <td colspan="3" style="text-align: left !important; padding: 6px 8px 6px 8px !important;"><div style="white-space: normal; word-wrap: break-word; line-height: 1.4; text-align: left !important;">
+                  <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                    >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                  {{#if (endsWithAsterisk test.name)}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{else}}
+                    {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                      <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                      <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{/if}}
+                  {{/if}}
+                </div>
+              </td>
+            </tr>
+            {{else}}
+            <!-- Normal 4-column layout -->
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}}">
+              <td>
+                <strong>{{removeEndAsterisk test.name}}</strong>
+              </td>
+              <td class="{{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}">
+                <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                  >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span
+                >
+                {{#if (endsWithAsterisk test.name)}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{else}}
+                  {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                    <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                  {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                    <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                  {{else}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{/if}}
+                {{/if}}
+              </td>
+
+              <td>{{unit}}</td>
+              <td>
+                {{#unless characteristics.length}}
+                  {{formatReferenceRange appliedReferenceRange comment}}
+                {{/unless}}
+              </td>
+            </tr>
+            {{/if}}
+            {{/if}}
+
+            {{#each characteristics}}
+            {{#if singleColumn}}
+            <!-- Single column layout for characteristic -->
+            <tr class="sub-row single-column-row">
+              <td colspan="4" style="padding: 6px 8px 6px 32px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  {{#if (startsWithAsterisk name)}}
+                    <strong>{{removeEndAsterisk (removeAsterisk name)}}</strong>
+                  {{else}}
+                    <span>{{removeEndAsterisk name}}</span>
+                  {{/if}}
+                  {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                  {{else}}
+                  <div style="white-space: normal; word-wrap: break-word; line-height: 1.4;">
+                    <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                      >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                    {{#if (endsWithAsterisk name)}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{else}}
+                      {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                        <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                      {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                        <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                      {{else}}
+                        {{valueWithDecimal numberValue stringValue decimal}}
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                  {{/if}}
+                </div>
+              </td>
+            </tr>
+            {{else}}
+            <!-- Normal 4-column layout for characteristic -->
+            <tr class="sub-row">
+              <td>
+                {{#if (startsWithAsterisk name)}}
+                  <span><strong>{{removeEndAsterisk (removeAsterisk name)}}</strong></span>
+                {{else}}
+                  <span>{{removeEndAsterisk name}}</span>
+                {{/if}}
+              </td>
+              <td class="{{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}">
+                <span class="red-value-inline {{conditionalFlagClass numberValue stringValue appliedReferenceRange @root.showColors}}"
+                  >{{conditionalFlagValue numberValue stringValue appliedReferenceRange @root.showColors}}</span>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{#if (endsWithAsterisk name)}}
+                    {{valueWithDecimal numberValue stringValue decimal}}
+                  {{else}}
+                    {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                      <strong style="{{conditionalFlagStyle numberValue stringValue appliedReferenceRange @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                      <strong style="{{possibleStringFlagStyle @root.showColors}}">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                    {{else}}
+                      {{valueWithDecimal numberValue stringValue decimal}}
+                    {{/if}}
+                  {{/if}}
+                {{/if}}
+              </td>
+
+              <td>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{unit}}
+                {{/if}}
+              </td>
+              <td>
+                {{#if (isHeaderWithNoValue name numberValue stringValue)}}
+                {{else}}
+                  {{formatReferenceRange appliedReferenceRange comment}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/if}}
+            {{/each}} {{#if footnotes}} {{#if footnotes.footnote}}
+            <tr class="footnote-row">
+              <td colspan="4">
+                <div class="test-footnotes">
+                  <pre>{{{footnotes.footnote}}}</pre>
+                </div>
+              </td>
+            </tr>
+            {{/if}} {{/if}} {{/each}} {{/each}}
+          </tbody>
+        </table>
+
+
+        {{#if attachmentBase64List.length}}
+        <div class="attachment-section">
+          {{#each attachmentBase64List}}
+          {{#if (startsWith this "__PDF__:")}}
+          <div class="attachment-pdf-placeholder">
+            <p style="font-size: 16px; margin-bottom: 8px;">PDF Document Attached</p>
+            <p style="color: #666; font-size: 11px;">This attachment is a PDF file and cannot be previewed inline.</p>
+          </div>
+          {{else}}
+          <div class="attachment-image-page">
+            <img src="{{this}}" class="attachment-img" />
+          </div>
+          {{/if}}
+          {{/each}}
+        </div>
+        {{/if}}
+
+    </div>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

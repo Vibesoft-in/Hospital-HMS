@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "visitId": { "type": "string" },
+    "generalInformation": {
+      "type": "object",
+      "properties": {
+        "machineNumber": { "type": "string" },
+        "uhid": { "type": "string" },
+        "technicianName": { "type": "string" },
+        "fiberVolume": { "type": ["number", "string"] },
+        "height": { "type": ["number", "string"] },
+        "heparinUse": { "type": "string" },
+        "preHdWeightToday": { "type": ["number", "string"] },
+        "lastPostHdWeight": { "type": ["number", "string"] },
+        "weightGain": { "type": ["number", "string"] },
+        "targetWeightLoss": { "type": ["number", "string"] },
+        "postHdWeightToday": { "type": ["number", "string"] },
+        "actualWeightLoss": { "type": ["number", "string"] },
+        "remainingWeightLoss": { "type": ["number", "string"] },
+        "targetDryWeight": { "type": ["number", "string"] },
+        "dialyzerUsageSingleUse": { "type": "boolean" },
+        "dialyzerUsageReuse": { "type": "boolean" },
+        "timesReused": { "type": ["number", "string"] },
+        "vascularAccessPresent": { "type": "boolean" },
+        "centralLineYes": { "type": "boolean" },
+        "centralLineNo": { "type": "boolean" },
+        "centralLineIJV": { "type": "boolean" },
+        "centralLineFemoral": { "type": "boolean" },
+        "avfSelected": { "type": "boolean" },
+        "avgSelected": { "type": "boolean" },
+        "ijvSelected": { "type": "boolean" },
+        "femoralSelected": { "type": "boolean" },
+        "tunneledCatheter": { "type": "boolean" },
+        "avfNeedleSize16G": { "type": "boolean" },
+        "avfNeedleSize17G": { "type": "boolean" },
+        "avfNeedleSizeOthers": { "type": "boolean" },
+        "avfNeedleSizeOthersValue": { "type": "string" },
+        "bruitThrillPresent": { "type": "boolean" },
+        "bruitThrillAbsent": { "type": "boolean" },
+        "bruitThrillNotApplicable": { "type": "boolean" },
+        "bolus": { "type": ["number", "string"] },
+        "hourly": { "type": ["number", "string"] },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" }
+      }
+    },
+    "preDialysisAssessment": {
+      "type": "object",
+      "properties": {
+        "bpStartHd": { "type": "string" },
+        "spo2": { "type": ["number", "string"] },
+        "bodyTemperature": { "type": ["number", "string"] },
+        "pulse": { "type": ["number", "string"] }
+      }
+    },
+    "monitoringReadings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timeOnHd": { "type": "string" },
+          "pr": { "type": ["number", "string"] },
+          "bp": { "type": "string" },
+          "bfr": { "type": ["number", "string"] },
+          "dfr": { "type": ["number", "string"] },
+          "ufr": { "type": ["number", "string"] },
+          "totalUf": { "type": ["number", "string"] },
+          "temperature": { "type": ["number", "string"] },
+          "dyna": { "type": ["number", "string"] },
+          "heparin": { "type": ["number", "string"] },
+          "rbs": { "type": ["number", "string"] }
+        },
+        "required": ["timeOnHd"]
+      }
+    },
+    "postDialysisAssessment": {
+      "type": "object",
+      "properties": {
+        "pulse": { "type": ["number", "string"] },
+        "bp": { "type": "string" },
+        "bodyTemperature": { "type": ["number", "string"] },
+        "postHdWeight": { "type": "string" },
+        "postHdWeightField2": { "type": "string" },
+        "ufRemoved": { "type": ["number", "string"] },
+        "prolongedBleedingField1": { "type": "string" },
+        "prolongedBleedingField2": { "type": "string" },
+        "bruitThrillAvfAvgField1": { "type": "string" },
+        "bruitThrillAvfAvgField2": { "type": "string" },
+        "bruitThrillAvfAvgField3": { "type": "string" },
+        "ktVAchieved": { "type": ["number", "string"] }
+      }
+    },
+    "complications": {
+      "type": "object",
+      "properties": {
+        "headache": { "type": "boolean" },
+        "rash": { "type": "boolean" },
+        "dyspnea": { "type": "boolean" },
+        "seizures": { "type": "boolean" },
+        "fever": { "type": "boolean" },
+        "cramps": { "type": "boolean" },
+        "chestPain": { "type": "boolean" },
+        "dialyzerReaction": { "type": "boolean" },
+        "hypotension": { "type": "boolean" },
+        "rigor": { "type": "boolean" },
+        "vomiting": { "type": "boolean" },
+        "pruritus": { "type": "boolean" },
+        "formSibring": { "type": "boolean" },
+        "hypoglycemia": { "type": "boolean" },
+        "hypertension": { "type": "boolean" },
+        "other": { "type": "string" },
+        "noComplication": { "type": "boolean" }
+      }
+    },
+    "treatmentGiven": {
+      "type": "object",
+      "properties": {
+        "epoDosage": { "type": ["number", "string"] },
+        "epoGivenBy": { "type": "string" },
+        "patientSignature": { "type": "string" },
+        "ivIronDose": { "type": ["number", "string"] },
+        "bloodTransfusionField1": { "type": "string" },
+        "bloodTransfusionField2": { "type": "string" },
+        "numberOfUnits": { "type": ["number", "string"] },
+        "bloodBankName": { "type": "string" },
+        "typeOfBlood": { "type": "string" },
+        "otherTreatmentGivenDrug": { "type": "string" }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "properties": {
+        "technicianSignature": { "type": "string" },
+        "doctorInCharge": { "type": "string" },
+        "patientSignature": { "type": "string" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["In Progress", "Completed", "Cancelled"]
+    }
+  }
+}

@@ -1,0 +1,346 @@
+# IPD API Design — CURRENT STATE
+# Base path: /api/v1/hospital
+# Auth: hospital-auth middleware on all routes
+
+================================================================================
+## WARD APIs
+================================================================================
+
+POST   /wards
+  Body: { name, chargePerDay, imageUrl?, description?, metadata? }
+  Response: { ward }
+  Notes: generates wardId (WARD00001)
+
+GET    /wards
+  Query: ?search=&page=1&limit=10
+  Response: { wards: [], pagination: { total, page, limit, totalPages } }
+
+GET    /wards/:id
+  Response: { ward }
+
+PUT    /wards/:id
+  Body: { name?, chargePerDay?, imageUrl?, description?, metadata? }
+  Response: { ward }
+
+DELETE /wards/:id
+  Response: 200
+  Notes: soft delete only
+
+================================================================================
+## BED APIs
+================================================================================
+
+POST   /beds
+  Body: { bedNumber, wardId }
+  Response: { bed }
+  Notes: generates bedId (BED00001); status defaults to "Available"
+
+GET    /beds
+  Query: ?wardId=&status=&search=&page=1&limit=10
+  Response: { beds: [], pagination }
+  Notes: populates ward details
+
+GET    /beds/:id
+  Response: { bed } with populated ward
+
+PUT    /beds/:id
+  Body: { bedNumber?, wardId?, status? }
+  Response: { bed }
+  Notes: "Occupied" is set automatically by IPD; staff can set Maintenance/Reserved
+
+DELETE /beds/:id
+  Response: 200
+  Notes: soft delete; fails if bed status is "Occupied"
+
+================================================================================
+## PROCEDURE PACKAGE APIs
+================================================================================
+
+POST   /procedure-packages
+  Body: { name, description?, procedureIds: string[] }
+  Response: { package }
+  Notes: generates packageId (PKG00001); fetches live procedure prices
+
+GET    /procedure-packages
+  Query: ?search=&page=1&limit=10
+  Response: { packages: [], pagination }
+
+GET    /procedure-packages/:id
+  Response: { package }
+
+PUT    /procedure-packages/:id
+  Body: { name?, description?, procedureIds?: string[] }
+  Response: { package }
+  Notes: if procedureIds provided, re-fetches and re-snapshots all procedures
+
+DELETE /procedure-packages/:id
+  Response: 200
+  Notes: soft delete
+
+================================================================================
+## IPD APIs
+================================================================================
+
+### Pre-flight Price Calculation
+
+POST   /ipd/calculate-price
+  Body:
+    {
+      billingCharges : BillingChargeInput[],
+      discount?      : number
+    }
+  Response:
+    {
+      billingCharges : ResolvedCharge[],   // with units, totalCharge on each
+      subtotal       : number,
+      discount       : number,
+      totalPrice     : number
+    }
+  Notes:
+    - No DB writes
+    - Does NOT include bed charge (bed charge is always computed on GET, not here)
+    - Doctor charge is NOT auto-injected here — pass explicitly if needed
+
+---
+
+### Create IPD
+
+POST   /ipd
+  Body (existing patient):
+    {
+      patientId        : string,
+      doctorId         : string,
+      bedId?           : string,
+      admissionDate?   : string,        // ISO date, defaults to now
+      reason?          : string,
+      notes?           : string,
+      billingCharges?  : BillingChargeInput[],
+      discount?        : number,
+      discountPassword?: string,        // required if discount > 0
+      isMLC?           : boolean,
+      mlc?             : MLCInput,
+      transaction?     : TransactionInput
+    }
+
+  Body (new patient — omit patientId, provide patientData):
+    {
+      patientData      : { title?, name, phone, age, gender, bloodGroup?, address? },
+      doctorId         : string,
+      bedId?           : string,
+      admissionDate?   : string,
+      reason?          : string,
+      notes?           : string,
+      billingCharges?  : BillingChargeInput[],
+      discount?        : number,
+      discountPassword?: string,
+      isMLC?           : boolean,
+      mlc?             : MLCInput,
+      transaction?     : TransactionInput
+    }
+
+  Logic:
+    1. Validate doctor exists
+    2. Validate bed is Available (if bedId provided)
+    3. Validate discount password (if discount > 0)
+    4. Auto-inject doctor charge from doctorId into billingCharges (if not already present)
+    5. Resolve all billing charges (live price fetch + snapshot)
+    6. Create patient if patientData provided (pre-validation runs before patient creation)
+    7. Create IPD document (generates ipdId, receiptId)
+    8. Occupy bed (if bedId)
+    9. Auto-create dialysis sessions for any isDialysis procedures
+    10. Create transaction (if provided)
+    11. Return populated IPD with bedCharge computed on the fly
+
+  Response: populated IPD + optional patient + optional transaction
+
+---
+
+### List IPDs
+
+GET    /ipd
+  Query:
+    ?search=           (patient name, mrd, ipdId — fuzzy)
+    ?status=           (Admitted | Discharged | LAMA | Cancelled)
+    ?doctorId=         (MongoDB _id)
+    ?patientId=        (MongoDB _id)
+    ?bedId=            (MongoDB _id)
+    ?isDischarge=      (true | false)
+    ?from=             (admissionDate >= this date, YYYY-MM-DD)
+    ?to=               (admissionDate <= this date, YYYY-MM-DD)
+    ?page=1
+    ?limit=10
+  Response:
+    {
+      ipds: [ ...enriched IPD objects ],
+      pagination: { total, page, limit, totalPages, hasNextPage, hasPrevPage }
+    }
+  Notes:
+    - Each IPD includes bedCharge (computed), overridden subtotal/totalPrice, paymentStatus
+    - Populates patient, doctor, bed+ward, transactions
+
+---
+
+### Get Single IPD
+
+GET    /ipd/:id
+  Response: fully populated IPD
+  Notes:
+    - Includes createdByUser (name, role, username)
+    - billingCharges of type "test" are fully populated with case data
+      (patient, casetests → test/group/category, transactions)
+    - bedCharge computed on the fly and injected
+    - mlc.documentUrl returned as signed S3 URL
+
+---
+
+### Update IPD
+
+PUT    /ipd/:id
+  Body:
+    {
+      bedId?            : string,       // change bed
+      admissionDate?    : string,
+      reason?           : string,
+      notes?            : string,
+      status?           : string,
+      isDischarge?      : boolean,      // true → discharge, release bed
+      dischargeDate?    : string,
+      billingCharges?   : BillingChargeInput[],  // replaces entire array
+      discount?         : number,
+      discountPassword? : string,
+      isMLC?            : boolean,
+      mlc?              : MLCInput | null,
+      transaction?      : TransactionInput
+    }
+  Response: populated IPD
+  Notes:
+    - isDischarge=true → status="Discharged", dischargeDate=now (or provided), bed released
+    - bedId change → old bed released, new bed occupied
+    - billingCharges update → full re-resolve + recalculate (doctor NOT auto-injected here)
+    - discount-only update → recalculates totals without touching billingCharges
+
+---
+
+### Delete IPD
+
+DELETE /ipd/:id
+  Response: 200
+  Notes: soft delete; releases bed if Admitted; soft-deletes related transactions
+
+---
+
+### Add Billing Charge(s)
+
+POST   /ipd/:id/billing
+  Body: BillingChargeInput | BillingChargeInput[]   (single object or array)
+  Response: populated IPD
+  Notes:
+    - Appends to existing billingCharges, recalculates totals
+    - Auto-creates dialysis sessions for isDialysis procedures
+
+---
+
+### Add / Update Bed Charge (manual override — optional)
+
+POST   /ipd/:id/billing/bed
+  Body: { fromDate: string, toDate: string }
+  Response: populated IPD
+  Notes:
+    - Stores a "bed" type entry in billingCharges (manual override)
+    - Replaces any existing stored bed charge
+    - The automatic on-the-fly bed charge (computed from ward.chargePerDay) is SEPARATE
+      from this stored one — if both exist, the stored one takes precedence in billingCharges
+      but the computed bedCharge field in the response always reflects the live calculation
+    - Requires IPD to have a bedId assigned
+
+---
+
+### Remove Billing Charge
+
+DELETE /ipd/:id/billing/:chargeId
+  Response: populated IPD
+  Notes: removes by chargeId (UUID), recalculates totals
+
+================================================================================
+## BillingChargeInput types
+================================================================================
+
+Procedure:
+  { type: "procedure", procedureId: string, units?: number }
+  → live price fetched, units default 1, totalCharge = price × units
+
+Procedure Package:
+  { type: "procedure_package", packageId: string, units?: number }
+  → each procedure's live price fetched, totalCharge = packageTotal × units
+
+Doctor:
+  { type: "doctor", doctorId: string, units?: number }
+  → charge from doctor.visitTypes where appointmentType = "IPD"
+  → error if not configured
+  → auto-injected from main doctorId on IPD creation
+
+Test:
+  { type: "test", caseId: string }
+  → totalAmount from case, units always 1
+
+================================================================================
+## MLCInput
+================================================================================
+
+  {
+    markOfIdentification? : string   (physical marks — scars, tattoos etc.)
+    thanaName?            : string   (police station name)
+    patientBroughtBy?     : string   (who brought the patient)
+    placeOfAccident?      : string   (location of incident)
+    documentUrl?          : string   (S3 key from POST /upload?folder=hospital/mlc)
+  }
+
+  Upload flow:
+    1. POST /api/v1/upload?folder=hospital/mlc  (multipart/form-data, field: "file")
+    2. Response: { originalUrl, signedUrl }
+    3. Pass originalUrl as mlc.documentUrl in IPD create/update
+    4. On every GET, documentUrl is returned as a fresh signed URL
+
+================================================================================
+## TransactionInput
+================================================================================
+
+  {
+    transactionType  : "Payment" | "Refund" | "Adjustment" | "Advance"
+    amount           : number
+    paymentMode      : "Cash" | "Card" | "UPI" | "Net Banking" | "Cheque" | "Insurance" | "Govt Backed"
+    referenceNo?     : string
+    transactionDate? : string    (ISO date, defaults to now)
+    isAdvance?       : boolean
+  }
+
+================================================================================
+## CASE API — ipdId linking
+================================================================================
+
+POST /cases  (pathlab endpoint)
+  Optional field: ipdId?: string
+
+  If ipdId provided:
+    - Validates IPD exists
+    - Saves ipdId on case
+    - Pushes "test" billing item to IPD.billingCharges
+    - Recalculates IPD totals
+
+================================================================================
+## DOCTOR — IPD charge configuration
+================================================================================
+
+PUT /doctors/:id
+  To add/update IPD charge on a doctor:
+  {
+    "visitTypes": [
+      { "visitType": "New", "appointmentType": "IPD", "charge": 1500 },
+      ...other visit types
+    ]
+  }
+  Notes:
+    - visitTypes is a full replacement array — send all entries together
+    - IPD service looks for appointmentType === "IPD" to get the charge
+    - Valid appointmentType values: "OPD", "Day Care", "IPD", "ICU", "Emergency"
+    - Valid visitType values: "New", "Emergency", "Follow-up", "Follow-up-report", "MR"

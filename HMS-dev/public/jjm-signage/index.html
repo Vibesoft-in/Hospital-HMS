@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJM Hospital - Scope of Services Digital Signage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=7">
+</head>
+
+<body class="theme-light">
+  <!-- Top Control Bar -->
+  <header class="top-controls no-print">
+    <div class="control-group brand-mini">
+      <span class="pulse-dot"></span>
+      <strong>4:3 Display Signage Mode</strong>
+      <span class="badge-ratio">4 Groups • 49 Original Services</span>
+    </div>
+    <div class="control-group actions">
+      <!-- Departments from Sheet Bottom Dropdown -->
+      <div class="dept-dropdown-wrapper">
+        <label for="deptSelect" class="dept-dropdown-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          <span>Dept:</span>
+        </label>
+        <select id="deptSelect" class="dept-dropdown-select" title="Select Department (From Excel Sheets)">
+          <option value="physiotherapy" selected>Physiotherapy (A3)</option>
+          <option value="radiology">Radiology (A3)</option>
+          <option value="paediatrics">Paediatrics</option>
+          <option value="orthopaedics">Orthopaedics</option>
+          <option value="nephrology">Nephrology</option>
+          <option value="anaesthesiology">Anaesthesiology</option>
+          <option value="emergency_medicine">Emergency Medicine</option>
+          <option value="neurosurgery">Neurosurgery</option>
+          <option value="general_surgery">General Surgery (A3)</option>
+          <option value="medicine">Medicine (A3)</option>
+          <option value="obg">OBG</option>
+        </select>
+      </div>
+
+      <button id="btnToggleAspect" class="btn-control" title="Toggle 4:3 Frame vs Fullscreen Stretch">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18M15 3v18" />
+        </svg>
+        <span>Frame: 4:3</span>
+      </button>
+      <button id="btnToggleTheme" class="btn-control" title="Toggle Light / Dark Signage Mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5" />
+          <path
+            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+        <span id="themeLabel">Dark Mode</span>
+      </button>
+      <button id="btnToggleDist" class="btn-control highlight"
+        title="Toggle between 14-14-14-7 and Balanced 13-12-12-12 Distribution">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+        <span id="distLabel">Layout: 14-14-14-7</span>
+      </button>
+      <div class="font-stepper">
+        <button id="btnFontDec" class="btn-icon" title="Decrease Font Size">A-</button>
+        <button id="btnFontReset" class="btn-icon" title="Reset Font Size">A</button>
+        <button id="btnFontInc" class="btn-icon" title="Increase Font Size">A+</button>
+      </div>
+      <button id="btnToggleHeader" class="btn-control" title="Hide This Header Bar (Shortcut: H)">
+        <svg id="headerEyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span id="headerToggleLabel">Hide Header</span>
+      </button>
+      <button id="btnFullscreen" class="btn-control btn-primary" title="Toggle Fullscreen for Wall Display">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+        </svg>
+        <span>Fullscreen (F)</span>
+      </button>
+      <button id="btnPrint" class="btn-control" title="Print 4:3 Signage">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" />
+        </svg>
+        <span>Print</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Pull tab to unhide Header Bar when hidden -->
+  <button id="btnRestoreTopBar" class="topbar-restore-pill no-print" title="Show Header Toolbar (Shortcut: H)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+    <span>Show Header (H)</span>
+  </button>
+
+  <!-- Main 4:3 Screen Wrapper -->
+  <main class="screen-outer-viewport ratio-locked" id="viewportContainer">
+    <div class="screen-canvas-4x3" id="screenCanvas">
+
+      <!-- Hospital Header Banner (Permanently Visible) -->
+      <section class="hospital-header" id="hospitalHeader">
+        <div class="header-center">
+          <div class="hospital-brand-row">
+            <img src="jjm_logo.png" alt="JJM Hospital Logo" class="hospital-logo" id="hospitalLogo">
+            <h1 class="hospital-title">JJM HOSPITAL</h1>
+          </div>
+          <p class="hospital-address">Jaspur Road, Kashipur, Uttarakhand - 244713 | NABH Accredited Healthcare</p>
+          <div class="department-badge">
+            <span class="dept-en">SCOPE OF SERVICES : DEPARTMENT OF PHYSIOTHERAPY</span>
+            <span class="dept-divider">•</span>
+            <span class="dept-hi">कार्यक्षेत्र : फिजियोथेरेपी विभाग</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 Columns Container with ONLY Original 49 Items -->
+      <section class="columns-grid dist-14" id="columnsGrid">
+
+        <!-- COLUMN 1: Items 1 - 14 (14 items) -->
+        <article class="service-column col-group-1" id="col1">
+          <div class="items-list" id="listCol1">
+            <div class="service-card" data-id="1"><span class="card-num">1</span>
+              <div class="card-content"><span class="item-en">LOW BACK AND CERVICAL PAIN WITH RADICULOPATHY</span><span
+                  class="item-hi">रेडिकुलोपैथी के साथ पीठ के निचले हिस्से और गर्दन का दर्द</span></div>
+            </div>
+            <div class="service-card" data-id="2"><span class="card-num">2</span>
+              <div class="card-content"><span class="item-en">SPINAL CORD INJURIES</span><span class="item-hi">रीढ़ की
+                  हड्डी की चोटें</span></div>
+            </div>
+            <div class="service-card" data-id="3"><span class="card-num">3</span>
+              <div class="card-content"><span class="item-en">BRACHIAL PLEXUS &amp; OTHER NERVE INJURIES</span><span
+                  class="item-hi">ब्रेकियल प्लेक्सस और अन्य नसों की चोटें</span></div>
+            </div>
+            <div class="service-card" data-id="4"><span class="card-num">4</span>
+              <div class="card-content"><span class="item-en">GUILLAIN BARRE SYNDROME</span><span
+                  class="item-hi">गिलेन-बैरे सिंड्रोम</span></div>
+            </div>
+            <div class="service-card" data-id="5"><span class="card-num">5</span>
+              <div class="card-content"><span class="item-en">BELL'S PALSY/FACIAL SYNKINESIS</span><span
+                  class="item-hi">बेल्स पाल्सी/फेशियल सिन्काइनेसिस</span></div>
+            </div>
+            <div class="service-card" data-id="6"><span class="card-num">6</span>
+              <div class="card-content"><span class="item-en">MULTIPLE SCLEROSIS</span><span class="item-hi">मल्टीपल
+                  स्क्लेरोसिस</span></div>
+            </div>
+            <div class="service-card" data-id="7"><span class="card-num">7</span>
+              <div class="card-content"><span class="item-en">STROKE</span><span class="item-hi">आघात</span></div>
+            </div>
+            <div class="service-card" data-id="8"><span class="card-num">8</span>
+              <div class="card-content"><span class="item-en">PARKINSON'S DISEASE</span><span class="item-hi">पार्किंसंस
+                  रोग</span></div>
+            </div>
+            <div class="service-card" data-id="9"><span class="card-num">9</span>
+              <div class="card-content"><span class="item-en">POLIOMYELITIS</span><span class="item-hi">पोलियो</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="10"><span class="card-num">10</span>
+              <div class="card-content"><span class="item-en">MUSCULAR DYSTOPHY</span><span class="item-hi">मस्कुलर
+                  डिस्ट्रॉफी</span></div>
+            </div>
+            <div class="service-card" data-id="11"><span class="card-num">11</span>
+              <div class="card-content"><span class="item-en">HEAD INJURY</span><span class="item-hi">सिर की चोट</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="12"><span class="card-num">12</span>
+              <div class="card-content"><span class="item-en">INCOORDINATION</span><span class="item-hi">असमन्वय</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="13"><span class="card-num">13</span>
+              <div class="card-content"><span class="item-en">STENOSIS</span><span class="item-hi">सन्निरोध</span></div>
+            </div>
+            <div class="service-card" data-id="14"><span class="card-num">14</span>
+              <div class="card-content"><span class="item-en">PROLAPSED INTERVERTEBRAL DISC (PIVD)</span><span
+                  class="item-hi">प्रोलेप्स्ड इंटरवर्टेब्रल डिस्क (PIVD)</span></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- COLUMN 2: Items 15 - 28 (14 items) -->
+        <article class="service-column col-group-2" id="col2">
+          <div class="items-list" id="listCol2">
+            <div class="service-card" data-id="15"><span class="card-num">15</span>
+              <div class="card-content"><span class="item-en">SYRINGOMYLIA</span><span
+                  class="item-hi">सिरिंगोमाइलिया</span></div>
+            </div>
+            <div class="service-card" data-id="16"><span class="card-num">16</span>
+              <div class="card-content"><span class="item-en">MERALGIA PARESTHETICA</span><span
+                  class="item-hi">मेरालजिया पेरेस्टेटिका</span></div>
+            </div>
+            <div class="service-card" data-id="17"><span class="card-num">17</span>
+              <div class="card-content"><span class="item-en">CEREBRAL PALSY</span><span class="item-hi">मस्तिष्क
+                  पक्षाघात</span></div>
+            </div>
+            <div class="service-card" data-id="18"><span class="card-num">18</span>
+              <div class="card-content"><span class="item-en">DELAYED DEVELOPMENTAL MILESTONES</span><span
+                  class="item-hi">विकास के पड़ावों में देरी</span></div>
+            </div>
+            <div class="service-card" data-id="19"><span class="card-num">19</span>
+              <div class="card-content"><span class="item-en">MUSCULAR DYSTOPHY</span><span class="item-hi">मस्कुलर
+                  डिस्ट्रॉफी</span></div>
+            </div>
+            <div class="service-card" data-id="20"><span class="card-num">20</span>
+              <div class="card-content"><span class="item-en">SPINA BIFIDA</span><span class="item-hi">स्पाइना
+                  बाइफिडा</span></div>
+            </div>
+            <div class="service-card" data-id="21"><span class="card-num">21</span>
+              <div class="card-content"><span class="item-en">CONGENITAL MUSCULAR DEFORMITIES</span><span
+                  class="item-hi">जन्मजात मांसपेशियों की विकृतियाँ</span></div>
+            </div>
+            <div class="service-card" data-id="22"><span class="card-num">22</span>
+              <div class="card-content"><span class="item-en">LOW BACK PAIN</span><span class="item-hi">पीठ के निचले भाग
+                  में दर्द</span></div>
+            </div>
+            <div class="service-card" data-id="23"><span class="card-num">23</span>
+              <div class="card-content"><span class="item-en">NECK PAIN</span><span class="item-hi">गर्दन में
+                  दर्द</span></div>
+            </div>
+            <div class="service-card" data-id="24"><span class="card-num">24</span>
+              <div class="card-content"><span class="item-en">TENNIS ELBOW</span><span class="item-hi">टेनिस
+                  कोहनी</span></div>
+            </div>
+            <div class="service-card" data-id="25"><span class="card-num">25</span>
+              <div class="card-content"><span class="item-en">GOLFER'S ELBOW</span><span class="item-hi">गोल्फर
+                  एल्बो</span></div>
+            </div>
+            <div class="service-card" data-id="26"><span class="card-num">26</span>
+              <div class="card-content"><span class="item-en">CERVICAL SPONDYLOSIS, SPONDYLOLISTHESIS</span><span
+                  class="item-hi">सर्वाइकल स्पोंडिलोसिस, स्पोंडिलोलिस्थेसिस</span></div>
+            </div>
+            <div class="service-card" data-id="27"><span class="card-num">27</span>
+              <div class="card-content"><span class="item-en">LUMBAR SPONDYLOSIS, SPONDYLOLISTHESIS</span><span
+                  class="item-hi">लंबर स्पोंडिलोसिस, स्पोंडिलोलिस्थेसिस</span></div>
+            </div>
+            <div class="service-card" data-id="28"><span class="card-num">28</span>
+              <div class="card-content"><span class="item-en">FROZEN SHOULDER</span><span class="item-hi">फ्रोजन
+                  शोल्डर</span></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- COLUMN 3: Items 29 - 42 (14 items) -->
+        <article class="service-column col-group-3" id="col3">
+          <div class="items-list" id="listCol3">
+            <div class="service-card" data-id="29"><span class="card-num">29</span>
+              <div class="card-content"><span class="item-en">POSTURAL PAIN &amp; DEFORMITIES</span><span
+                  class="item-hi">शरीर की गलत मुद्रा (पोस्चर) के कारण दर्द और विकृतियाँ</span></div>
+            </div>
+            <div class="service-card" data-id="30"><span class="card-num">30</span>
+              <div class="card-content"><span class="item-en">REPETITIVE STRAIN INJURIES (RSI)</span><span
+                  class="item-hi">बार-बार होने वाली खिंचाव की चोटें (RSI)</span></div>
+            </div>
+            <div class="service-card" data-id="31"><span class="card-num">31</span>
+              <div class="card-content"><span class="item-en">HEEL PAIN/FOOT PAIN</span><span class="item-hi">एड़ी का
+                  दर्द/पैर का दर्द</span></div>
+            </div>
+            <div class="service-card" data-id="32"><span class="card-num">32</span>
+              <div class="card-content"><span class="item-en">ROTATOR CUFF INJURY</span><span class="item-hi">रोटेटर कफ
+                  की चोट</span></div>
+            </div>
+            <div class="service-card" data-id="33"><span class="card-num">33</span>
+              <div class="card-content"><span class="item-en">SPRAINS &amp; STRAINS</span><span class="item-hi">मोच और
+                  खिंचाव</span></div>
+            </div>
+            <div class="service-card" data-id="34"><span class="card-num">34</span>
+              <div class="card-content"><span class="item-en">WHIPLASH INJURY</span><span class="item-hi">व्हिपलैश
+                  चोट</span></div>
+            </div>
+            <div class="service-card" data-id="35"><span class="card-num">35</span>
+              <div class="card-content"><span class="item-en">KNEE PAIN- LIGAMENT AND MENISCAL INJURIES</span><span
+                  class="item-hi">घुटने का दर्द - लिगामेंट और मेनिस्कस की चोटें</span></div>
+            </div>
+            <div class="service-card" data-id="36"><span class="card-num">36</span>
+              <div class="card-content"><span class="item-en">RHEUMATOID ARTHRITIS</span><span class="item-hi">रूमेटाइड
+                  गठिया</span></div>
+            </div>
+            <div class="service-card" data-id="37"><span class="card-num">37</span>
+              <div class="card-content"><span class="item-en">OSTEOARTHRITIS</span><span
+                  class="item-hi">ऑस्टियोआर्थराइटिस</span></div>
+            </div>
+            <div class="service-card" data-id="38"><span class="card-num">38</span>
+              <div class="card-content"><span class="item-en">FIBROMYALGIA</span><span
+                  class="item-hi">फाइब्रोमायल्जिया</span></div>
+            </div>
+            <div class="service-card" data-id="39"><span class="card-num">39</span>
+              <div class="card-content"><span class="item-en">AMPUTATION</span><span class="item-hi">विच्छेदन</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="40"><span class="card-num">40</span>
+              <div class="card-content"><span class="item-en">TOTAL KNEE REPLACMENT (TKR ) &amp; TOTAL HIP REPLACMENT
+                  (THR)</span><span class="item-hi">टोटल नी रिप्लेसमेंट (TKR) और टोटल हिप रिप्लेसमेंट (THR)</span></div>
+            </div>
+            <div class="service-card" data-id="41"><span class="card-num">41</span>
+              <div class="card-content"><span class="item-en">LIGAMENT TEAR, MENISCAL TEAR</span><span
+                  class="item-hi">लिगामेंट फटना, मेनिस्कस फटना</span></div>
+            </div>
+            <div class="service-card" data-id="42"><span class="card-num">42</span>
+              <div class="card-content"><span class="item-en">POST FRACTURE REHAB OF UPPER &amp; LOWER LIMB</span><span
+                  class="item-hi">हाथ और पैर की हड्डी टूटने के बाद रिहैबिलिटेशन (पुनर्वास)</span></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- COLUMN 4: Items 43 - 49 (7 items) + Department Info -->
+        <article class="service-column col-group-4" id="col4">
+          <div class="items-list items-list-col4" id="listCol4">
+            <div class="service-card" data-id="43"><span class="card-num">43</span>
+              <div class="card-content"><span class="item-en">CHRONIC OBSTRUCTIVE PULMONARY DISEASE (COPD)</span><span
+                  class="item-hi">क्रोनिक ऑब्सट्रक्टिव पल्मोनरी डिज़ीज़ (COPD)</span></div>
+            </div>
+            <div class="service-card" data-id="44"><span class="card-num">44</span>
+              <div class="card-content"><span class="item-en">BRONCHITIS</span><span class="item-hi">ब्रोंकाइटिस</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="45"><span class="card-num">45</span>
+              <div class="card-content"><span class="item-en">ASTHMA</span><span class="item-hi">अस्थमा</span></div>
+            </div>
+            <div class="service-card" data-id="46"><span class="card-num">46</span>
+              <div class="card-content"><span class="item-en">BRONCHIECTASIS</span><span
+                  class="item-hi">ब्रॉन्किएक्टेसिस</span></div>
+            </div>
+            <div class="service-card" data-id="47"><span class="card-num">47</span>
+              <div class="card-content"><span class="item-en">EMPYSEMA</span><span class="item-hi">एम्फाइसीमा</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="48"><span class="card-num">48</span>
+              <div class="card-content"><span class="item-en">PNEUMONIA</span><span class="item-hi">न्यूमोनिया</span>
+              </div>
+            </div>
+            <div class="service-card" data-id="49"><span class="card-num">49</span>
+              <div class="card-content"><span class="item-en">CARDIAC AND PULMONARY REHABILITATION AFTER
+                  SURGERY</span><span class="item-hi">सर्जरी के बाद कार्डियक और पल्मोनरी रिहैबिलिटेशन</span></div>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Footer Signage Bar -->
+      <footer class="hospital-footer">
+        <div class="footer-item emergency">
+          <span class="icon">🏥</span>
+          <span><strong>Physical Rehabilitation Center:</strong> Ground Floor, Block-B</span>
+        </div>
+        <div class="footer-item timings">
+          <span class="icon">⏱</span>
+          <span><strong>OPD Timings:</strong> Monday – Saturday: 9:00 AM – 5:00 PM</span>
+        </div>
+        <div class="footer-item helpline">
+          <span class="icon">📞</span>
+          <span><strong>Physiotherapy Helpline / Appointment:</strong> +91-5947-275000</span>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <script src="departments_data.js"></script>
+  <script src="app.js?v=8"></script>
+</body>
+
+</html>

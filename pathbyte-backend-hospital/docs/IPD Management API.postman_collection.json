@@ -1,0 +1,4742 @@
+{
+  "info": {
+    "name": "IPD Management API",
+    "description": "IPD module — Auth, Wards, Beds, Procedure Packages, IPD admissions. Run Auth/Login first, all tokens and IDs auto-fill. Pathlab cases linked via ipdId are stored as display-only charges and excluded from IPD subtotal/totalPrice.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{hospitalAccessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const skipAuth = ['/auth/login','/auth/refresh','/auth/logout'];",
+          "const url = pm.request.url.toString();",
+          "if (!skipAuth.some(p => url.includes(p)) && !pm.collectionVariables.get('hospitalAccessToken')) {",
+          "  console.warn('[IPD] No token — run Auth > Login first.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 401) {",
+          "  pm.collectionVariables.unset('hospitalAccessToken');",
+          "  console.warn('[IPD] 401 — token cleared, re-run Login.');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://hmsdevapi.kilobyte.live"
+    },
+    {
+      "key": "hospitalAccessToken",
+      "value": "",
+      "description": "Auto-filled by Login"
+    },
+    {
+      "key": "wardId",
+      "value": "",
+      "description": "Auto-filled on Create Ward"
+    },
+    {
+      "key": "bedId",
+      "value": "",
+      "description": "Auto-filled on Create Bed"
+    },
+    {
+      "key": "packageId",
+      "value": "",
+      "description": "Auto-filled on Create Procedure Package"
+    },
+    {
+      "key": "ipdId",
+      "value": "",
+      "description": "Auto-filled on Create IPD"
+    },
+    {
+      "key": "ipdReadableId",
+      "value": "",
+      "description": "e.g. IPD00001 — auto-filled on Create IPD"
+    },
+    {
+      "key": "patientId",
+      "value": "",
+      "description": "Auto-filled when new patient created via IPD, or set manually"
+    },
+    {
+      "key": "doctorId",
+      "value": "",
+      "description": "Set manually — MongoDB _id of a hospital doctor"
+    },
+    {
+      "key": "procedureId",
+      "value": "",
+      "description": "Set manually — MongoDB _id of a hospital procedure"
+    },
+    {
+      "key": "lastChargeId",
+      "value": "",
+      "description": "Auto-filled by Add Billing Charge — use as chargeId for Remove"
+    },
+    {
+      "key": "visitMongoId",
+      "value": "",
+      "description": "MongoDB _id of a HospitalVisit — set manually to test visit-to-IPD conversion"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Login first. Token auto-saves to hospitalAccessToken and is used by all other requests.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has accessToken', () => pm.expect(r.data).to.have.property('accessToken'));",
+                  "if (r.data && r.data.accessToken) {",
+                  "  pm.collectionVariables.set('hospitalAccessToken', r.data.accessToken);",
+                  "  console.log('[Auth] Logged in as:', r.data.user.email, '| Role:', r.data.user.role);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@hospital.com\",\n  \"password\": \"your_password_here\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "if (r.data && r.data.accessToken) {",
+                  "  pm.collectionVariables.set('hospitalAccessToken', r.data.accessToken);",
+                  "  console.log('[Auth] Token refreshed.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Uses the hospital_refresh_token cookie set by Login. No body needed."
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "console.log('[Auth] Profile:', r.data.user.email, '| Role:', r.data.user.role);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.unset('hospitalAccessToken');",
+                  "console.log('[Auth] Logged out — token cleared.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wards",
+      "item": [
+        {
+          "name": "Create Ward",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has wardId', () => pm.expect(r.data).to.have.property('wardId'));",
+                  "if (r.data && r.data._id) { pm.collectionVariables.set('wardId', r.data._id); console.log('[Ward] Created:', r.data.wardId, '_id:', r.data._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"General Ward A\",\n  \"chargePerDay\": 500,\n  \"nursingChargePerDay\": 150,\n  \"description\": \"Ground floor general ward\",\n  \"metadata\": { \"floor\": 1, \"wing\": \"East\" }\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Ward — Private Suite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "if (r.data) console.log('[Ward] Private Suite:', r.data.wardId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Private Suite\",\n  \"chargePerDay\": 2000,\n  \"nursingChargePerDay\": 400,\n  \"description\": \"Premium private rooms\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Wards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has wards array', () => pm.expect(r.data.wards).to.be.an('array'));",
+                  "console.log('[Wards] Total:', r.data.pagination && r.data.pagination.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Wards — Search by name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards?search=General",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "General"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ward by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wardId')) console.warn('[Ward] wardId not set — run Create Ward first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has name', () => pm.expect(r.data).to.have.property('name'));",
+                  "console.log('[Ward]', r.data.wardId, '| chargePerDay:', r.data.chargePerDay, '| nursingChargePerDay:', r.data.nursingChargePerDay);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards/{{wardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards",
+                "{{wardId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Ward",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wardId')) console.warn('[Ward] wardId not set — run Create Ward first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards/{{wardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards",
+                "{{wardId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chargePerDay\": 600,\n  \"nursingChargePerDay\": 200,\n  \"description\": \"Updated — 22 beds now available\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Ward",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wardId')) console.warn('[Ward] wardId not set — run Create Ward first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/wards/{{wardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "wards",
+                "{{wardId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Beds",
+      "item": [
+        {
+          "name": "Create Bed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wardId')) console.warn('[Bed] wardId not set — run Create Ward first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Status is Available', () => pm.expect(r.data.status).to.eql('Available'));",
+                  "if (r.data && r.data._id) { pm.collectionVariables.set('bedId', r.data._id); console.log('[Bed] Created:', r.data.bedId, '_id:', r.data._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bedNumber\": \"GA-101\",\n  \"wardId\": \"{{wardId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Bed — ICU",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "if (r.data) console.log('[Bed] ICU bed created:', r.data.bedId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bedNumber\": \"ICU-01\",\n  \"wardId\": \"{{wardId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Beds",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has beds array', () => pm.expect(r.data.beds).to.be.an('array'));",
+                  "console.log('[Beds] Total:', r.data.pagination && r.data.pagination.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Beds — Filter by Ward",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wardId')) console.warn('[Bed] wardId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds?wardId={{wardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ],
+              "query": [
+                {
+                  "key": "wardId",
+                  "value": "{{wardId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Beds — Available only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds?status=Available",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Available"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Beds — Occupied only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds?status=Occupied",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Occupied"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Bed by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[Bed] bedId not set — run Create Bed first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has ward populated', () => pm.expect(r.data).to.have.property('ward'));",
+                  "console.log('[Bed]', r.data.bedId, '| Status:', r.data.status, '| Ward:', r.data.ward && r.data.ward.name);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Bed — Set to Maintenance",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[Bed] bedId not set — run Create Bed first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Maintenance\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Bed — Back to Available",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Available\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Bed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[Bed] bedId not set — run Create Bed first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Bed — Occupied (should fail 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — cannot delete occupied bed', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Procedure Packages",
+      "item": [
+        {
+          "name": "Create Procedure Package",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[Package] procedureId not set — set it in collection variables.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has packageId', () => pm.expect(r.data).to.have.property('packageId'));",
+                  "pm.test('Has totalPrice', () => pm.expect(r.data.totalPrice).to.be.a('number'));",
+                  "if (r.data && r.data._id) { pm.collectionVariables.set('packageId', r.data._id); console.log('[Package] Created:', r.data.packageId, '| Total:', r.data.totalPrice); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dialysis Basic Package\",\n  \"description\": \"Standard dialysis session bundle\",\n  \"procedureIds\": [\"{{procedureId}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Procedure Package — Multi-procedure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "if (r.data) console.log('[Package] Multi-procedure created:', r.data.packageId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cardiac Care Bundle\",\n  \"description\": \"ECG + Echo + Consultation\",\n  \"procedureIds\": [\"{{procedureId}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "List Procedure Packages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has packages array', () => pm.expect(r.data.packages).to.be.an('array'));",
+                  "console.log('[Packages] Total:', r.data.pagination && r.data.pagination.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Procedure Packages — Search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages?search=Dialysis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Dialysis"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Procedure Package by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[Package] packageId not set — run Create Procedure Package first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has procedures', () => pm.expect(r.data.procedures).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages",
+                "{{packageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Procedure Package — Name only",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[Package] packageId not set — run Create Procedure Package first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages",
+                "{{packageId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dialysis Basic Package (Updated)\",\n  \"description\": \"Updated description\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Procedure Package — Re-snapshot procedures",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[Package] packageId not set.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[Package] procedureId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Procedures re-snapshotted', () => pm.expect(r.data.procedures).to.be.an('array'));",
+                  "console.log('[Package] Re-snapshotted totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages",
+                "{{packageId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"procedureIds\": [\"{{procedureId}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Procedure Package",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[Package] packageId not set — run Create Procedure Package first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/procedure-packages/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "procedure-packages",
+                "{{packageId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Calculate Price",
+      "item": [
+        {
+          "name": "Calculate Price — Procedure + Doctor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has subtotal', () => pm.expect(r.data).to.have.property('subtotal'));",
+                  "pm.test('Has totalPrice', () => pm.expect(r.data).to.have.property('totalPrice'));",
+                  "pm.test('Has billingCharges', () => pm.expect(r.data.billingCharges).to.be.an('array'));",
+                  "console.log('[IPD] subtotal:', r.data.subtotal, '| totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/calculate-price",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "calculate-price"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billingCharges\": [\n    { \"type\": \"procedure\", \"procedureId\": \"{{procedureId}}\", \"units\": 1 },\n    { \"type\": \"doctor\", \"doctorId\": \"{{doctorId}}\", \"units\": 1 }\n  ],\n  \"discount\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Pre-flight price check. Doctor charge is auto-injected from doctorId on create — but you can also pass it explicitly here. Each charge returns `units`, `totalCharge` (= unitPrice × units)."
+          }
+        },
+        {
+          "name": "Calculate Price — Procedure × 2 units + Doctor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const proc = r.data.billingCharges.find(c => c.type === 'procedure');",
+                  "pm.test('units=2 reflected in totalCharge', () => pm.expect(proc.totalCharge).to.eql(proc.price * 2));",
+                  "console.log('[IPD] procedure price:', proc.price, '× 2 =', proc.totalCharge, '| subtotal:', r.data.subtotal);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/calculate-price",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "calculate-price"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billingCharges\": [\n    { \"type\": \"procedure\", \"procedureId\": \"{{procedureId}}\", \"units\": 2 },\n    { \"type\": \"doctor\", \"doctorId\": \"{{doctorId}}\", \"units\": 1 }\n  ],\n  \"discount\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Shows units × price = totalCharge. Procedure done twice → totalCharge = price × 2."
+          }
+        },
+        {
+          "name": "Calculate Price — Package + Doctor + Discount",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[IPD] packageId not set — run Create Procedure Package first.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] subtotal:', r.data.subtotal, '| after discount:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/calculate-price",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "calculate-price"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billingCharges\": [\n    { \"type\": \"procedure_package\", \"packageId\": \"{{packageId}}\", \"units\": 1 },\n    { \"type\": \"doctor\", \"doctorId\": \"{{doctorId}}\", \"units\": 1 }\n  ],\n  \"discount\": 500\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Package totalCharge = packageTotal × units. Discount applied after subtotal."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Create",
+      "description": "ipdId and ipdReadableId auto-saved on every successful create. patientId auto-saved when new patient created inline.",
+      "item": [
+        {
+          "name": "Create IPD — Existing Patient, No Bed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set — set it in collection variables.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set — set it in collection variables.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has ipdId', () => pm.expect(r.data).to.have.property('ipdId'));",
+                  "pm.test('Status is Admitted', () => pm.expect(r.data.status).to.eql('Admitted'));",
+                  "pm.test('Patient populated', () => pm.expect(r.data.patient).to.have.property('name'));",
+                  "pm.test('Doctor populated', () => pm.expect(r.data.doctor).to.have.property('name'));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created:', r.data.ipdId, '| _id:', r.data._id, '| Patient:', r.data.patient && r.data.patient.name);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Chronic kidney disease\",\n  \"notes\": \"Patient on regular dialysis schedule\",\n  \"billingCharges\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Doctor charge is auto-injected from doctorId — no need to pass it in billingCharges. Additional charges can be added later via POST /:id/billing."
+          }
+        },
+        {
+          "name": "Create IPD — Existing Patient, With Bed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set — run Create Bed first.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has bed populated', () => pm.expect(r.data.bed).to.have.property('bedNumber'));",
+                  "pm.test('Bed has ward', () => pm.expect(r.data.bed.ward).to.have.property('name'));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created:', r.data.ipdId, '| Bed:', r.data.bed && r.data.bed.bedNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Post-surgery recovery\",\n  \"billingCharges\": [\n    { \"type\": \"procedure\", \"procedureId\": \"{{procedureId}}\", \"units\": 1 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Doctor charge auto-injected. Procedure with units=1. Add bed charge separately via POST /:id/billing/bed after admission."
+          }
+        },
+        {
+          "name": "Create IPD — Existing Patient, With Bed + Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set — run Create Bed first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has transaction', () => pm.expect(r.data.transaction).to.have.property('transactionId'));",
+                  "pm.test('paymentStatus set', () => pm.expect(r.data.paymentStatus).to.be.oneOf(['Paid','Partially Paid','Unpaid']));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created:', r.data.ipdId, '| paymentStatus:', r.data.paymentStatus);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Hypertension management\",\n  \"billingCharges\": [],\n  \"transaction\": {\n    \"transactionType\": \"Advance\",\n    \"amount\": 2000,\n    \"paymentMode\": \"Cash\",\n    \"isAdvance\": true\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Doctor charge auto-injected. Advance payment recorded at admission time."
+          }
+        },
+        {
+          "name": "Create IPD — New Patient (patientData), With Bed + Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set — run Create Bed first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has ipdId', () => pm.expect(r.data).to.have.property('ipdId'));",
+                  "pm.test('Patient created with MRD', () => pm.expect(r.data.patient).to.have.property('mrd'));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  if (r.data.patient && r.data.patient._id) pm.collectionVariables.set('patientId', r.data.patient._id);",
+                  "  console.log('[IPD] Created:', r.data.ipdId, '| New patient MRD:', r.data.patient && r.data.patient.mrd);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientData\": {\n    \"title\": \"Mr.\",\n    \"name\": \"Ramesh Kumar\",\n    \"phone\": \"9876543210\",\n    \"age\": 55,\n    \"months\": 6,\n    \"days\": 10,\n    \"dob\": \"1970-11-05\",\n    \"gender\": \"Male\",\n    \"bloodGroup\": \"B+\",\n    \"address\": \"123 Main Street, Kashipur\",\n    \"email\": \"ramesh@example.com\",\n    \"aadharNo\": \"1234-5678-9012\",\n    \"ayushmanCardNo\": \"PMJAY-1234567890\",\n    \"companyName\": \"ABC Pvt Ltd\",\n    \"division\": \"Engineering\",\n    \"emergencyContacts\": [\n      { \"name\": \"Suresh Kumar\", \"number\": \"9876543211\" }\n    ]\n  },\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Diabetes complications\",\n  \"billingCharges\": [],\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 1000,\n    \"paymentMode\": \"UPI\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a new patient inline via patientData. All patient fields supported: title, name, phone, age, months, days, dob, gender, bloodGroup, address, email, aadharNo, ayushmanCardNo, companyName, division, emergencyContacts. Doctor charge auto-injected. patientId auto-saved from response."
+          }
+        },
+        {
+          "name": "Create IPD — With Procedure Package",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[IPD] packageId not set — run Create Procedure Package first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "const pkgCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'procedure_package');",
+                  "pm.test('Package charge present', () => pm.expect(pkgCharge).to.not.be.undefined);",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created with package:', r.data.ipdId, '| packageTotal:', pkgCharge && pkgCharge.packageTotal);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Dialysis package admission\",\n  \"billingCharges\": [\n    { \"type\": \"procedure_package\", \"packageId\": \"{{packageId}}\", \"units\": 1 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Doctor charge auto-injected. Package totalCharge = packageTotal × units."
+          }
+        },
+        {
+          "name": "Create IPD — isPackage Procedure, No Bed/Nursing Charges",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set — must be a procedure with isPackage: true.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('allowBedCharges is false', () => pm.expect(r.data.allowBedCharges).to.eql(false));",
+                  "pm.test('allowNursingCharges is false', () => pm.expect(r.data.allowNursingCharges).to.eql(false));",
+                  "pm.test('bedCharge is null', () => pm.expect(r.data.bedCharge).to.be.null);",
+                  "pm.test('nursingCharge is null', () => pm.expect(r.data.nursingCharge).to.be.null);",
+                  "const procCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'procedure');",
+                  "pm.test('Procedure charge has isPackage flag', () => pm.expect(procCharge && procCharge.isPackage).to.eql(true));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created (package proc, no bed/nursing):', r.data.ipdId, '| allowBedCharges:', r.data.allowBedCharges, '| allowNursingCharges:', r.data.allowNursingCharges);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Package procedure — bed/nursing charges suppressed\",\n  \"allowBedCharges\": false,\n  \"allowNursingCharges\": false,\n  \"billingCharges\": [\n    { \"type\": \"procedure\", \"procedureId\": \"{{procedureId}}\", \"units\": 1 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Use when the admitted procedure has isPackage: true — a procedure bundle that covers bed and nursing costs internally. The patient is still assigned a bed (bedId is sent and occupation/release logic runs normally), but allowBedCharges/allowNursingCharges: false means no monetary charge is added or frozen for bed/nursing. The bed is still marked Occupied on admission and Available on discharge."
+          }
+        },
+        {
+          "name": "Create IPD — With Discount (requires discountPassword)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Discount applied', () => pm.expect(r.data.discount).to.be.above(0));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created with discount:', r.data.ipdId, '| discount:', r.data.discount, '| totalPrice:', r.data.totalPrice);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Discounted admission\",\n  \"billingCharges\": [],\n  \"discount\": 500,\n  \"discountPassword\": \"your_discount_password_here\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Create IPD — MLC Case (with document)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');",
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('isMLC is true', () => pm.expect(r.data.isMLC).to.be.true);",
+                  "pm.test('mlc object present', () => pm.expect(r.data.mlc).to.be.an('object'));",
+                  "pm.test('mlc.documentUrl is signed URL', () => pm.expect(r.data.mlc.documentUrl).to.include('X-Amz-Signature'));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] MLC case created:', r.data.ipdId, '| thanaName:', r.data.mlc && r.data.mlc.thanaName);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Road accident injuries\",\n  \"isMLC\": true,\n  \"mlc\": {\n    \"markOfIdentification\": \"Scar on left forearm, tattoo on right shoulder\",\n    \"thanaName\": \"Kashipur Kotwali\",\n    \"patientBroughtBy\": \"Police — Constable Ramesh Singh\",\n    \"placeOfAccident\": \"NH-74, near Kashipur bypass\",\n    \"documentUrl\": \"hospital/mlc/REPLACE_WITH_S3_KEY_FROM_UPLOAD\"\n  },\n  \"billingCharges\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "MLC (Medico-Legal Case) admission. Upload the document first via POST /api/v1/upload?folder=hospital/mlc — use the returned `originalUrl` (S3 key) as `mlc.documentUrl`. On read, `documentUrl` is returned as a signed URL."
+          }
+        },
+        {
+          "name": "Create IPD — MLC Case (no document yet)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('isMLC is true', () => pm.expect(r.data.isMLC).to.be.true);",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] MLC (no doc) created:', r.data.ipdId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Assault injuries\",\n  \"isMLC\": true,\n  \"mlc\": {\n    \"thanaName\": \"Civil Lines\",\n    \"patientBroughtBy\": \"Family members\",\n    \"placeOfAccident\": \"Gandhi Chowk, Kashipur\"\n  },\n  \"billingCharges\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "MLC case without a document. Document can be added later via PUT /:id with mlc.documentUrl set to the S3 key from the upload endpoint."
+          }
+        },
+        {
+          "name": "Create IPD — Occupied Bed (should fail 409)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set — use an already-occupied bed to test this.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409 — bed already occupied', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"bedId\": \"{{bedId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Should fail — bed occupied\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create IPD — From Visit (visit-to-IPD conversion)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('visitId stored', () => pm.expect(r.data.visitId).to.be.a('string'));",
+                  "pm.test('visit populated', () => pm.expect(r.data.visit).to.have.property('visitId'));",
+                  "if (r.data && r.data._id) {",
+                  "  pm.collectionVariables.set('ipdId', r.data._id);",
+                  "  pm.collectionVariables.set('ipdReadableId', r.data.ipdId);",
+                  "  console.log('[IPD] Created from visit:', r.data.ipdId, '| linked visitId:', r.data.visitId, '| visit.appointmentId:', r.data.visit && r.data.visit.appointmentId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"visitId\": \"{{visitMongoId}}\",\n  \"admissionDate\": \"2026-05-15\",\n  \"reason\": \"Condition deteriorated — converting OPD visit to IPD admission\",\n  \"billingCharges\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Pass visitId (MongoDB _id of a HospitalVisit) to link this IPD to an existing visit. No hard logic — frontend handles patient/doctor pre-fill. The visit is populated on GET with: visitId, appointmentId, visitType, appointmentType, visitDate, visitTime, status, reason."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — List & Get",
+      "item": [
+        {
+          "name": "List IPDs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has ipds array', () => pm.expect(r.data.ipds).to.be.an('array'));",
+                  "pm.test('Has pagination', () => pm.expect(r.data.pagination).to.have.property('total'));",
+                  "if (r.data.ipds.length > 0) {",
+                  "  pm.test('Each IPD has paymentStatus', () => pm.expect(r.data.ipds[0]).to.have.property('paymentStatus'));",
+                  "  pm.test('Each IPD has paymentNotCleared field', () => pm.expect(r.data.ipds[0]).to.have.property('paymentNotCleared'));",
+                  "}",
+                  "console.log('[IPD] Total:', r.data.pagination && r.data.pagination.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "Admitted", "disabled": true, "description": "Admitted | Discharged | LAMA | DOR | Death | Refer | Cancelled" },
+                { "key": "doctorId", "value": "{{doctorId}}", "disabled": true },
+                { "key": "patientId", "value": "{{patientId}}", "disabled": true },
+                { "key": "bedId", "value": "{{bedId}}", "disabled": true },
+                { "key": "isDischarge", "value": "true", "disabled": true, "description": "true = discharged or LAMA" },
+                { "key": "paymentNotCleared", "value": "true", "disabled": true, "description": "Filter LAMA/Cancelled IPDs with outstanding dues" },
+                { "key": "search", "value": "", "disabled": true, "description": "Search by patient name, MRD, or ipdId" },
+                { "key": "startDate", "value": "2026-05-01", "disabled": true },
+                { "key": "endDate", "value": "2026-05-31", "disabled": true }
+              ]
+            },
+            "description": "List IPDs with pagination and filters.\n\n**Filters:**\n- status: Admitted | Discharged | LAMA | Cancelled\n- doctorId: filter by doctor\n- patientId: filter by patient\n- bedId: filter by bed\n- isDischarge: true/false\n- paymentNotCleared: true — surfaces LAMA/Cancelled IPDs with outstanding dues\n- search: patient name, MRD, or ipdId\n- startDate / endDate: filter by admissionDate range\n- date: single day filter"
+          }
+        },
+        {
+          "name": "List IPDs — Filter by Status (Admitted)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?status=Admitted",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Admitted"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List IPDs — Filter by Doctor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?doctorId={{doctorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ],
+              "query": [
+                {
+                  "key": "doctorId",
+                  "value": "{{doctorId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List IPDs — Filter by Patient",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('patientId')) console.warn('[IPD] patientId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?patientId={{patientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ],
+              "query": [
+                {
+                  "key": "patientId",
+                  "value": "{{patientId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List IPDs — Date Range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?from=2026-05-01&to=2026-05-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-05-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-05-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List IPDs — Search by patient name / ipdId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?search=Ramesh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Ramesh"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get IPD by ID (full population)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has ipdId', () => pm.expect(r.data).to.have.property('ipdId'));",
+                  "pm.test('Patient populated', () => pm.expect(r.data.patient).to.have.property('name'));",
+                  "pm.test('Doctor populated', () => pm.expect(r.data.doctor).to.have.property('name'));",
+                  "pm.test('Has billingCharges', () => pm.expect(r.data.billingCharges).to.be.an('array'));",
+                  "pm.test('Has amountPaid', () => pm.expect(r.data).to.have.property('amountPaid'));",
+                  "pm.test('Has paymentStatus', () => pm.expect(r.data.paymentStatus).to.be.oneOf(['Paid','Partially Paid','Unpaid']));",
+                  "pm.test('Has paymentNotCleared field', () => pm.expect(r.data).to.have.property('paymentNotCleared'));",
+                  "if (r.data.visitId) pm.test('visit populated when visitId set', () => pm.expect(r.data.visit).to.have.property('visitId'));",
+                  "if (r.data.dischargeSummary) pm.test('dischargeSummary has summaryStatus', () => pm.expect(r.data.dischargeSummary.summaryStatus).to.be.oneOf(['Draft','Finalized']));",
+                  "console.log('[IPD]', r.data.ipdId, '| status:', r.data.status, '| paymentStatus:', r.data.paymentStatus, '| amountPaid:', r.data.amountPaid, '/', r.data.totalPrice, '| visitId:', r.data.visitId || 'none', '| summaryStatus:', r.data.dischargeSummary && r.data.dischargeSummary.summaryStatus || 'none');",
+                  "if (r.data.bedCharge) console.log('[IPD] bedCharge — days:', r.data.bedCharge.days, '| total:', r.data.bedCharge.totalCharge);",
+                  "if (r.data.nursingCharge) console.log('[IPD] nursingCharge — days:', r.data.nursingCharge.days, '| nursingChargePerDay:', r.data.nursingCharge.nursingChargePerDay, '| total:', r.data.nursingCharge.totalCharge);",
+                  "else console.log('[IPD] nursingCharge: null (ward has no nursingChargePerDay or IPD is discharged — check billingCharges for frozen entry).');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}"]
+            },
+            "description": "Returns fully populated IPD including:\n- patient, doctor, bed+ward\n- visit (if visitId was set — basic visit details)\n- billingCharges (test charges include full caseData)\n- bedCharge (dynamic, computed from admissionDate → dischargeSummary.dischargeDate or now)\n- nursingCharge (dynamic, computed from ward.nursingChargePerDay × days; null if not configured or IPD is discharged — frozen into billingCharges instead)\n- transactions, amountPaid, paymentStatus\n- dischargeSummary (Draft or Finalized)\n- paymentNotCleared flag"
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Update",
+      "item": [
+        {
+          "name": "Update IPD — Add notes / reason",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Patient responding well to treatment. Continue monitoring.\",\n  \"reason\": \"Chronic kidney disease — updated\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update IPD — Add Advance Payment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('paymentStatus updated', () => pm.expect(r.data.paymentStatus).to.be.oneOf(['Paid','Partially Paid','Unpaid']));",
+                  "console.log('[IPD] After advance — amountPaid:', r.data.amountPaid, '| paymentStatus:', r.data.paymentStatus);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction\": {\n    \"transactionType\": \"Advance\",\n    \"amount\": 5000,\n    \"paymentMode\": \"Cash\",\n    \"isAdvance\": true\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Update IPD — Add Refund",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] After refund — amountPaid:', r.data.amountPaid, '| paymentStatus:', r.data.paymentStatus);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction\": {\n    \"transactionType\": \"Refund\",\n    \"amount\": 500,\n    \"paymentMode\": \"Cash\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Update IPD — Replace Billing Charges",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('subtotal recalculated', () => pm.expect(r.data.subtotal).to.be.a('number'));",
+                  "console.log('[IPD] Billing replaced — subtotal:', r.data.subtotal, '| totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billingCharges\": [\n    { \"type\": \"procedure\", \"procedureId\": \"{{procedureId}}\", \"units\": 1 },\n    { \"type\": \"doctor\", \"doctorId\": \"{{doctorId}}\", \"units\": 1 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Replaces the entire billingCharges array. Doctor charge is NOT auto-injected here — pass it explicitly if needed. Totals recalculate."
+          }
+        },
+        {
+          "name": "Update IPD — Change Bed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[IPD] bedId not set — use an available bed.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Bed updated', () => pm.expect(r.data.bed).to.have.property('bedNumber'));",
+                  "console.log('[IPD] Bed changed to:', r.data.bed && r.data.bed.bedNumber);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bedId\": \"{{bedId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update IPD — Discharge Patient (DEPRECATED — use POST /:id/discharge)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.warn('[IPD] This endpoint is deprecated. Use POST /ipd/:id/discharge instead.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — use discharge endpoint', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDischarge\": true,\n  \"dischargeDate\": \"2026-05-20\",\n  \"status\": \"Discharged\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "DEPRECATED. Discharge is now handled by POST /ipd/:id/discharge. Direct updates to isDischarge are blocked."
+          }
+        },
+        {
+          "name": "Update IPD — Set MLC / Update MLC document",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('isMLC is true', () => pm.expect(r.data.isMLC).to.be.true);",
+                  "pm.test('mlc.documentUrl is signed URL', () => pm.expect(r.data.mlc.documentUrl).to.include('X-Amz-Signature'));",
+                  "console.log('[IPD] MLC updated — thanaName:', r.data.mlc && r.data.mlc.thanaName);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isMLC\": true,\n  \"mlc\": {\n    \"markOfIdentification\": \"Scar on left forearm\",\n    \"thanaName\": \"Kashipur Kotwali\",\n    \"patientBroughtBy\": \"Police — Constable Ramesh Singh\",\n    \"placeOfAccident\": \"NH-74, near Kashipur bypass\",\n    \"documentUrl\": \"hospital/mlc/REPLACE_WITH_S3_KEY_FROM_UPLOAD\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Can be used to: (1) mark an existing IPD as MLC, (2) attach/update the MLC document. Upload the file first via POST /api/v1/upload?folder=hospital/mlc and use the returned `originalUrl` as `mlc.documentUrl`. The response will contain a signed URL."
+          }
+        },
+        {
+          "name": "Update IPD — Clear MLC flag",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('isMLC is false', () => pm.expect(r.data.isMLC).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isMLC\": false,\n  \"mlc\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Update IPD — LAMA (DEPRECATED — use POST /:id/lama)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.warn('[IPD] This endpoint is deprecated. Use POST /ipd/:id/lama instead.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — use lama endpoint', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDischarge\": true,\n  \"status\": \"LAMA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "DEPRECATED. LAMA is now handled by POST /ipd/:id/lama."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Discharge Summary (Draft)",
+      "description": "Fill the discharge summary progressively while the patient is still admitted. All fields optional. dischargeDate lives here — set it to preview the frozen bed charge. Call as many times as needed before finalizing.",
+      "item": [
+        {
+          "name": "Save Discharge Summary — Draft",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('dischargeSummary present', () => pm.expect(r.data.dischargeSummary).to.not.be.null);",
+                  "pm.test('summaryStatus is Draft', () => pm.expect(r.data.dischargeSummary.summaryStatus).to.eql('Draft'));",
+                  "console.log('[IPD] Draft saved — dischargeDate:', r.data.dischargeSummary.dischargeDate, '| totalPrice (with bed):', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge-summary"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dischargeDate\": \"2026-05-22\",\n  \"clinicalSummary\": \"Patient presented with fever, rigor, fatigue and cold for 4 days.\",\n  \"provisionalDiagnosis\": [\n    { \"icdCode\": \"\", \"diagnosisName\": \"Viral fever\" }\n  ],\n  \"finalDiagnosis\": [\n    { \"icdCode\": \"A09\", \"diagnosisName\": \"Hypertension\" }\n  ],\n  \"courseInHospital\": \"Patient was managed with IV fluids and antipyretics. Condition improved over 4 days.\",\n  \"treatmentGiven\": \"Appendicectomy done on Day 2.\",\n  \"conditionOnDischarge\": \"Stable\",\n  \"medicinesOnDischarge\": [\n    { \"medicineName\": \"CAPSULE PAN D Capsule 15'S\", \"duration\": \"5 days\", \"dosage\": \"1-0-1\", \"instructions\": \"after food\" },\n    { \"medicineName\": \"TABLET Zifi 200mg Tablet 10'S\", \"duration\": \"5 days\", \"dosage\": \"1-0-1\" }\n  ],\n  \"adviceOnDischarge\": [\n    \"Take medicines as prescribed\",\n    \"Drink plenty of fluids\",\n    \"Avoid oily and spicy food\",\n    \"Take rest for 5 days\"\n  ],\n  \"followUp\": \"Visit OPD after 7 days or in case of any severe symptoms\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Save or update the discharge summary draft. All fields optional — call multiple times. dischargeDate here drives the live bed charge preview on GET. Locked after discharge/LAMA/cancel."
+          }
+        },
+        {
+          "name": "Update Discharge Date Only (extend/reduce stay)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] dischargeDate updated to:', r.data.dischargeSummary.dischargeDate, '| new totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge-summary"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dischargeDate\": \"2026-05-25\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Only update the dischargeDate. The live bed charge on GET will recalculate immediately."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Finalize Discharge",
+      "description": "Finalize discharge. Checks: IPD must be Admitted, dischargeDate must be set and not in future, payment must be fully cleared (hard block). Freezes bed charge, locks summary, releases bed.",
+      "item": [
+        {
+          "name": "Discharge — Fully Paid",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Discharged', () => pm.expect(r.data.status).to.eql('Discharged'));",
+                  "pm.test('isDischarge is true', () => pm.expect(r.data.isDischarge).to.be.true);",
+                  "pm.test('summaryStatus is Finalized', () => pm.expect(r.data.dischargeSummary.summaryStatus).to.eql('Finalized'));",
+                  "pm.test('paymentStatus is Paid', () => pm.expect(r.data.paymentStatus).to.eql('Paid'));",
+                  "pm.test('bed charge frozen in billingCharges', () => { const bc = r.data.billingCharges.find(c => c.type === 'bed'); pm.expect(bc).to.not.be.undefined; });",
+                  "console.log('[IPD] Discharged:', r.data.ipdId, '| dischargeDate:', r.data.dischargeSummary.dischargeDate, '| totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Finalize discharge. dischargeDate must already be set in the discharge summary draft. Payment must be fully cleared. Optionally pass a final transaction to settle dues at the same time."
+          }
+        },
+        {
+          "name": "Discharge — With Final Payment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Discharged', () => pm.expect(r.data.status).to.eql('Discharged'));",
+                  "pm.test('paymentStatus is Paid', () => pm.expect(r.data.paymentStatus).to.eql('Paid'));",
+                  "console.log('[IPD] Discharged with final payment — totalPrice:', r.data.totalPrice, '| amountPaid:', r.data.amountPaid);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 5000,\n    \"paymentMode\": \"Cash\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Pass a transaction to settle the final balance at discharge time. The transaction is created first, then payment is verified."
+          }
+        },
+        {
+          "name": "Discharge — Payment Pending (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — payment pending', () => pm.response.to.have.status(400));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] Discharge blocked — reason:', r.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "If there is an outstanding balance and no transaction is passed to cover it, discharge returns 400 with the due amount."
+          }
+        },
+        {
+          "name": "Discharge — Future Date (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — future date', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/discharge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "discharge"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dischargeDate\": \"2099-01-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Discharge date cannot be in the future."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — LAMA (Left Against Medical Advice)",
+      "description": "Patient leaves against medical advice. No discharge summary required. Payment is NOT blocked — paymentNotCleared flag is set if dues remain. Bed charge frozen to lamaDate. Bed released.",
+      "item": [
+        {
+          "name": "LAMA — No Outstanding Balance",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is LAMA', () => pm.expect(r.data.status).to.eql('LAMA'));",
+                  "pm.test('isDischarge is true', () => pm.expect(r.data.isDischarge).to.be.true);",
+                  "pm.test('bed charge frozen', () => { const bc = r.data.billingCharges.find(c => c.type === 'bed'); if (bc) pm.expect(bc.toDate).to.not.be.undefined; });",
+                  "console.log('[IPD] LAMA:', r.data.ipdId, '| paymentNotCleared:', r.data.paymentNotCleared, '| totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/lama",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "lama"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lamaDate\": \"2026-05-22\",\n  \"reason\": \"Patient insisted on leaving against medical advice. AMA form signed.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Mark IPD as LAMA. lamaDate defaults to now if not provided. reason is optional. Bed charge is frozen to lamaDate."
+          }
+        },
+        {
+          "name": "LAMA — With Outstanding Balance (paymentNotCleared = true)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 — LAMA proceeds despite dues', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is LAMA', () => pm.expect(r.data.status).to.eql('LAMA'));",
+                  "pm.test('paymentNotCleared is true', () => pm.expect(r.data.paymentNotCleared).to.be.true);",
+                  "console.log('[IPD] LAMA with dues — paymentNotCleared:', r.data.paymentNotCleared, '| amountPaid:', r.data.amountPaid, '/', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/lama",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "lama"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Patient left without settling dues.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "LAMA proceeds even with outstanding balance. paymentNotCleared = true is set so billing staff can follow up. Use ?paymentNotCleared=true on the list endpoint to find these."
+          }
+        },
+        {
+          "name": "LAMA — With Final Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is LAMA', () => pm.expect(r.data.status).to.eql('LAMA'));",
+                  "console.log('[IPD] LAMA with payment — paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/lama",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "lama"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lamaDate\": \"2026-05-22\",\n  \"reason\": \"Patient insisted on leaving. Partial payment collected.\",\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 2000,\n    \"paymentMode\": \"Cash\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Optionally collect a payment at LAMA time. Transaction is created first, then paymentNotCleared is evaluated."
+          }
+        },
+        {
+          "name": "List IPDs with paymentNotCleared",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('All results have paymentNotCleared = true', () => { if (r.data.ipds.length > 0) r.data.ipds.forEach(i => pm.expect(i.paymentNotCleared).to.be.true); });",
+                  "console.log('[IPD] IPDs with pending payment:', r.data.pagination.total);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd?paymentNotCleared=true&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd"],
+              "query": [
+                { "key": "paymentNotCleared", "value": "true" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Filter IPDs where payment was not cleared at LAMA or Cancel time. Use this for billing follow-up."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — DOR (Discharge on Request)",
+      "description": "Patient or guardian formally requests discharge. Payment NOT blocked — paymentNotCleared flag set if dues remain. Bed charge frozen to dorDate. Bed released. isDischarge = true, status = DOR.",
+      "item": [
+        {
+          "name": "DOR — Basic",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is DOR', () => pm.expect(r.data.status).to.eql('DOR'));",
+                  "pm.test('isDischarge is true', () => pm.expect(r.data.isDischarge).to.be.true);",
+                  "pm.test('dorInfo.requestedBy present', () => pm.expect(r.data.dorInfo).to.have.property('requestedBy'));",
+                  "console.log('[IPD] DOR:', r.data.ipdId, '| requestedBy:', r.data.dorInfo && r.data.dorInfo.requestedBy, '| paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/dor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "dor"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestedBy\": \"Ramesh Kumar (Patient's son)\",\n  \"reason\": \"Family requested discharge to continue treatment at home.\",\n  \"dorDate\": \"2026-05-22\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Mark IPD as DOR. requestedBy is required. reason and dorDate are optional (dorDate defaults to now). Bed charge frozen to dorDate."
+          }
+        },
+        {
+          "name": "DOR — With Final Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is DOR', () => pm.expect(r.data.status).to.eql('DOR'));",
+                  "console.log('[IPD] DOR with payment — paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/dor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "dor"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestedBy\": \"Ramesh Kumar (Patient's son)\",\n  \"reason\": \"Family requested discharge.\",\n  \"dorDate\": \"2026-05-22\",\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 5000,\n    \"paymentMode\": \"Cash\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Collect a final payment at DOR time. Transaction is created first, then paymentNotCleared is evaluated."
+          }
+        },
+        {
+          "name": "DOR — Missing requestedBy (should fail 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — requestedBy required', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/dor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "dor"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No requestedBy provided\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "requestedBy is required for DOR — should return 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Death",
+      "description": "Patient expired during admission. Payment NOT blocked — paymentNotCleared flag set if dues remain. Bed charge frozen to deathDateTime. Bed released. isDischarge = true, status = Death.",
+      "item": [
+        {
+          "name": "Death — Basic",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Death', () => pm.expect(r.data.status).to.eql('Death'));",
+                  "pm.test('isDischarge is true', () => pm.expect(r.data.isDischarge).to.be.true);",
+                  "pm.test('deathInfo.deathDateTime present', () => pm.expect(r.data.deathInfo).to.have.property('deathDateTime'));",
+                  "console.log('[IPD] Death:', r.data.ipdId, '| deathDateTime:', r.data.deathInfo && r.data.deathInfo.deathDateTime, '| paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/death",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "death"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deathDateTime\": \"2026-05-22T14:30:00\",\n  \"cause\": \"Cardiac arrest — unresponsive to resuscitation.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Mark IPD as Death. deathDateTime is required (ISO string). cause is optional. Bed charge frozen to deathDateTime."
+          }
+        },
+        {
+          "name": "Death — With Final Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Death', () => pm.expect(r.data.status).to.eql('Death'));",
+                  "console.log('[IPD] Death with payment — paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/death",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "death"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deathDateTime\": \"2026-05-22T14:30:00\",\n  \"cause\": \"Cardiac arrest.\",\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 3000,\n    \"paymentMode\": \"Cash\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Optionally collect a final payment when marking death."
+          }
+        },
+        {
+          "name": "Death — Missing deathDateTime (should fail 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — deathDateTime required', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/death",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "death"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cause\": \"No deathDateTime provided\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "deathDateTime is required — should return 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Refer",
+      "description": "Patient transferred to another hospital. Payment NOT blocked — paymentNotCleared flag set if dues remain. Bed charge frozen to referDate. Bed released. isDischarge = true, status = Refer.",
+      "item": [
+        {
+          "name": "Refer — Basic",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Refer', () => pm.expect(r.data.status).to.eql('Refer'));",
+                  "pm.test('isDischarge is true', () => pm.expect(r.data.isDischarge).to.be.true);",
+                  "pm.test('referInfo.hospitalName present', () => pm.expect(r.data.referInfo).to.have.property('hospitalName'));",
+                  "console.log('[IPD] Refer:', r.data.ipdId, '| to:', r.data.referInfo && r.data.referInfo.hospitalName, '| paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/refer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "refer"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hospitalName\": \"AIIMS New Delhi\",\n  \"reason\": \"Patient requires advanced cardiac surgery not available here.\",\n  \"referDate\": \"2026-05-22\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Mark IPD as Refer. hospitalName is required. reason and referDate are optional (referDate defaults to now). Bed charge frozen to referDate."
+          }
+        },
+        {
+          "name": "Refer — With Final Transaction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Refer', () => pm.expect(r.data.status).to.eql('Refer'));",
+                  "console.log('[IPD] Refer with payment — paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/refer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "refer"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hospitalName\": \"AIIMS New Delhi\",\n  \"reason\": \"Advanced cardiac surgery required.\",\n  \"referDate\": \"2026-05-22\",\n  \"transaction\": {\n    \"transactionType\": \"Payment\",\n    \"amount\": 8000,\n    \"paymentMode\": \"UPI\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Collect a final payment at refer time."
+          }
+        },
+        {
+          "name": "Refer — Missing hospitalName (should fail 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — hospitalName required', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/refer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "refer"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No hospitalName provided\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "hospitalName is required for Refer — should return 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Cancel",
+      "description": "Administrative cancellation — IPD created in error or patient never admitted. Payment NOT blocked — paymentNotCleared flag set if dues remain. Bed charge frozen to cancellation time. Bed released. isDischarge stays false.",
+      "item": [
+        {
+          "name": "Cancel IPD",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('status is Cancelled', () => pm.expect(r.data.status).to.eql('Cancelled'));",
+                  "pm.test('isDischarge is false', () => pm.expect(r.data.isDischarge).to.be.false);",
+                  "console.log('[IPD] Cancelled:', r.data.ipdId, '| paymentNotCleared:', r.data.paymentNotCleared);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "cancel"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"IPD created in error — patient admitted to different ward.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Cancel an admitted IPD. reason is optional. Bed charge is frozen to the cancellation timestamp. isDischarge remains false (patient was never clinically discharged)."
+          }
+        },
+        {
+          "name": "Cancel Already-Discharged IPD (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — cannot cancel non-Admitted IPD', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "cancel"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Cancel is only allowed when status is Admitted."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Billing Charges",
+      "description": "Add one or multiple billing charge items at once. Remove by chargeId (stable identifier on each charge). Totals recalculate automatically.",
+      "item": [
+        {
+          "name": "Add Billing Charges — Single Procedure",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('billingCharges updated', () => pm.expect(r.data.billingCharges).to.be.an('array'));",
+                  "pm.test('each charge has chargeId', () => r.data.billingCharges.forEach(c => pm.expect(c).to.have.property('chargeId')));",
+                  "pm.test('subtotal recalculated', () => pm.expect(r.data.subtotal).to.be.a('number'));",
+                  "const added = r.data.billingCharges[r.data.billingCharges.length - 1];",
+                  "if (added && added.chargeId) { pm.collectionVariables.set('lastChargeId', added.chargeId); console.log('[IPD] Charge added — chargeId:', added.chargeId, '| subtotal:', r.data.subtotal); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}",
+                "billing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"type\": \"procedure\",\n    \"procedureId\": \"{{procedureId}}\",\n    \"units\": 1\n  }\n]",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Pass an array with one or more charge objects. Each resolved charge gets a unique chargeId, plus `units` and `totalCharge` (= unitPrice × units)."
+          }
+        },
+        {
+          "name": "Add Billing Charges — Multiple at Once",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('procedureId')) console.warn('[IPD] procedureId not set.');",
+                  "if (!pm.collectionVariables.get('doctorId')) console.warn('[IPD] doctorId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('billingCharges updated', () => pm.expect(r.data.billingCharges).to.be.an('array'));",
+                  "pm.test('each charge has chargeId', () => r.data.billingCharges.forEach(c => pm.expect(c).to.have.property('chargeId')));",
+                  "console.log('[IPD] Charges added — total charges:', r.data.billingCharges.length, '| subtotal:', r.data.subtotal);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}",
+                "billing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"type\": \"procedure\",\n    \"procedureId\": \"{{procedureId}}\",\n    \"units\": 1\n  },\n  {\n    \"type\": \"procedure\",\n    \"procedureId\": \"{{procedureId}}\",\n    \"units\": 2\n  },\n  {\n    \"type\": \"doctor\",\n    \"doctorId\": \"{{doctorId}}\",\n    \"units\": 1\n  }\n]",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Add multiple charges in one call. Second procedure has units=2 so its totalCharge = price × 2. Each gets its own chargeId."
+          }
+        },
+        {
+          "name": "Add Billing Charges — Procedure Package",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('packageId')) console.warn('[IPD] packageId not set — run Create Procedure Package first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const pkgCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'procedure_package');",
+                  "pm.test('Package charge added', () => pm.expect(pkgCharge).to.not.be.undefined);",
+                  "pm.test('Package charge has chargeId', () => pm.expect(pkgCharge).to.have.property('chargeId'));",
+                  "console.log('[IPD] Package charge added — chargeId:', pkgCharge && pkgCharge.chargeId, '| packageTotal:', pkgCharge && pkgCharge.packageTotal);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}",
+                "billing"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"type\": \"procedure_package\",\n    \"packageId\": \"{{packageId}}\",\n    \"units\": 1\n  }\n]",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Package totalCharge = packageTotal × units."
+          }
+        },
+        {
+          "name": "Add Billing Charges — Test (link pathlab case)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const testCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'test');",
+                  "pm.test('Test charge added', () => pm.expect(testCharge).to.not.be.undefined);",
+                  "pm.test('Test charge has chargeId', () => pm.expect(testCharge).to.have.property('chargeId'));",
+                  "pm.test('Test charge has totalAmount (pathlab bill total)', () => pm.expect(testCharge).to.have.property('totalAmount'));",
+                  "// IMPORTANT: test charges are display-only — they must NOT affect IPD subtotal/totalPrice",
+                  "// because pathlab billing is handled independently in the pathlab system.",
+                  "const subtotalWithoutTest = r.data.billingCharges",
+                  "  .filter(c => c.type !== 'test')",
+                  "  .reduce((sum, c) => sum + (c.totalCharge || 0), 0);",
+                  "pm.test('IPD subtotal excludes test charges', () => pm.expect(r.data.subtotal).to.eql(subtotalWithoutTest));",
+                  "console.log('[IPD] Test charge added — chargeId:', testCharge && testCharge.chargeId, '| pathlab totalAmount:', testCharge && testCharge.totalAmount, '| IPD subtotal (unchanged):', r.data.subtotal);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"type\": \"test\",\n    \"caseId\": \"REPLACE_WITH_CASE_MONGO_ID\"\n  }\n]",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Links a pathlab case to this IPD for display and bill printing. The test charge stores the pathlab case totalAmount but is intentionally excluded from IPD subtotal and totalPrice — pathlab billing is handled independently in the pathlab system."
+          }
+        },
+        {
+          "name": "Add Bed Charge — Dynamic (days × chargePerDay)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const bedCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'bed');",
+                  "const nursingCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'nursing');",
+                  "pm.test('Bed charge present', () => pm.expect(bedCharge).to.not.be.undefined);",
+                  "pm.test('Bed charge has units (days)', () => pm.expect(bedCharge.units).to.be.a('number'));",
+                  "pm.test('totalCharge = chargePerDay × days', () => pm.expect(bedCharge.totalCharge).to.eql(bedCharge.chargePerDay * bedCharge.units));",
+                  "console.log('[IPD] Bed charge — ward:', bedCharge && bedCharge.wardName, '| days:', bedCharge && bedCharge.units, '| chargePerDay:', bedCharge && bedCharge.chargePerDay, '| totalCharge:', bedCharge && bedCharge.totalCharge);",
+                  "if (nursingCharge) console.log('[IPD] Nursing charge — ward:', nursingCharge.wardName, '| days:', nursingCharge.units, '| nursingChargePerDay:', nursingCharge.nursingChargePerDay, '| totalCharge:', nursingCharge.totalCharge);",
+                  "else console.log('[IPD] No nursing charge (ward has no nursingChargePerDay set).');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/bed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "bed"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Calculates bed charge from the IPD's assigned bed → ward → chargePerDay × ceil(days). Replaces any existing bed charge (only one per IPD). Call again on discharge with the actual dischargeDate to finalize."
+          }
+        },
+        {
+          "name": "Add Bed Charge — On Discharge (finalize)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const bedCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'bed');",
+                  "const nursingCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'nursing');",
+                  "pm.test('Bed charge finalized', () => pm.expect(bedCharge).to.not.be.undefined);",
+                  "console.log('[IPD] Final bed charge — days:', bedCharge && bedCharge.units, '| total:', bedCharge && bedCharge.totalCharge, '| overall totalPrice:', r.data.totalPrice);",
+                  "if (nursingCharge) console.log('[IPD] Final nursing charge — days:', nursingCharge.units, '| nursingChargePerDay:', nursingCharge.nursingChargePerDay, '| total:', nursingCharge.totalCharge);",
+                  "else console.log('[IPD] No nursing charge frozen (ward has no nursingChargePerDay).');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/bed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "bed"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-22\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Re-call with the final dischargeDate to update the bed charge to the actual number of days. Previous bed charge is replaced automatically."
+          }
+        },
+        {
+          "name": "Add Bed Charge — No Bed Assigned (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD (no bed) first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — no bed assigned', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/bed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "bed"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Add Nursing Charge — Dynamic (days × nursingChargePerDay)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const nursingCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'nursing');",
+                  "pm.test('Nursing charge present', () => pm.expect(nursingCharge).to.not.be.undefined);",
+                  "pm.test('Nursing charge has units (days)', () => pm.expect(nursingCharge.units).to.be.a('number'));",
+                  "pm.test('totalCharge = nursingChargePerDay × days', () => pm.expect(nursingCharge.totalCharge).to.eql(nursingCharge.nursingChargePerDay * nursingCharge.units));",
+                  "console.log('[IPD] Nursing charge — ward:', nursingCharge && nursingCharge.wardName, '| days:', nursingCharge && nursingCharge.units, '| nursingChargePerDay:', nursingCharge && nursingCharge.nursingChargePerDay, '| totalCharge:', nursingCharge && nursingCharge.totalCharge);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/nursing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "nursing"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Adds or replaces the nursing charge using ward.nursingChargePerDay × ceil(days). Requires the IPD to have a bed assigned and allowNursingCharges to be true (default). Returns 400 if the ward has no nursingChargePerDay configured."
+          }
+        },
+        {
+          "name": "Add Nursing Charge — On Discharge (finalize)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const nursingCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'nursing');",
+                  "pm.test('Nursing charge finalized', () => pm.expect(nursingCharge).to.not.be.undefined);",
+                  "console.log('[IPD] Final nursing charge — days:', nursingCharge && nursingCharge.units, '| total:', nursingCharge && nursingCharge.totalCharge, '| overall totalPrice:', r.data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/nursing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "nursing"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-22\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Re-call with the actual dischargeDate to finalize the nursing charge. Replaces the previous nursing charge entry."
+          }
+        },
+        {
+          "name": "Add Nursing Charge — Not Allowed (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD with allowNursingCharges:false first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — nursing charges not allowed', () => pm.response.to.have.status(400));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] Expected error:', r.error || r.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/nursing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "nursing"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Use ipdId from an IPD created with allowNursingCharges: false. Should return 400 Nursing Charges Not Allowed."
+          }
+        },
+        {
+          "name": "Add Bed Charge — Not Allowed (should fail 400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD with allowBedCharges:false first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — bed charges not allowed', () => pm.response.to.have.status(400));",
+                  "const r = pm.response.json();",
+                  "console.log('[IPD] Expected error:', r.error || r.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/bed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hospital", "ipd", "{{ipdId}}", "billing", "bed"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromDate\": \"2026-05-15\",\n  \"toDate\": \"2026-05-20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Use ipdId from an IPD created with allowBedCharges: false. Should return 400 Bed Charges Not Allowed."
+          }
+        },
+        {
+          "name": "Remove Billing Charge by chargeId",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "if (!pm.collectionVariables.get('lastChargeId')) console.warn('[IPD] lastChargeId not set — run an Add Billing Charge request first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('subtotal recalculated', () => pm.expect(r.data.subtotal).to.be.a('number'));",
+                  "console.log('[IPD] Charge removed — remaining charges:', r.data.billingCharges.length, '| subtotal:', r.data.subtotal);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/{{lastChargeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}",
+                "billing",
+                "{{lastChargeId}}"
+              ]
+            },
+            "description": "Remove a specific charge by its chargeId (UUID on each billing item). chargeId is auto-saved from the last Add Billing Charge call."
+          }
+        },
+        {
+          "name": "Remove Billing Charge — Not Found (should fail 404)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 — charge not found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}/billing/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}",
+                "billing",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            },
+            "description": "Using a non-existent chargeId returns 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Transactions",
+      "description": "Add transactions directly via the transactions endpoint, linked to IPD via visitId.",
+      "item": [
+        {
+          "name": "List All Transactions (includes IPD)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const ipdTxn = r.data && r.data.find && r.data.find(t => t.appointmentType === 'IPD');",
+                  "if (ipdTxn) { pm.test('IPD transaction has appointmentType IPD', () => pm.expect(ipdTxn.appointmentType).to.eql('IPD')); console.log('[Txn] Found IPD transaction:', ipdTxn.transactionId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/transactions?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Advance Payment to IPD",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('isAdvance flag set', () => pm.expect(r.data.isAdvance).to.be.true);",
+                  "console.log('[Txn] Advance payment created:', r.data.transactionId, '| amount:', r.data.amount);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visitId\": \"{{ipdId}}\",\n  \"transactionType\": \"Advance\",\n  \"amount\": 3000,\n  \"paymentMode\": \"Cash\",\n  \"isAdvance\": true,\n  \"transactionDate\": \"2026-05-15\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Refund to IPD",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "console.log('[Txn] Refund created:', r.data.transactionId, '| amount:', r.data.amount);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "transactions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visitId\": \"{{ipdId}}\",\n  \"transactionType\": \"Refund\",\n  \"amount\": 500,\n  \"paymentMode\": \"Cash\",\n  \"transactionDate\": \"2026-05-16\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Pathlab Case Linking",
+      "description": "When a pathlab case is created with ipdId, it auto-pushes a test billing item to the IPD. The test charge is stored for display and bill printing only — it does NOT affect IPD subtotal or totalPrice because pathlab billing is handled independently.",
+      "item": [
+        {
+          "name": "Create Pathlab Case with ipdId (auto-links to IPD)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');",
+                  "// Note: record the current IPD subtotal before this call to verify it does not change after linking.",
+                  "pm.collectionVariables.set('subtotalBeforeCaseLink', '');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const caseData = r.data || r;",
+                  "pm.test('Case has ipdId', () => pm.expect(caseData).to.have.property('ipdId'));",
+                  "pm.test('Case ipdId matches current IPD', () => pm.expect(caseData.ipdId).to.eql(pm.collectionVariables.get('ipdId')));",
+                  "console.log('[Case] Created and linked to IPD:', pm.collectionVariables.get('ipdReadableId'), '| caseId:', caseData.caseId, '| totalAmount:', caseData.totalAmount);",
+                  "console.log('[Case] Now run \"Get IPD — Verify test charge and totals\" to confirm IPD subtotal is unchanged.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"REPLACE_WITH_PATHLAB_PATIENT_ID\",\n  \"center\": \"REPLACE_WITH_CENTER_ID\",\n  \"ipdId\": \"{{ipdId}}\",\n  \"tests\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a pathlab case linked to an active IPD. The case service fires-and-forgets a `_linkCaseToIPD` call that appends a `type: \"test\"` entry to the IPD's billingCharges array.\n\nCritically, the IPD's `subtotal` and `totalPrice` are NOT recalculated — pathlab billing is a separate concern."
+          }
+        },
+        {
+          "name": "Get IPD — Verify test charge and totals",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const testCharge = r.data.billingCharges && r.data.billingCharges.find(c => c.type === 'test');",
+                  "",
+                  "// Verify the test charge is present and fully populated",
+                  "pm.test('Test charge auto-added from case creation', () => pm.expect(testCharge).to.not.be.undefined);",
+                  "pm.test('Test charge has full caseData populated', () => pm.expect(testCharge && testCharge.caseData).to.not.be.null);",
+                  "pm.test('caseData has patient', () => pm.expect(testCharge && testCharge.caseData && testCharge.caseData.patient).to.not.be.undefined);",
+                  "pm.test('caseData has casetests array', () => pm.expect(testCharge && testCharge.caseData && testCharge.caseData.casetests).to.be.an('array'));",
+                  "pm.test('caseData has transactions', () => pm.expect(testCharge && testCharge.caseData && testCharge.caseData.transactions).to.be.an('array'));",
+                  "pm.test('caseData has labcenter', () => pm.expect(testCharge && testCharge.caseData).to.have.property('labcenter'));",
+                  "",
+                  "// KEY ASSERTION: test charge must NOT be included in IPD totals",
+                  "const nonTestCharges = r.data.billingCharges.filter(c => c.type !== 'test');",
+                  "const expectedSubtotal = nonTestCharges.reduce((sum, c) => sum + (c.totalCharge || 0), 0);",
+                  "pm.test('IPD subtotal excludes pathlab test charges', () => pm.expect(r.data.subtotal).to.eql(expectedSubtotal));",
+                  "pm.test('IPD totalPrice excludes pathlab test charges', () => pm.expect(r.data.totalPrice).to.eql(Math.max(0, expectedSubtotal - (r.data.discount || 0))));",
+                  "",
+                  "console.log('[IPD] Test charge — caseId:', testCharge && testCharge.caseReadableId, '| pathlab totalAmount:', testCharge && testCharge.totalAmount);",
+                  "console.log('[IPD] Totals (pathlab excluded) — subtotal:', r.data.subtotal, '| discount:', r.data.discount, '| totalPrice:', r.data.totalPrice);",
+                  "if (testCharge && testCharge.caseData) {",
+                  "  console.log('[IPD] caseData.patient:', testCharge.caseData.patient && testCharge.caseData.patient.name);",
+                  "  console.log('[IPD] caseData.labcenter:', testCharge.caseData.labcenter && testCharge.caseData.labcenter.name);",
+                  "  console.log('[IPD] caseData.casetests count:', testCharge.caseData.casetests && testCharge.caseData.casetests.length);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            },
+            "description": "Verifies two things after a pathlab case is linked:\n1. The `type: \"test\"` billing charge is present and `caseData` is fully populated (patient, casetests with test/group/category, transactions, labcenter, referring doctor).\n2. The IPD `subtotal` and `totalPrice` do NOT include the pathlab case amount — they only reflect IPD charges (procedures, packages, doctor, bed, nursing)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPD — Delete",
+      "description": "Soft delete — releases bed, soft-deletes related transactions.",
+      "item": [
+        {
+          "name": "Delete IPD",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set — run Create IPD first.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "console.log('[IPD] Deleted:', pm.collectionVariables.get('ipdReadableId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Deleted IPD (should fail 404)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('ipdId')) console.warn('[IPD] ipdId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 — IPD soft deleted', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/ipd/{{ipdId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "ipd",
+                "{{ipdId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Bed Released After Delete",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('bedId')) console.warn('[Bed] bedId not set.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Bed status is Available', () => pm.expect(r.data.status).to.eql('Available'));",
+                  "pm.test('currentPatientDetails cleared', () => pm.expect(r.data.currentPatientDetails).to.be.null);",
+                  "console.log('[Bed] Released — status:', r.data.status);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hospital/beds/{{bedId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hospital",
+                "beds",
+                "{{bedId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

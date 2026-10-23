@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-08-14",
+  "policy": {
+    "production": "npm audit --omit=dev must report 0 high/critical",
+    "cadence": "weekly Dependabot + CI audit on merge requests and a weekly scheduled pipeline"
+  },
+  "acceptedRisks": [
+    {
+      "packages": ["npm", "tar", "undici", "ip-address", "brace-expansion"],
+      "location": "node_modules/npm (bundled by @semantic-release/npm)",
+      "severity": "high/moderate",
+      "scope": "development only — not shipped in the Next.js production bundle",
+      "reason": "semantic-release vendors its own npm CLI; those nested packages are not overridden by the lockfile. No application request path uses them.",
+      "reviewBy": "2026-11-14"
+    }
+  ]
+}

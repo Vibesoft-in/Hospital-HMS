@@ -1,0 +1,31 @@
+# Dependencies
+**/node_modules/
+**/.pnp
+**/.pnp.*
+
+# Build outputs
+**/dist/
+**/.next/
+**/out/
+**/build/
+**/.cache/
+
+# Environment variables & secrets (do not commit secrets)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Large database dumps & patient data
+**/*.tar.gz
+**/dump/
+**/*.bson
+
+# Logs & temp
+**/*.log
+**/.DS_Store
+Thumbs.db
+**/*.tsbuildinfo
+
+# OS / Editor
+.vscode/
+.idea/

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goel Diagnostics Center - Diagnostic Report</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        color: black;
+        line-height: 1.5;
+        font-size: 13px;
+      }
+
+      body::before,
+      body::after {
+        display: none !important;
+      }
+
+      .report {
+        width: 100%;
+        background: transparent;
+        border-radius: 8px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+      }
+
+      .logo-section {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .logo {
+        color: #2e37a4;
+        font-weight: 800;
+        font-size: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .company-info {
+        flex: 1;
+      }
+
+      .company-name {
+        color: #2e37a4;
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .contact-info p {
+        font-size: 14px;
+      }
+
+      .business-address {
+        text-align: right;
+      }
+
+      .business-address p {
+        font-size: 12px;
+      }
+
+      .patient-card {
+        background: transparent;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 16px 12px;
+        margin-bottom: 18px;
+        margin-top: 5px;
+      }
+
+      .card-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+      }
+
+      .section-title {
+        margin-bottom: 2px;
+      }
+
+      .patient-name {
+        display: flex;
+        font-size: 13px;
+      }
+
+      .patient-name p:nth-child(2) {
+        font-weight: 600;
+        margin-left: 3px;
+      }
+
+      .patient-info {
+        display: flex;
+        font-size: 13px;
+        color: black;
+      }
+
+      .patient-info p:nth-child(2) {
+        font-weight: 600;
+        margin-left: 3px;
+      }
+
+      .info-value,
+      .date-details {
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .align-right {
+        text-align: right;
+      }
+
+      .test-category {
+        margin-bottom: 15px;
+        padding-top: 6px;
+      }
+
+      .category-row {
+        background-color: #f1feff;
+      }
+
+      .group-row {
+        background-color: #e0e0ff;
+      }
+
+      .category-title {
+        font-weight: 700;
+        font-size: 13px;
+        text-align: center;
+        padding: 6px 10px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+      }
+
+      .category-subtitle {
+        display: block;
+        width: max-content;
+        margin: 8px auto 18px;
+        text-align: center;
+        font-weight: 700;
+        color: #0a1b39;
+        position: relative;
+      }
+
+      .category-subtitle::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -6px;
+        width: 64px;
+        height: 2px;
+        background: #0a1b39;
+        border-radius: 1px;
+      }
+
+      .group-title {
+        color: black;
+        font-size: 13px;
+      }
+
+      .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        background: transparent;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .results-table td {
+        border: 1px solid #a2a2a3;
+      }
+
+      .results-table th,
+      .results-table td {
+        font-weight: 500;
+        padding: 8px 12px;
+        color: black;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .results-table th {
+        background: transparent;
+        color: #0a1b39;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .results-table tr:nth-child(even) td {
+        background: transparent;
+      }
+
+      .group-row td {
+        border-right: none;
+        border-left: none;
+      }
+
+      .results-table th {
+        color: black;
+        font-weight: 700;
+        padding: 16px 8px 8px 8px;
+        text-align: left;
+        border: none;
+      }
+
+      .results-table th:nth-child(1),
+      .results-table td:nth-child(1) {
+        text-align: left;
+        padding-left: 8px;
+        width: 38%;
+        max-width: 38%;
+        white-space: normal;
+        word-break: break-word;
+      }
+
+      .results-table td:nth-child(2) {
+        text-align: left;
+        width: 120px !important;
+        padding-left: 12px;
+      }
+
+      .results-table th:nth-child(3),
+      .results-table td:nth-child(3) {
+        width: 65px !important;
+        text-align: left;
+        padding-left: 12px;
+      }
+
+      .results-table th:nth-child(4),
+      .results-table td:nth-child(4) {
+        width: 140px !important;
+        text-align: right;
+        padding-right: 12px;
+      }
+
+      .results-table th:nth-child(5) {
+        width: 90px !important;
+        text-align: left;
+      }
+
+      .results-table th:nth-child(6) {
+        text-align: left;
+      }
+
+      .results-table td.red-value,
+      .results-table td .red-value,
+      .low-value {
+        font-weight: 700;
+        padding-right: 15px;
+      }
+
+      .results-table tr.sub-row td:nth-child(1) {
+        padding-left: 32px;
+      }
+
+      .clinical-notes {
+        background: transparent;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        color: #0a1b39;
+      }
+
+      .clinical-notes h3 {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .clinical-notes p {
+        font-size: 14px;
+        color: #0a1b39;
+        font-weight: 600;
+      }
+
+      .image-slot {
+        margin: 25px 0;
+        text-align: center;
+      }
+
+      .image-placeholder {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px;
+        background: transparent;
+        font-size: 14px;
+        color: #0a1b39;
+      }
+
+      .possible-causes {
+        margin-bottom: 30px;
+      }
+
+      .possible-causes h3 {
+        font-size: 16px;
+        margin-bottom: 15px;
+        padding-bottom: 5px;
+      }
+
+      .causes-grid {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .cause-category {
+        flex: 1;
+        min-width: 200px;
+        background: transparent;
+        border-radius: 8px;
+        padding: 15px;
+      }
+
+      .cause-category h4 {
+        color: #0a1b39;
+        font-size: 14px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+
+      .dashed-lines {
+        height: 60px;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 8px,
+          #ccc 8px,
+          #ccc 10px
+        );
+        border-radius: 4px;
+      }
+
+      .signatures {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+      }
+
+      .signature-left,
+      .signature-right {
+        flex: 1;
+        min-width: 200px;
+        text-align: center;
+      }
+
+      .signature-line {
+        width: 150px;
+        height: 2px;
+        background: #0a1b39;
+        margin: 0 auto 10px;
+        position: relative;
+      }
+
+      .signature-line::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: -8px;
+        height: 18px;
+        background: linear-gradient(
+          45deg,
+          transparent 30%,
+          #0a1b39 30%,
+          #0a1b39 70%,
+          transparent 70%
+        );
+        background-size: 20px 20px;
+        animation: signature 2s ease-in-out infinite;
+      }
+
+      .test-footnotes pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: Consolas, Monaco, 'Courier New', monospace;
+        font-size: 10px;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      @keyframes signature {
+        0%,
+        100% {
+          opacity: 0.3;
+        }
+
+        50% {
+          opacity: 1;
+        }
+      }
+
+      .signature-right p:first-of-type {
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .signature-stamp {
+        width: 120px;
+        height: 80px;
+        margin: 0 auto 15px;
+        border: 2px solid #8b5cf6;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stamp-content {
+        text-align: center;
+        padding: 5px;
+      }
+
+      .stamp-name {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8b5cf6;
+        margin: 2px 0;
+      }
+
+      .stamp-qualification,
+      .stamp-number {
+        font-size: 9px;
+        color: #6b7280;
+        margin: 2px 0;
+      }
+
+      .footer {
+        text-align: center;
+        padding-top: 18px;
+      }
+
+      .not-valid {
+        padding: 6px 10px;
+        border-radius: 6px;
+        color: #0a1b39;
+        font-weight: 700;
+        display: inline-block;
+      }
+
+      .work-timings {
+        font-size: 14px;
+        color: #0a1b39;
+        font-weight: 700;
+      }
+
+      .work-timings span {
+        color: #6b7280;
+      }
+
+      .footnotes-section {
+        margin-top: 30px;
+        padding-top: 10px;
+        font-size: 0.85em;
+        color: #555;
+      }
+
+      .footnotes-section h3 {
+        font-size: 1em;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .footnotes-section ol {
+        padding-left: 20px;
+      }
+
+      .footnotes-section li {
+        margin-bottom: 4px;
+      }
+
+      .results-table .footnote-row {
+        page-break-inside: auto;
+      }
+
+      .results-table .footnote-row td {
+        padding: 6px 8px;
+        background: transparent;
+        font-size: 10px;
+      }
+
+      .results-table .footnote-row .test-footnotes {
+        margin: 0;
+      }
+
+      .red-value-inline {
+        font-weight: 700;
+        margin-left: 8px;
+      }
+
+      .red-value-inline.flag-high {
+        color: #d10;
+      }
+
+      .red-value-inline.flag-low {
+        color: #0066cc;
+      }
+
+      /* Color result value cell when out of range */
+      .results-table td.flag-high { color: #cc1100 !important; font-weight: 700; }
+      .results-table td.flag-high strong,
+      .results-table td.flag-high span:not(.red-value-inline) { color: #cc1100 !important; font-weight: 700; }
+      .results-table td.flag-low  { color: #0066cc !important; font-weight: 700; }
+      .results-table td.flag-low strong,
+      .results-table td.flag-low span:not(.red-value-inline) { color: #0066cc !important; font-weight: 700; }
+
+      .fixed-header {
+        border-collapse: collapse;
+      }
+
+      .fixed-header thead tr:first-child td {
+        border: none !important;
+        background: transparent !important; /* ensure no shading */
+        padding: 0 !important;
+      }
+
+      .card-custom {
+        margin-bottom: 1rem;
+      }
+
+      .card-custom .card-body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-row {
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        padding: 10px 20px;
+      }
+
+      .logo-section {
+        padding: 9px;
+        display: flex;
+        align-items: center;
+        flex: 1;
+      }
+
+      .logo-circle {
+        width: 53px;
+        height: 53px;
+        background-color: #e5e5e5;
+        border: 2px solid #0d6efd;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        margin-right: 1rem;
+      }
+
+      .logo-circle img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .lab-details {
+        padding: 9px;
+        flex: 1;
+        text-align: right;
+        margin-top: 0;
+        padding-top: 8px;
+        margin-left: 45px;
+        padding-left: 40px;
+      }
+
+      .text-muted {
+        font-size: 13px;
+        color: #6c757d !important;
+      }
+
+      .lab-header-container {
+        font-weight: 500;
+        padding: 20px 20px 0px 20px;
+        background-color: #f3f3ff;
+      }
+
+      .lab-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 3px solid #004aad;
+        padding: 10px 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+
+      .lab-logo {
+        line-height: 1;
+      }
+
+      .lab-logo img {
+        height: 70px;
+        width: auto;
+        margin-right: 15px;
+      }
+
+      .lab-logo .certification {
+        margin-left: 26px;
+        color: #333;
+        margin-top: 1.5px;
+      }
+
+      .lab-info {
+        flex: 1;
+        text-align: center;
+        color: #000;
+        line-height: 1.3;
+      }
+
+      .lab-info h2 {
+        font-size: 28px;
+        font-weight: bold;
+        color: #004aad;
+        margin: 0;
+        text-transform: uppercase;
+        text-align: right;
+      }
+
+      .lab-info .subtitle {
+        font-size: 14px;
+        text-align: right;
+      }
+
+      .lab-info .address {
+        font-size: 13px;
+        color: #333;
+        text-align: right;
+      }
+
+      .lab-logo .certification {
+        font-size: 10px;
+        font-style: italic;
+      }
+
+      .doctor-info {
+        text-align: right;
+        font-size: 13px;
+        color: #000;
+      }
+
+      .doctor-info strong {
+        color: #004aad;
+      }
+
+      .lab-footer {
+        background-color: #f3f3ff;
+        padding: 8px 14px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 12px;
+      }
+
+      .footer-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .footer-text {
+        flex: 1;
+        line-height: 1.4;
+      }
+
+      .footer-text .disclaimer {
+        color: red;
+        font-weight: bold;
+      }
+
+      .footer-right {
+        text-align: right;
+        white-space: nowrap;
+        padding-left: 20px;
+      }
+
+      .signature {
+        font-style: italic;
+        margin-top: 5px;
+      }
+
+      .report {
+        padding: 0px 20px 20px 20px;
+      }
+
+      .category-row td {
+        padding: 12px 16px !important;
+      }
+
+      @media print {
+        body {
+          counter-reset: page;
+        }
+
+        .print-on-new-page {
+          page-break-before: always;
+        }
+
+        thead {
+          display: table-row-group;
+        }
+
+        .results-header thead {
+          display: table-header-group;
+        }
+        .results-header tfoot {
+          display: table-footer-group;
+        }
+        .master-results tfoot {
+          display: table-footer-group !important;
+        }
+
+        /* table and rows printing behavior */
+        .master-results {
+          page-break-inside: auto;
+          border-collapse: collapse;
+          width: 100%;
+        }
+        .master-results tbody {
+          display: table-row-group;
+        }
+        .master-results tr {
+          page-break-inside: avoid;
+          page-break-after: auto;
+        }
+
+        /* keep footnote / footnote-row from splitting awkwardly */
+        .footnote-row {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="report-container">
+      <!-- HEADER SECTION (outside of table) -->
+      <div class="lab-header-container">
+        <div class="lab-header">
+          <div class="lab-logo">
+            <img src="{{logoBase64}}" alt="Goel Diagnostic Logo" />
+            <p class="certification">ISO 9001:2000 Certified</p>
+          </div>
+          <div class="lab-info">
+            <h2>Dr. GOEL'S DIAGNOSTIC LABORATORY</h2>
+            <p class="subtitle">(Fully Computerized Pathology Laboratory)</p>
+            <p class="address">
+              Ramnagar Road, Kashipur - 244713 (U.S. Nagar, Uttarakhand)<br />
+              Phone: +91 5947-274390 | Mob: +91 63955 62348
+            </p>
+          </div>
+        </div>
+
+        <div class="patient-card">
+          <div class="card-layout">
+            <div class="card-section">
+              <div class="patient-name">
+                <p>Case ID:</p>
+                <p>#{{caseId}}</p>
+              </div>
+              <div class="patient-name">
+                <p>Name:</p>
+                <p>{{patient.firstName}} {{patient.lastName}}</p>
+              </div>
+              <div class="patient-name">
+                <p>{{#if patient.hmsMrd}}MRD No:{{else}}UHID:{{/if}}</p>
+                <p>#{{#if patient.hmsMrd}}{{patient.hmsMrd}}{{else}}{{patient.patientId}}{{/if}}</p>
+              </div>
+              <div class="patient-name">
+                <p>Age/Sex:</p>
+                <p>{{ageDisplay patient.age patient.months patient.days}} / {{patient.gender}}</p>
+              </div>
+            </div>
+
+            <div class="card-section">
+              <div class="info-block">
+                <div class="info-label">Referred By</div>
+                <div class="info-value">{{doctor.firstName}}</div>
+                <div class="info-value">{{doctor.lastName}}</div>
+              </div>
+            </div>
+
+            <div class="card-section align-right">
+              <div class="info-block">
+                <div class="info-label">Registered On</div>
+                <div class="date-details">{{createdAt}}</div>
+              </div>
+              <div class="info-block">
+                <div class="info-label">Printed On</div>
+                <div class="date-details">{{updatedAt}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="report">
+        <!-- MASTER TABLE: patient-card + repeating header -->
+        <table class="results-table master-results" id="master-results">
+          <thead>
+            <!-- column headers (will repeat) -->
+            <tr>
+              <th>Investigation</th>
+              <th>Results</th>
+              <th>Units</th>
+              <th>Normal Range</th>
+            </tr>
+          </thead>
+
+          <!-- START tbody — we will inject all rows into this single tbody -->
+          <tbody>
+            {{#each categories}}
+
+            {{#each groupedTests}}
+            {{#each caseTests}}
+            {{#if (or characteristics.length numberValue stringValue)}}
+            {{#if @first}}
+            <!-- Category title row -->
+            <tr class="category-row {{#unless ../../@first}}print-on-new-page{{/unless}}">
+              <td colspan="4" style="background: transparent; padding: 6px 12px">
+                <h2 class="category-title">{{../../name}}</h2>
+              </td>
+            </tr>
+            <!-- Group title row -->
+            <tr class="group-row {{#if ../groupFootnote.newPage}}print-on-new-page{{/if}}">
+              <td colspan="4" style="padding-left: 8px">
+                <h3 class="group-title">{{../name}}</h3>
+              </td>
+            </tr>
+            {{/if}}
+
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}}">
+              <td>
+                <strong>{{test.name}}</strong>
+                <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}"
+                  >{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+              </td>
+              <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+                {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                  <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                  <strong style="color:#0066cc;font-weight:700;">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{/if}}
+              </td>
+              <td>{{unit}}</td>
+              <td>{{#unless characteristics.length}}{{formatReferenceRange appliedReferenceRange comment}}{{/unless}}</td>
+            </tr>
+
+            {{#each characteristics}}
+            <tr class="sub-row">
+              <td>
+                <span>{{name}}</span>
+                <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}"
+                  >{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+              </td>
+              <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+                {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                  <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                  <strong style="color:#0066cc;font-weight:700;">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{/if}}
+              </td>
+              <td>{{unit}}</td>
+              <td>{{formatReferenceRange appliedReferenceRange comment}}</td>
+            </tr>
+            {{/each}}
+
+            {{#if footnotes}}{{#if footnotes.footnote}}
+            <tr class="footnote-row">
+              <td colspan="4"><div class="test-footnotes"><pre>{{{footnotes.footnote}}}</pre></div></td>
+            </tr>
+            {{/if}}{{/if}}
+            {{/if}}
+            {{/each}}
+
+            {{#if ../groupFootnote}}{{#if ../groupFootnote.groupFootnote}}
+            <tr class="footnote-row">
+              <td colspan="4"><div class="test-footnotes"><pre>{{{../groupFootnote.groupFootnote}}}</pre></div></td>
+            </tr>
+            {{/if}}{{/if}}
+            {{/each}}
+
+            {{#each ungroupedTests}}
+            {{#if (or characteristics.length numberValue stringValue)}}
+            {{#if @first}}
+            <tr class="category-row {{#unless ../@first}}print-on-new-page{{/unless}}">
+              <td colspan="4" style="background: transparent; padding: 6px 12px">
+                <h2 class="category-title">{{../name}}</h2>
+              </td>
+            </tr>
+            {{/if}}
+
+            <tr class="{{#if footnotes.newPage}}print-on-new-page{{/if}}">
+              <td>
+                <strong>{{test.name}}</strong>
+                <span class="red-value-inline {{whatsappFlagClass numberValue stringValue appliedReferenceRange}}"
+                  >{{whatsappFlagValue numberValue stringValue appliedReferenceRange}}</span>
+              </td>
+              <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+                {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                  <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                  <strong style="color:#0066cc;font-weight:700;">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{/if}}
+              </td>
+              <td>{{unit}}</td>
+              <td>{{#unless characteristics.length}}{{formatReferenceRange appliedReferenceRange comment}}{{/unless}}</td>
+            </tr>
+
+            {{#each characteristics}}
+            <tr class="sub-row">
+              <td><span>{{name}}</span></td>
+              <td class="{{whatsappFlagClass numberValue stringValue appliedReferenceRange}}">
+                {{#if (isOutOfRange numberValue stringValue appliedReferenceRange)}}
+                  <strong>{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else if (isPossibleStringValue stringValue appliedReferenceRange possibleStringValues)}}
+                  <strong style="color:#0066cc;font-weight:700;">{{valueWithDecimal numberValue stringValue decimal}}</strong>
+                {{else}}
+                  {{valueWithDecimal numberValue stringValue decimal}}
+                {{/if}}
+              </td>
+              <td>{{unit}}</td>
+              <td>{{formatReferenceRange appliedReferenceRange comment}}</td>
+            </tr>
+            {{/each}}
+
+            {{#if footnotes}}{{#if footnotes.footnote}}
+            <tr class="footnote-row">
+              <td colspan="4"><div class="test-footnotes"><pre>{{{footnotes.footnote}}}</pre></div></td>
+            </tr>
+            {{/if}}{{/if}}
+            {{/if}}
+            {{/each}}
+
+            {{/each}}
+          </tbody>
+        </table>
+
+        <tfoot>
+          <tr>
+            <td colspan="4" style="border: none; padding: 0">
+              <div class="lab-footer">
+                <div class="footer-content">
+                  <div class="footer-text">
+                    <p>
+                      Equipped with:
+                      <strong
+                        >Beckman Coulter Analyzer, ESR Reader, Coagulation
+                        Analyzer, Mispa i3, Mispa 13, Electrolyte Analyzer, Semi
+                        Auto Analyzer</strong
+                      >
+                      <br />
+                      Diagnostic findings should be correlated clinically. In
+                      case of doubt, please consult your referring doctor. If
+                      results are beyond, Contact the lab the same day with
+                      written consent of the referring doctor. <br />
+                      <strong class="disclaimer"
+                        >NOT FOR MEDICOLEGAL PURPOSE</strong
+                      >
+                    </p>
+                  </div>
+
+                  <div class="footer-right">
+                    <p>
+                      <strong>SUNDAY CLOSED</strong><br />TIMINGS: 9:00 AM TO
+                      8:00 PM
+                    </p>
+                    <p class="signature">(Dr. A. K. Goel)</p>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+
+        <div class="footer">
+          <p>This is a computer generated copy and doesn’t require a signature.</p>
+          <p class="not-valid">-----(END OF REPORT)------</p>
+        </div>
+
+
+        {{#if attachmentBase64List.length}}
+        <div style="page-break-before: always; margin: 0; padding: 20px; line-height: normal;">
+          {{#each attachmentBase64List}}
+          {{#if (startsWith this "__PDF__:")}}
+          <div style="page-break-inside: avoid; text-align: center; padding: 40px 20px; border: 2px dashed #aaa; margin-bottom: 10px; font-family: Arial, sans-serif; font-size: 13px; color: #333;">
+            <p style="font-size: 16px; margin-bottom: 8px;">PDF Document Attached</p>
+            <p style="color: #666; font-size: 11px;">This attachment is a PDF file and cannot be previewed inline.</p>
+          </div>
+          {{else}}
+          <div style="page-break-inside: avoid; page-break-after: avoid; text-align: center; margin: 0; padding: 0; line-height: 0;">
+            <img src="{{this}}" style="max-width: 190mm; max-height: 257mm; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;" />
+          </div>
+          {{/if}}
+          {{/each}}
+        </div>
+        {{/if}}
+    </div>
+  </body>
+</html>
+
+
+
+
+
+

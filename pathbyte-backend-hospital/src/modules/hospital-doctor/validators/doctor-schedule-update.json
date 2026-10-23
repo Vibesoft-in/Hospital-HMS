@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "mrMaxVisitsPerDay": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum MR visits allowed per day for this doctor"
+    },
+    "weeklySchedule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dayOfWeek": {
+            "type": "string",
+            "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+          },
+          "mr": {
+            "type": "boolean",
+            "description": "Whether MR visits are allowed on this day"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "session": {
+                  "type": "string",
+                  "enum": ["Morning", "Noon", "Afternoon", "Evening", "Night"]
+                },
+                "startTime": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "Time in HH:MM format (24-hour)"
+                },
+                "endTime": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "Time in HH:MM format (24-hour)"
+                }
+              },
+              "required": ["session", "startTime", "endTime"]
+            }
+          }
+        },
+        "required": ["dayOfWeek", "slots"]
+      }
+    }
+  },
+  "required": ["weeklySchedule"]
+}

@@ -1,0 +1,51 @@
+include:
+  - component: gitlab.com/components/secret-detection/secret-detection@main
+  - component: gitlab.com/components/sast/sast@main
+
+stages:
+  - test
+  - deploy
+
+variables:
+  APP_DIR: "/home/ubuntu/pathbyte-backend-dev"
+  PROJECT_TYPE: "node"
+  INSTALL: "true"
+  BUILD: "true"
+
+deploy_dev:
+  stage: deploy
+
+  only:
+    - dev
+
+  before_script:
+    - apt-get update -y
+    - apt-get install -y openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+
+  script:
+    - >
+      ssh ubuntu@$SERVER_IP
+      "sudo chown -R ubuntu:ubuntu '$APP_DIR/dist' 2>/dev/null || true
+      && export APP_DIR='$APP_DIR'
+      PROJECT_TYPE='$PROJECT_TYPE'
+      INSTALL='$INSTALL'
+      BUILD='$BUILD'
+      && ~/deploy-node.sh"
+
+  after_script:
+    - |
+      if [ "$CI_JOB_STATUS" = "success" ]; then
+        curl -X POST \
+          -H "Content-type: application/json" \
+          --data "{\"text\":\"🚀 $CI_PROJECT_NAME deployed successfully on dev. Nobody touch anything now.\"}" \
+          "$SLACK_WEBHOOK_URL"
+      else
+        curl -X POST \
+          -H "Content-type: application/json" \
+          --data "{\"text\":\"❌ $CI_PROJECT_NAME deployment failed on dev. The bug is now everyone’s problem.\"}" \
+          "$SLACK_WEBHOOK_URL"
+      fi

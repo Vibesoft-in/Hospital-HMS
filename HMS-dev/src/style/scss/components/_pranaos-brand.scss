@@ -1,0 +1,93 @@
+@use "../variables" as *;
+
+.pranaos-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+
+  .pranaos-mark {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 72%, #0b1026) 100%);
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    box-shadow: 0 6px 14px color-mix(in srgb, var(--primary) 28%, transparent);
+    line-height: 1;
+  }
+
+  .pranaos-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1;
+    text-align: left;
+  }
+
+  .pranaos-wordmark {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: $gray-900;
+    white-space: nowrap;
+
+    span {
+      color: var(--primary);
+    }
+  }
+
+  .pranaos-sub {
+    margin-top: 4px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $gray-900;
+    opacity: 0.55;
+    white-space: nowrap;
+  }
+
+  &--lg {
+    gap: 12px;
+
+    .pranaos-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      font-size: 1.35rem;
+    }
+
+    .pranaos-wordmark {
+      font-size: 1.65rem;
+    }
+
+    .pranaos-sub {
+      margin-top: 6px;
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+    }
+  }
+
+  &--compact {
+    justify-content: center;
+
+    .pranaos-text {
+      display: none;
+    }
+  }
+}
+
+.sidebar .pranaos-brand {
+  .pranaos-wordmark,
+  .pranaos-sub {
+    color: $menu-item-heading;
+  }
+}

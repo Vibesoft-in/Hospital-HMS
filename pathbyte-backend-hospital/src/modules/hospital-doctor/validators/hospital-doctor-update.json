@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "imageUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "password": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Updated password for the doctor's login account"
+    },
+    "phone": {
+      "type": "string",
+      "pattern": "^\\+?[0-9]{10,15}$"
+    },
+    "dob": {
+      "type": "string",
+      "format": "date"
+    },
+    "yearsOfExperience": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 70
+    },
+    "department": {
+      "type": "string",
+      "minLength": 1
+    },
+    "designation": {
+      "type": "string"
+    },
+    "medicalLicenseNo": {
+      "type": "string"
+    },
+    "gender": {
+      "type": "string",
+      "enum": ["Male", "Female", "Other"]
+    },
+    "bloodGroup": {
+      "type": "string",
+      "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Not Known"]
+    },
+    "address": {
+      "type": "string"
+    },
+    "opdNumber": {
+      "type": "string",
+      "description": "OPD room/chamber number for the doctor"
+    },
+    "posterUrl": {
+      "type": "string",
+      "description": "S3 key for the doctor's poster image (returned as signed URL)"
+    },
+    "visitTypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "visitType": {
+            "type": "string",
+            "enum": ["New", "Emergency", "Follow-up", "Follow-up-report", "MR"]
+          },
+          "appointmentType": {
+            "type": "string",
+            "enum": ["OPD", "Day Care", "IPD", "ICU", "Emergency"]
+          },
+          "charge": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": ["visitType", "appointmentType", "charge"],
+        "additionalProperties": false
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "dialysisSlots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startTime": {
+            "type": "string",
+            "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "endTime": {
+            "type": "string",
+            "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "maxAppointments": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "startTime", "endTime", "maxAppointments"],
+        "additionalProperties": false
+      }
+    },
+    "maxAppointmentsPerSlot": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "mrMaxVisitsPerDay": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum MR visits allowed per day for this doctor"
+    },
+    "queueSortBy": {
+      "type": "string",
+      "enum": ["token", "time"],
+      "description": "TV queue sorting mode: 'token' (default) or 'time'"
+    }
+  }
+}

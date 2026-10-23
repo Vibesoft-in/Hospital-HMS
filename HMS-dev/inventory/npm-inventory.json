@@ -1,0 +1,333 @@
+{
+  "generatedAt": "2026-08-14T10:49:26.783Z",
+  "project": "template",
+  "projectVersion": "0.1.0",
+  "lockfileVersion": 3,
+  "summary": {
+    "directProduction": 38,
+    "directDevelopment": 15,
+    "lockfilePackages": 1326,
+    "transitive": 1272
+  },
+  "direct": [
+    {
+      "name": "@ant-design/icons",
+      "version": "^6.1.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@cyclonedx/cyclonedx-npm",
+      "version": "^6.0.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@eslint/eslintrc",
+      "version": "^3.3.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@fortawesome/fontawesome-free",
+      "version": "^7.1.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@fullcalendar/core",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@fullcalendar/daygrid",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@fullcalendar/interaction",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@fullcalendar/react",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@fullcalendar/timegrid",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@hello-pangea/dnd",
+      "version": "^18.0.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@reduxjs/toolkit",
+      "version": "^2.10.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@semantic-release/changelog",
+      "version": "^6.0.3",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@semantic-release/commit-analyzer",
+      "version": "^13.0.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@semantic-release/git",
+      "version": "^10.0.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@semantic-release/gitlab",
+      "version": "^13.3.2",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@semantic-release/release-notes-generator",
+      "version": "^14.1.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@tabler/icons-webfont",
+      "version": "^3.35.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "@types/node",
+      "version": "^24.10.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@types/react",
+      "version": "^19.2.18",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "^19.2.4",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "@types/react-star-ratings",
+      "version": "^2.3.3",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "antd",
+      "version": "^5.29.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "apexcharts",
+      "version": "^5.3.6",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "axios",
+      "version": "^1.19.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "bootstrap",
+      "version": "^5.3.8",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "clipboard-copy",
+      "version": "^4.0.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "dayjs",
+      "version": "^1.11.19",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "eslint",
+      "version": "^9.39.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "eslint-config-next",
+      "version": "^16.3.1",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "fullcalendar",
+      "version": "^6.1.20",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "next",
+      "version": "^16.3.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "overlayscrollbars",
+      "version": "^2.13.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "overlayscrollbars-react",
+      "version": "^0.5.6",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "rc-slider",
+      "version": "^11.1.9",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react",
+      "version": "^19.2.8",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-apexcharts",
+      "version": "^1.8.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-bootstrap",
+      "version": "^2.10.10",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-countup",
+      "version": "^6.5.3",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-dom",
+      "version": "^19.2.8",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-feather",
+      "version": "^2.0.10",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-imask",
+      "version": "^7.6.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-phone-number-input",
+      "version": "^3.4.13",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-redux",
+      "version": "^9.2.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-select",
+      "version": "^5.10.2",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-simple-wysiwyg",
+      "version": "^3.4.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "react-star-ratings",
+      "version": "^2.3.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "sass",
+      "version": "^1.94.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "semantic-release",
+      "version": "^25.0.3",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "slick-carousel",
+      "version": "^1.8.1",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "smooth-scrollbar",
+      "version": "^8.8.4",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "tabler-icons-react",
+      "version": "^1.56.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    },
+    {
+      "name": "typescript",
+      "version": "^5.9.3",
+      "scope": "development",
+      "declaredIn": "devDependencies"
+    },
+    {
+      "name": "yet-another-react-lightbox",
+      "version": "^3.25.0",
+      "scope": "production",
+      "declaredIn": "dependencies"
+    }
+  ],
+  "note": "Full transitive tree is in package-lock.json and the CycloneDX SBOM generated by `npm run sbom` (inventory/sbom.cdx.json)."
+}

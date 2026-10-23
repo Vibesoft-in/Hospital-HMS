@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "patientUhid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "enum": ["Mr.", "Mrs.", "Ms.", "Dr.", "Master", "Baby of", "Baby"]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 10
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "dob": {
+          "type": "string",
+          "format": "date"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "months": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 31
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["Male", "Female", "Other"]
+        },
+        "bloodGroup": {
+          "type": "string",
+          "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Not Known"]
+        },
+        "address": {
+          "type": "string"
+        },
+        "aadharNo": {
+          "type": "string"
+        },
+        "aadharS3Url": {
+          "type": "string"
+        },
+        "ayushmanCardNo": {
+          "type": "string"
+        },
+        "ayushmanCardS3Url": {
+          "type": "string"
+        },
+        "imageS3Url": {
+          "type": "string"
+        },
+        "companyName": {
+          "type": "string"
+        },
+        "division": {
+          "type": "string"
+        },
+        "maritalStatus": {
+          "type": "string",
+          "enum": ["Single", "Married", "Divorced", "Widowed", "Separated", "Other"]
+        },
+        "occupation": {
+          "type": "string"
+        },
+        "drugSensitivity": {
+          "type": "string"
+        },
+        "otherDocsS3Urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "emergencyContacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "number": { "type": "string" }
+            },
+            "required": ["name", "number"]
+          }
+        }
+      }
+    },
+    "doctorId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "MongoDB ObjectId for doctor"
+    },
+    "visitType": {
+      "type": "string",
+      "enum": ["New", "Emergency", "Follow-up", "Follow-up-report", "MR"]
+    },
+    "appointmentType": {
+      "type": "string",
+      "enum": ["OPD", "Day Care", "IPD", "ICU", "Emergency"]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "visitDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "visitTime": {
+      "type": "string",
+      "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "description": "Time in HH:MM format (24-hour)"
+    },
+    "sessionSlot": {
+      "type": "string",
+      "enum": ["Morning", "Noon", "Afternoon", "Evening", "Night"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Scheduled", "In Progress", "Completed", "Cancelled", "No Show"]
+    },
+    "discount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Discount amount to be applied to the visit price"
+    },
+    "discountPassword": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Password required when discount > 0"
+    },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionType": {
+          "type": "string",
+          "enum": ["Payment", "Refund", "Advance", "Adjustment"]
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance"]
+        },
+        "referenceNo": {
+          "type": "string"
+        },
+        "transactionDate": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": ["transactionType", "amount", "paymentMode"]
+    },
+    "attendantName": {
+      "type": "string"
+    },
+    "attendantRelation": {
+      "type": "string"
+    },
+    "procedures": {
+      "type": "array",
+      "description": "Optional OPD procedures to add to this visit",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "procedureId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{24}$",
+            "description": "MongoDB ObjectId of the procedure"
+          }
+        },
+        "required": ["procedureId"]
+      }
+    }
+  },
+  "required": ["patient", "doctorId", "visitType", "appointmentType", "visitDate"]
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 50,
+      "description": "Username"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "User email address"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "User full name"
+    },
+    "phoneNumber": {
+      "type": "string",
+      "description": "User phone number"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DOCTOR", "DIALYSIS", "PHARMACIST", "ACCOUNTANT", "XRAY", "ABDM_ADMIN"],
+      "description": "User role"
+    },
+    "linkedDoctorId": {
+      "type": "string",
+      "minLength": 24,
+      "maxLength": 24,
+      "description": "MongoDB _id of the linked HospitalDoctor"
+    },
+    "isActive": {
+      "type": "boolean",
+      "description": "User active status"
+    },
+    "password": {
+      "type": "string",
+      "minLength": 8,
+      "description": "New password for the user"
+    }
+  },
+  "additionalProperties": false
+}

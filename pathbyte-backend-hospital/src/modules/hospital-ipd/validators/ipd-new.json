@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "patientId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$"
+    },
+    "patientData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "enum": ["Mr.", "Mrs.", "Ms.", "Dr.", "Master", "Baby of", "Baby"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "phone": { "type": "string", "minLength": 10 },
+        "email": { "type": "string" },
+        "dob": { "type": "string" },
+        "age": { "type": "integer", "minimum": 0 },
+        "months": { "type": "integer", "minimum": 0, "maximum": 11 },
+        "days": { "type": "integer", "minimum": 0, "maximum": 31 },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "bloodGroup": {
+          "type": "string",
+          "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Not Known"]
+        },
+        "address": { "type": "string" },
+        "aadharNo": { "type": "string" },
+        "aadharS3Url": { "type": "string" },
+        "ayushmanCardNo": { "type": "string" },
+        "ayushmanCardS3Url": { "type": "string" },
+        "imageS3Url": { "type": "string" },
+        "companyName": { "type": "string" },
+        "division": { "type": "string" },
+        "maritalStatus": {
+          "type": "string",
+          "enum": ["Single", "Married", "Divorced", "Widowed", "Separated", "Other"]
+        },
+        "occupation": { "type": "string" },
+        "drugSensitivity": { "type": "string" },
+        "otherDocsS3Urls": { "type": "array", "items": { "type": "string" } },
+        "emergencyContacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "number": { "type": "string" }
+            },
+            "required": ["name", "number"]
+          }
+        }
+      },
+      "required": ["title", "name", "phone", "gender"]
+    },
+    "doctorId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$"
+    },
+    "bedId": { "type": "string" },
+    "visitId": { "type": "string" },
+    "admissionDate": { "type": "string" },
+    "reason": { "type": "string" },
+    "notes": { "type": "string" },
+    "billingCharges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["procedure", "procedure_package", "doctor", "test", "bed"]
+          },
+          "procedureId": { "type": "string" },
+          "packageId": { "type": "string" },
+          "doctorId": { "type": "string" },
+          "caseId": { "type": "string" },
+          "bedId": { "type": "string" },
+          "units": { "type": "number", "minimum": 1 },
+          "fromDate": { "type": "string" },
+          "toDate": { "type": "string" }
+        },
+        "required": ["type"]
+      }
+    },
+    "discount": { "type": "number", "minimum": 0 },
+    "discountPassword": { "type": "string", "minLength": 1 },
+    "isMLC": { "type": "boolean" },
+    "allowBedCharges": {
+      "type": "boolean",
+      "description": "Set to false to block bed charges for this IPD (e.g. when a package procedure is used)"
+    },
+    "allowNursingCharges": {
+      "type": "boolean",
+      "description": "Set to false to block nursing charges for this IPD (e.g. when a package procedure is used)"
+    },
+    "mlc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "markOfIdentification": { "type": "string" },
+        "thanaName": { "type": "string" },
+        "patientBroughtBy": { "type": "string" },
+        "placeOfAccident": { "type": "string" },
+        "documentUrl": { "type": "string" }
+      }
+    },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionType": {
+          "type": "string",
+          "enum": ["Payment", "Refund", "Advance", "Adjustment"]
+        },
+        "amount": { "type": "number", "minimum": 0 },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["Cash", "Card", "UPI", "Net Banking", "Cheque", "Insurance", "Govt Backed"]
+        },
+        "referenceNo": { "type": "string" },
+        "transactionDate": { "type": "string" },
+        "isAdvance": { "type": "boolean" }
+      },
+      "required": ["transactionType", "amount", "paymentMode"]
+    }
+  },
+  "required": ["doctorId"]
+}

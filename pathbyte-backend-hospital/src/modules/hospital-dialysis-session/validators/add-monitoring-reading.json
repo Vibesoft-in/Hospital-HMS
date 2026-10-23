@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "reading": {
+      "type": "object",
+      "properties": {
+        "timeOnHd": { "type": "string", "minLength": 1 },
+        "pr":          { "type": ["number", "string"] },
+        "bp":          { "type": "string" },
+        "bfr":         { "type": ["number", "string"] },
+        "dfr":         { "type": ["number", "string"] },
+        "ufr":         { "type": ["number", "string"] },
+        "totalUf":     { "type": ["number", "string"] },
+        "temperature": { "type": ["number", "string"] },
+        "dyna":        { "type": ["number", "string"] },
+        "heparin":     { "type": ["number", "string"] },
+        "rbs":         { "type": ["number", "string"] }
+      },
+      "required": ["timeOnHd"]
+    }
+  },
+  "required": ["reading"]
+}
