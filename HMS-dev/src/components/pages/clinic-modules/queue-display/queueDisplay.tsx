@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type SyntheticEvent } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { API_BASE_URL } from "@/environment";
@@ -17,7 +17,6 @@ import {
   type IQueueSortBy,
   type ISessionSlot,
 } from "./sessionQueue";
-import { mapDoctorToJjmDepartment } from "./mapDoctorToJjmDepartment";
 
 const VIEW_ROTATE_MS = 10000;
 
@@ -214,14 +213,9 @@ const QueueDisplayComponent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState<Date>(new Date());
-  const [activeView, setActiveView] = useState<"queue" | "services">("queue");
-  const [servicesFrameReady, setServicesFrameReady] = useState(false);
-  const servicesFrameReadyRef = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
-
-  servicesFrameReadyRef.current = servicesFrameReady;
 
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -243,34 +237,6 @@ const QueueDisplayComponent = () => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const jjmDepartmentKey = mapDoctorToJjmDepartment(
-    display?.department,
-    display?.specialization,
-    display?.designation
-  );
-
-  useEffect(() => {
-    if (!jjmDepartmentKey) {
-      setActiveView("queue");
-      return;
-    }
-    const timer = setInterval(() => {
-      setActiveView((prev) => {
-        if (!servicesFrameReadyRef.current) return "queue";
-        return prev === "queue" ? "services" : "queue";
-      });
-    }, VIEW_ROTATE_MS);
-    return () => clearInterval(timer);
-  }, [jjmDepartmentKey]);
-
-  const handleServicesFrameLoad = (event: SyntheticEvent<HTMLIFrameElement>) => {
-    const doc = event.currentTarget.contentDocument;
-    const isSignage = Boolean(doc?.getElementById("deptSelect") || doc?.getElementById("screenCanvas"));
-    servicesFrameReadyRef.current = isSignage;
-    setServicesFrameReady(isSignage);
-    if (!isSignage) setActiveView("queue");
-  };
 
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
@@ -505,7 +471,6 @@ const QueueDisplayComponent = () => {
     );
   };
   const queue = allQueue.filter((entry) => !isTerminalQueueStatus(entry.status));
-  const shouldShowAdBanner = queue.length <= 3;
   const timeLabel = now.toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -523,41 +488,11 @@ const QueueDisplayComponent = () => {
   const totalBasis = Math.max(display?.totalPatients ?? 0, queue.length);
   const additionalWaiting = Math.max(0, totalBasis - visibleQueue.length);
 
-  const showServicesView =
-    Boolean(jjmDepartmentKey) && servicesFrameReady && activeView === "services";
-
   return (
     <div
       ref={containerRef}
       className="min-vh-100 w-100 d-flex flex-column bg-white position-relative"
-      style={{ overflow: showServicesView ? "hidden" : undefined }}
     >
-      {jjmDepartmentKey ? (
-        <iframe
-          title="Department scope of services"
-            src={`/jjm-signage/index.html?embed=1&dept=${encodeURIComponent(jjmDepartmentKey)}&v=9`}
-          onLoad={handleServicesFrameLoad}
-          className="border-0"
-          style={{
-            position: "fixed",
-            inset: 0,
-            width: "100vw",
-            height: "100vh",
-            zIndex: 40,
-            background: "#f1f5f9",
-            display: showServicesView ? "block" : "none",
-            pointerEvents: showServicesView ? "auto" : "none",
-          }}
-        />
-      ) : null}
-      <div
-        className="flex-grow-1 w-100 d-flex flex-column bg-white"
-        aria-hidden={showServicesView}
-        style={{
-          display: showServicesView ? "none" : "flex",
-          minHeight: "100vh",
-        }}
-      >
       {/* Fullscreen toggle - top right */}
       <button
         type="button"
@@ -873,18 +808,6 @@ const QueueDisplayComponent = () => {
               </tbody>
             </table>
           </div>
-          {shouldShowAdBanner ? (
-            <div className="border-top bg-white p-2 p-md-3">
-              <Image
-                src="/assets/img/Bannerforscreen2.jpg"
-                alt="Hospital promotional banner"
-                width={1000}
-                height={300}
-                className="w-100 h-auto rounded-2"
-                priority={false}
-              />
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -934,7 +857,6 @@ const QueueDisplayComponent = () => {
           }
         }
       `}</style>
-      </div>
     </div>
   );
 };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
+import ChangePasswordModal from "@/core/common/ChangePasswordModal";
 
 interface IDashboardPasswordGateProps {
   children: React.ReactNode;
@@ -40,62 +41,88 @@ const DashboardPasswordGate = ({ children }: IDashboardPasswordGateProps) => {
     }
   };
 
+  const [showChangeModal, setShowChangeModal] = useState(false);
+
   if (unlocked) return <>{children}</>;
 
   return (
-    <div className="page-wrapper">
-      <div className="content d-flex align-items-center justify-content-center min-vh-100 py-4 px-3">
-        <div className="card shadow-sm border-0" style={{ maxWidth: "460px", width: "100%" }}>
-          <div className="card-body p-4 p-md-5">
-            <div className="text-center mb-4">
-              <h4 className="fw-bold mb-1">Dashboard Access</h4>
-              <p className="text-muted mb-0">Enter password to unlock dashboard</p>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label htmlFor="dashboard-password" className="form-label">
-                  Password
-                </label>
-                <div className="input-group">
-                  <input
-                    id="dashboard-password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setError(null);
-                    }}
-                    placeholder="Enter dashboard password"
-                    className={`form-control ${error ? "is-invalid" : ""}`}
-                    autoFocus
-                    autoComplete="current-password"
-                    aria-label="Dashboard password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="btn btn-outline-secondary"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-                {error ? <div className="invalid-feedback d-block">{error}</div> : null}
+    <>
+      <div className="page-wrapper">
+        <div className="content d-flex align-items-center justify-content-center min-vh-100 py-4 px-3">
+          <div className="card shadow-sm border-0" style={{ maxWidth: "460px", width: "100%" }}>
+            <div className="card-body p-4 p-md-5">
+              <div className="text-center mb-4">
+                <h4 className="fw-bold mb-1">Dashboard Access</h4>
+                <p className="text-muted mb-0">Enter password to unlock dashboard</p>
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading || !password.trim()}
-                className="btn btn-primary w-100"
-              >
-                {isLoading ? "Verifying..." : "Unlock Dashboard"}
-              </button>
-            </form>
+              <form onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label htmlFor="dashboard-password" className="form-label">
+                    Password
+                  </label>
+                  <div className="input-group">
+                    <input
+                      id="dashboard-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setError(null);
+                      }}
+                      placeholder="Enter dashboard password"
+                      className={`form-control ${error ? "is-invalid" : ""}`}
+                      autoFocus
+                      autoComplete="current-password"
+                      aria-label="Dashboard password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="btn btn-outline-secondary"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  {error ? <div className="invalid-feedback d-block">{error}</div> : null}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !password.trim()}
+                  className="btn btn-primary w-100"
+                >
+                  {isLoading ? "Verifying..." : "Unlock Dashboard"}
+                </button>
+              </form>
+
+              <div className="text-center mt-3 pt-3 border-top">
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm text-decoration-none text-primary d-inline-flex align-items-center gap-1"
+                  onClick={() => setShowChangeModal(true)}
+                >
+                  <i className="ti ti-key fs-16" />
+                  Change Dashboard or Account Password
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <ChangePasswordModal
+        isOpen={showChangeModal}
+        onClose={() => setShowChangeModal(false)}
+        defaultTab="dashboard"
+        onDashboardPasswordUpdated={(newP) => {
+          if (newP) {
+            setPassword(newP);
+          }
+        }}
+      />
+    </>
   );
 };
 

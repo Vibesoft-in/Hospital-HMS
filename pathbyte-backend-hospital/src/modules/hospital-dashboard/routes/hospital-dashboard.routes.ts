@@ -1,10 +1,14 @@
 import { Router } from "express";
 import hospitalDashboardController from "../controllers/hospital-dashboard.controller";
+import { requireHospitalUser } from "@src/middlewares/hospital-auth.middleware";
 
 const router = Router();
 
 // Verify dashboard password
 router.post("/verify-password", hospitalDashboardController.verifyDashboardPassword);
+
+// Change dashboard password (requires authenticated user)
+router.post("/change-password", requireHospitalUser(), hospitalDashboardController.changeDashboardPassword);
 
 // Get overview statistics (top 4 cards)
 router.get("/overview", hospitalDashboardController.getOverview);

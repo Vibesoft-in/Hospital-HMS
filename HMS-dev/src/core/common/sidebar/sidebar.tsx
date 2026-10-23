@@ -21,12 +21,14 @@ import {
 import { isSharedAuthEnabled, postSharedLogout } from "@/core/auth/sharedAuth";
 import { clearLocalAuthSession } from "@/core/auth/sessionCookie";
 import PranaOSBrand from "@/core/common/pranaos-brand/PranaOSBrand";
+import ChangePasswordModal from "@/core/common/ChangePasswordModal";
 
 const Sidebar = () => {
   const Location = usePathname();
   const [subOpen, setSubopen] = useState<any>("");
   const [subsidebar, setSubsidebar] = useState("");
   const [isSidebarOpened, setIsSidebarOpened] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [sidebarUserName, setSidebarUserName] = useState("Unknown User");
   const [sidebarUserRole, setSidebarUserRole] = useState("Unknown Role");
   const [sidebarUserInitials, setSidebarUserInitials] = useState("JA");
@@ -447,28 +449,44 @@ const Sidebar = () => {
                   <p className="fs-12 text-muted mb-0 text-truncate">{sidebarUserRole}</p>
                 </div>
               </div>
-              <Link
-                href={all_routes.login}
-                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center flex-shrink-0"
-                title="Log Out"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (isSharedAuthEnabled()) {
-                    await postSharedLogout();
-                  }
-                  clearLocalAuthSession();
-                  navigate.replace(all_routes.login);
-                }}
-              >
-                <i className="ti ti-logout fs-16" />
-              </Link>
+              <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center"
+                  title="Change Password"
+                  onClick={() => setShowPasswordModal(true)}
+                >
+                  <i className="ti ti-key fs-16" />
+                </button>
+                <Link
+                  href={all_routes.login}
+                  className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center"
+                  title="Log Out"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (isSharedAuthEnabled()) {
+                      await postSharedLogout();
+                    }
+                    clearLocalAuthSession();
+                    navigate.replace(all_routes.login);
+                  }}
+                >
+                  <i className="ti ti-logout fs-16" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </div>
       {/* Sidenav Menu End */}
 
-    <div className={`sidebar-overlay${isSidebarOpened ? " opened" : ""}`}></div>
+      <div className={`sidebar-overlay${isSidebarOpened ? " opened" : ""}`}></div>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        defaultTab={isAdminRole(normalizeRole(sidebarUserRoleRaw)) ? "dashboard" : "account"}
+      />
     </>
   );
 };

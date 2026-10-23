@@ -129,6 +129,32 @@ async function verifyDashboardPassword(request: Request, response: Response, nex
   }
 }
 
+async function changeDashboardPassword(request: Request, response: Response, next: NextFunction) {
+  try {
+    const { currentPassword, newPassword } = request.body;
+    const user = (request as any).hospitalUser;
+    const isAdmin = user?.role === "ADMIN";
+
+    if (!newPassword || typeof newPassword !== "string" || newPassword.trim().length < 4) {
+      return next(new AppError(400, "New password must be at least 4 characters long"));
+    }
+
+    if (currentPassword) {
+      const ok = await ConstantsService.verifyDashboardPassword(currentPassword);
+      if (!ok) {
+        return next(new AppError(401, "Current dashboard password is incorrect"));
+      }
+    } else if (!isAdmin) {
+      return next(new AppError(403, "Current password is required to change dashboard password"));
+    }
+
+    await ConstantsService.updateConstant("DASHBOARD_PASSWORD", { value: newPassword.trim() });
+    return response.success({ success: true }, "Dashboard password changed successfully");
+  } catch (err: any) {
+    return next(err);
+  }
+}
+
 export default {
   getOverview,
   getVisitStatistics,
@@ -139,4 +165,5 @@ export default {
   getVisitRevenueStatistics,
   getDaycareRevenueStatistics,
   verifyDashboardPassword,
+  changeDashboardPassword,
 };

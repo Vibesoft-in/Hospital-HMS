@@ -142,8 +142,14 @@ const DoctorsListComponent = () => {
       dataIndex: "name",
       sorter: false,
       showSorterTooltip: false,
-      render: (text: string) => (
-        <span className="text-dark fw-semibold">{text}</span>
+      render: (text: string, record: IDoctor) => (
+        <Link
+          href={`/doctor-details?id=${record._id || record.doctorId}`}
+          className="text-primary fw-semibold text-decoration-none"
+          title="View Doctor Profile"
+        >
+          {text}
+        </Link>
       ),
     },
     {
@@ -187,6 +193,7 @@ const DoctorsListComponent = () => {
       showSorterTooltip: false,
       render: (_: unknown, record: IDoctor) => {
         const queueHref = `/qd/${record.doctorId || record._id}`;
+        const profileHref = `/doctor-details?id=${record._id || record.doctorId}`;
         return (
           <div className="d-flex align-items-center gap-2">
             <Link
@@ -199,6 +206,14 @@ const DoctorsListComponent = () => {
               <i className="ti ti-presentation fs-16" />
               <span className="d-none d-sm-inline">Queue</span>
             </Link>
+            <div className="action-item">
+              <Link
+                href={profileHref}
+                title="View Doctor Profile"
+              >
+                <i className="ti ti-user fs-16" />
+              </Link>
+            </div>
             <div className="action-item">
               <Link
                 href="#"

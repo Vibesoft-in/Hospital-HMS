@@ -377,7 +377,7 @@ const AddDoctorComponent = () => {
                         <div className="col-lg-3">
                           <div className="mb-3">
                             <label className="form-label">
-                              Department
+                              Department <span className="text-danger">*</span>
                             </label>
                             <CommonSelect
                               options={Department}
