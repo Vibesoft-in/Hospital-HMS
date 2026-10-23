@@ -199,19 +199,22 @@ hospitalPatientSchema.statics = {
     }
 
     const patients = await this.find(mongoQuery)
+      .select("mrd title name phone age months days gender bloodGroup address createdAt email companyName division isMRPatient abhaLinked patientUhid imageS3Url")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .exec();
+      .lean();
 
-    return patients.map((patient: HospitalPatientDoc) => patient.toObject());
+    return patients;
   },
 
   async readHospitalPatient(mrd: string) {
     const patient = await this.findOne({ 
       mrd,
       isDeleted: { $ne: true } // Exclude soft deleted
-    });
+    })
+      .select("-__v -isDeleted -deletedAt -deletedBy")
+      .lean();
     
     if (!patient) {
       throw new APIError(
@@ -221,7 +224,7 @@ hospitalPatientSchema.statics = {
       );
     }
     
-    return patient.toObject();
+    return patient;
   },
 
   async updateHospitalPatient(mrd: string, updates: Partial<HospitalPatient>): Promise<HospitalPatient> {

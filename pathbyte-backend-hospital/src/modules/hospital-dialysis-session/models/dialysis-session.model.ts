@@ -925,7 +925,7 @@ dialysisSessionSchema.statics = {
           localField: "doctorObjectId",
           foreignField: "_id",
           as: "doctor",
-          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1, phone: 1 } }]
+          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1 } }]
         }
       },
       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } }
@@ -1086,7 +1086,7 @@ dialysisSessionSchema.statics = {
           localField: "doctorObjectId",
           foreignField: "_id",
           as: "doctor",
-          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1, phone: 1 } }]
+          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1 } }]
         }
       },
       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
@@ -1484,7 +1484,7 @@ dialysisSessionSchema.statics = {
           localField: "doctorObjectId",
           foreignField: "_id",
           as: "doctor",
-          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1, phone: 1 } }]
+          pipeline: [{ $project: { name: 1, doctorId: 1, department: 1, designation: 1 } }]
         }
       },
       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } }

@@ -173,19 +173,22 @@ hospitalDoctorSchema.statics = {
     }
 
     const doctors = await this.find(mongoQuery)
+      .select("-__v -isDeleted -deletedAt -deletedBy")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .exec();
+      .lean();
 
-    return doctors.map((doctor: HospitalDoctorDoc) => doctor.toObject());
+    return doctors;
   },
 
   async readHospitalDoctor(doctorId: string) {
     const doctor = await this.findOne({ 
       doctorId,
       isDeleted: { $ne: true } // Exclude soft deleted
-    });
+    })
+      .select("-__v -isDeleted -deletedAt -deletedBy")
+      .lean();
     
     if (!doctor) {
       throw new APIError(
@@ -195,7 +198,7 @@ hospitalDoctorSchema.statics = {
       );
     }
     
-    return doctor.toObject();
+    return doctor;
   },
 
   async updateHospitalDoctor(doctorId: string, updates: Partial<HospitalDoctor>): Promise<HospitalDoctor> {

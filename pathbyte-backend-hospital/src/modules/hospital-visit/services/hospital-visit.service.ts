@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import HospitalVisitModel from "../models/hospital-visit.model";
 import HospitalPatientService from "../../hospital-patient/services/hospital-patient.service";
 import HospitalTransactionService from "../../hospital-transaction/services/hospital-transaction.service";
@@ -597,7 +597,7 @@ class HospitalVisitService {
           try {
             const HospitalDoctorModel = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
             const doctor = await HospitalDoctorModel.findById(visit.doctorId)
-              .select('name department designation phone doctorId medicalLicenseNo opdNumber posterUrl')
+              .select("name department designation opdNumber posterUrl -phone -medicalLicenseNo")
               .lean();
             
             if (doctor) {
@@ -607,8 +607,6 @@ class HospitalVisitService {
                 name: doctor.name,
                 department: doctor.department,
                 designation: doctor.designation,
-                phone: doctor.phone,
-                medicalLicenseNo: (doctor as any).medicalLicenseNo,
                 opdNumber: (doctor as any).opdNumber,
                 posterUrl: (doctor as any).posterUrl
               };
@@ -702,7 +700,8 @@ class HospitalVisitService {
           from: "hospitalpatients",
           localField: "patientObjectId",
           foreignField: "_id",
-          as: "patient"
+          as: "patient",
+          pipeline: [{ $project: { aadharNo: 0, aadharS3Url: 0, ayushmanCardNo: 0, ayushmanCardS3Url: 0, otherDocsS3Urls: 0, allAbhaAddresses: 0, pathlabPatientId: 0, createdBy: 0, isDeleted: 0, deletedAt: 0, deletedBy: 0, __v: 0 } }]
         }
       },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
@@ -718,7 +717,8 @@ class HospitalVisitService {
           from: "hospitaldoctors",
           localField: "doctorObjectId",
           foreignField: "_id",
-          as: "doctor"
+          as: "doctor",
+          pipeline: [{ $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }]
         }
       },
       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
@@ -1119,7 +1119,21 @@ class HospitalVisitService {
         $project: {
           __v: 0,
           "patient.__v": 0,
+          "patient.aadharNo": 0,
+          "patient.aadharS3Url": 0,
+          "patient.ayushmanCardNo": 0,
+          "patient.ayushmanCardS3Url": 0,
+          "patient.otherDocsS3Urls": 0,
+          "patient.pathlabPatientId": 0,
+          "patient.isDeleted": 0,
+          "patient.deletedAt": 0,
+          "patient.deletedBy": 0,
           "doctor.__v": 0,
+          "doctor.phone": 0,
+          "doctor.medicalLicenseNo": 0,
+          "doctor.isDeleted": 0,
+          "doctor.deletedAt": 0,
+          "doctor.deletedBy": 0,
           patientObjectId: 0,
           doctorObjectId: 0,
         }
@@ -1637,7 +1651,21 @@ class HospitalVisitService {
         $project: {
           __v: 0,
           "patient.__v": 0,
+          "patient.aadharNo": 0,
+          "patient.aadharS3Url": 0,
+          "patient.ayushmanCardNo": 0,
+          "patient.ayushmanCardS3Url": 0,
+          "patient.otherDocsS3Urls": 0,
+          "patient.pathlabPatientId": 0,
+          "patient.isDeleted": 0,
+          "patient.deletedAt": 0,
+          "patient.deletedBy": 0,
           "doctor.__v": 0,
+          "doctor.phone": 0,
+          "doctor.medicalLicenseNo": 0,
+          "doctor.isDeleted": 0,
+          "doctor.deletedAt": 0,
+          "doctor.deletedBy": 0,
           patientObjectId: 0,
           doctorObjectId: 0,
           createdByObjectId: 0,

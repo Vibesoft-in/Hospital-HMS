@@ -1,6 +1,6 @@
 import { successResponse } from "@src/libs/response";
 import { Request, Response, NextFunction } from "express";
-
+import { sanitizeResponseData } from "@src/shared/role-sanitizer";
 
 // extend Express Response type
 declare module "express-serve-static-core" {
@@ -9,9 +9,11 @@ declare module "express-serve-static-core" {
   }
 }
 
-function successMiddleware(_req: Request, res: Response, next: NextFunction) {
+function successMiddleware(req: Request, res: Response, next: NextFunction) {
   res.success = function (data: any, message = "success", code = 200) {
-    return res.status(code).json(successResponse(data, message, code));
+    const role = (req as any).hospitalUser?.role;
+    const sanitizedData = sanitizeResponseData(data, role);
+    return res.status(code).json(successResponse(sanitizedData, message, code));
   };
   next();
 }

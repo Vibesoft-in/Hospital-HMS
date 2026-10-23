@@ -1,4 +1,4 @@
-﻿import DaycareAppointmentModel from "../models/daycare-appointment.model";
+import DaycareAppointmentModel from "../models/daycare-appointment.model";
 import HospitalPatientService from "../../hospital-patient/services/hospital-patient.service";
 import HospitalTransactionService from "../../hospital-transaction/services/hospital-transaction.service";
 import { getNextSequence } from "@src/libs/counter";
@@ -441,7 +441,7 @@ class DaycareAppointmentService {
           try {
             const HospitalDoctorModel = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
             const doctor = await HospitalDoctorModel.findById(appointment.doctorId)
-              .select('name department designation phone doctorId medicalLicenseNo')
+              .select('name department designation doctorId')
               .lean();
             
             if (doctor) {
@@ -450,9 +450,7 @@ class DaycareAppointmentService {
                 doctorId: (doctor as any).doctorId,
                 name: doctor.name,
                 department: doctor.department,
-                designation: doctor.designation,
-                phone: (doctor as any).phone,
-                medicalLicenseNo: (doctor as any).medicalLicenseNo
+                designation: doctor.designation
               };
             }
           } catch (error) {
@@ -899,7 +897,7 @@ class DaycareAppointmentService {
       try {
         const HospitalPatientModel = (await import("../../hospital-patient/models/hospital-patient.model")).default;
         const patient = await HospitalPatientModel.findById(appointment.patientId)
-          .select('name title phone mrd age months days gender address bloodGroup aadharNo ayushmanCardNo companyName division isMRPatient abhaLinked abhaPatientId emergencyContacts')
+          .select('name title phone mrd age months days gender address bloodGroup companyName division isMRPatient abhaLinked abhaPatientId emergencyContacts')
           .lean();
         if (patient) {
           appointment.patient = {
@@ -914,8 +912,6 @@ class DaycareAppointmentService {
             gender: patient.gender,
             address: patient.address,
             bloodGroup: patient.bloodGroup,
-            aadharNo: patient.aadharNo,
-            ayushmanCardNo: patient.ayushmanCardNo,
             companyName: (patient as any).companyName,
             division: (patient as any).division,
             isMRPatient: (patient as any).isMRPatient ?? false,
@@ -934,7 +930,7 @@ class DaycareAppointmentService {
       try {
         const HospitalDoctorModel = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
         const doctor = await HospitalDoctorModel.findById(appointment.doctorId)
-          .select('name department designation phone doctorId medicalLicenseNo')
+          .select('name department designation doctorId')
           .lean();
         if (doctor) {
           appointment.doctor = {
@@ -943,8 +939,6 @@ class DaycareAppointmentService {
             name: doctor.name,
             department: doctor.department,
             designation: doctor.designation,
-            phone: doctor.phone,
-            medicalLicenseNo: (doctor as any).medicalLicenseNo,
           };
         }
       } catch (error) {

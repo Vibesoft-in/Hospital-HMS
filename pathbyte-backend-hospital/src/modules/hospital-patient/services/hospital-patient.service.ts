@@ -1,4 +1,4 @@
-﻿import HospitalPatientModel from "../models/hospital-patient.model";
+import HospitalPatientModel from "../models/hospital-patient.model";
 import { getNextSequence } from "@src/libs/counter";
 import { transformS3UrlsAsync } from "@src/libs/utils/s3Upload";
 import {
@@ -64,13 +64,16 @@ class HospitalPatientService {
     const patient = await HospitalPatientModel.findOne({
       _id: id,
       isDeleted: { $ne: true }
-    });
+    }).select("-__v -isDeleted -deletedAt -deletedBy").lean();
 
     if (!patient) {
       throw new Error(`Patient with ID '${id}' not found`);
     }
 
-    const serializedPatient = patient.toObject() as any;
+    const serializedPatient = { ...(patient as any) };
+    if (serializedPatient._id && typeof serializedPatient._id === 'object') {
+      serializedPatient._id = serializedPatient._id.toString();
+    }
     const result = await transformS3UrlsAsync(serializedPatient) as any;
 
     // Append pathlab cases if cross-reference exists

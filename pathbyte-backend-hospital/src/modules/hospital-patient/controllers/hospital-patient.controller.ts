@@ -1,4 +1,4 @@
-﻿import { validate } from "jsonschema";
+import { validate } from "jsonschema";
 import { Request, Response, NextFunction } from "express";
 import { APIError } from "@src/shared";
 import { AppError } from "@src/libs/errors";
@@ -134,13 +134,13 @@ async function searchHospitalPatientByAbha(
     const doc = await HospitalPatientModel.findOne({
       $or: orConditions,
       isDeleted: { $ne: true },
-    });
+    }).select("-__v -isDeleted -deletedAt -deletedBy").lean();
 
     if (!doc) {
       return next(new APIError(404, "Patient Not Found", "No hospital patient found with the provided ABHA details"));
     }
 
-    const patient = await transformS3UrlsAsync(doc.toObject());
+    const patient = await transformS3UrlsAsync(doc as any);
 
 
     return response.success({ patient }, "Patient retrieved successfully");
