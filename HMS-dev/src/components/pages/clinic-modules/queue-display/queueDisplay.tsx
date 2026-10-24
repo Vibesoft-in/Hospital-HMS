@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { Maximize, Minimize, Ambulance, Clock } from "tabler-icons-react";
 import { formatTokenWithVisitPrefix } from "@/core/utils/tokenPrefix";
@@ -118,7 +119,12 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
     yearsOfExperience:
       data.yearsOfExperience != null ? Number(data.yearsOfExperience) : null,
     opdNumber: (data.opdNumber as string) ?? null,
-    posterUrl: typeof data.posterUrl === "string" ? data.posterUrl : null,
+    posterUrl:
+      typeof data.posterUrl === "string" && data.posterUrl.trim()
+        ? data.posterUrl
+        : typeof data.imageUrl === "string" && data.imageUrl.trim()
+        ? data.imageUrl
+        : null,
     shift: (data.shift as string) ?? null,
     currentSessionSlot: parseCurrentSessionSlot(data),
     sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
@@ -237,6 +243,23 @@ const QueueDisplayComponent = () => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Direct fetch doctor profile to guarantee photo/posterUrl is available
+  useEffect(() => {
+    if (!doctorId || !API_BASE_URL) return;
+    axios
+      .get(`${API_BASE_URL}/hospital/doctors/${doctorId}`)
+      .then((res) => {
+        const doc = res.data?.data?.doctor || res.data?.doctor || res.data?.data || res.data;
+        const photo = doc?.posterUrl || doc?.imageUrl;
+        if (photo && typeof photo === "string") {
+          setDisplay((prev) => (prev ? { ...prev, posterUrl: photo } : prev));
+        }
+      })
+      .catch((err) => {
+        console.warn("Direct doctor photo fetch warning:", err);
+      });
+  }, [doctorId]);
 
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
@@ -450,8 +473,8 @@ const QueueDisplayComponent = () => {
   }
 
   const rawName = display?.doctorName?.trim() ?? "";
-  const doctorPosterSrc = display?.posterUrl?.trim() || DEFAULT_DOCTOR_POSTER;
-  const isRemotePoster = /^https?:\/\//i.test(doctorPosterSrc);
+  const rawPoster = display?.posterUrl?.trim() || (display as any)?.imageUrl?.trim() || "";
+  const doctorPosterSrc = rawPoster || DEFAULT_DOCTOR_POSTER;
   const doctorName = rawName
     ? rawName.startsWith("Dr.")
       ? rawName
@@ -580,24 +603,18 @@ const QueueDisplayComponent = () => {
               height: "clamp(184px, 22.5vw, 330px)",
             }}
           >
-            {isRemotePoster ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={doctorPosterSrc}
-                alt={doctorName}
-                className="position-absolute top-0 start-0 w-100 h-100"
-                style={{ objectFit: "cover", objectPosition: "top" }}
-              />
-            ) : (
-              <Image
-                src={doctorPosterSrc}
-                alt={doctorName}
-                fill
-                sizes="(max-width: 768px) 200px, 25vw"
-                style={{ objectFit: "cover", objectPosition: "top" }}
-                priority={false}
-              />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={doctorPosterSrc}
+              alt={doctorName}
+              className="position-absolute top-0 start-0 w-100 h-100"
+              style={{ objectFit: "cover", objectPosition: "top" }}
+              onError={(e) => {
+                if (e.currentTarget.src !== DEFAULT_DOCTOR_POSTER) {
+                  e.currentTarget.src = DEFAULT_DOCTOR_POSTER;
+                }
+              }}
+            />
           </div>
           <h2
             className="fw-bold mb-2 mx-auto"

@@ -22,6 +22,13 @@
     letter-spacing: -0.04em;
     box-shadow: 0 6px 14px color-mix(in srgb, var(--primary) 28%, transparent);
     line-height: 1;
+
+    &[src] {
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      object-fit: contain;
+    }
   }
 
   .pranaos-text {
@@ -45,14 +52,7 @@
   }
 
   .pranaos-sub {
-    margin-top: 4px;
-    font-size: 0.625rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: $gray-900;
-    opacity: 0.55;
-    white-space: nowrap;
+    display: none !important;
   }
 
   &--lg {

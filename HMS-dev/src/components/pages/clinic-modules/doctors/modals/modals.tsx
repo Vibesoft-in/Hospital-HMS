@@ -900,15 +900,23 @@ const Modals = () => {
       };
 
       if (photoFile) {
-        const uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
-        doctorData.imageUrl = uploadedImageUrl?.trim();
+        try {
+          const uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
+          doctorData.imageUrl = uploadedImageUrl?.trim();
+        } catch (uploadErr) {
+          console.warn("Photo upload warning, proceeding with doctor update:", uploadErr);
+        }
       } else if (photoRemoved && savedImageUrl.trim()) {
         doctorData.imageUrl = "";
       }
 
       if (posterFile) {
-        const uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
-        doctorData.posterUrl = uploadedPosterUrl?.trim();
+        try {
+          const uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
+          doctorData.posterUrl = uploadedPosterUrl?.trim();
+        } catch (uploadErr) {
+          console.warn("Poster upload warning, proceeding with doctor update:", uploadErr);
+        }
       } else if (posterRemoved && savedPosterUrl.trim()) {
         doctorData.posterUrl = "";
       }
@@ -926,11 +934,18 @@ const Modals = () => {
         }
         window.location.reload();
       } else {
-        console.error("Failed to update doctor:", response.data);
+        const errorMsg = response.data?.message || "Failed to update doctor";
+        alert(errorMsg);
       }
     } catch (error: any) {
       console.error("Error updating doctor:", error);
       console.error("Error details:", error.response?.data);
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to update doctor. Please check required fields.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }

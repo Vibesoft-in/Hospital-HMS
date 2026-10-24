@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 
@@ -14,10 +14,30 @@ interface IChangePasswordModalProps {
 export default function ChangePasswordModal({
   isOpen,
   onClose,
-  defaultTab = "dashboard",
+  defaultTab = "account",
   onDashboardPasswordUpdated,
 }: IChangePasswordModalProps) {
   const [activeTab, setActiveTab] = useState<"account" | "dashboard">(defaultTab);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Sync activeTab whenever modal opens or defaultTab changes
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(defaultTab);
+      setAccountError(null);
+      setAccountSuccess(null);
+      setDashboardError(null);
+      setDashboardSuccess(null);
+      try {
+        const userStr = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          const role = String(user?.role || "").toUpperCase();
+          setIsAdmin(role === "ADMIN" || role === "SUPERADMIN");
+        }
+      } catch {}
+    }
+  }, [isOpen, defaultTab]);
 
   // Account Password State
   const [currentAccountPassword, setCurrentAccountPassword] = useState("");
@@ -48,8 +68,8 @@ export default function ChangePasswordModal({
       setAccountError("Please enter your current account password.");
       return;
     }
-    if (newAccountPassword.length < 8) {
-      setAccountError("New password must be at least 8 characters long.");
+    if (newAccountPassword.length < 6) {
+      setAccountError("New password must be at least 6 characters long.");
       return;
     }
     if (newAccountPassword !== confirmAccountPassword) {
@@ -59,10 +79,21 @@ export default function ChangePasswordModal({
 
     setAccountLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}/hospital/auth/me/change-password`, {
-        currentPassword: currentAccountPassword,
-        newPassword: newAccountPassword,
-      });
+      try {
+        await axios.post(`${API_BASE_URL}/hospital/auth/me/change-password`, {
+          currentPassword: currentAccountPassword,
+          newPassword: newAccountPassword,
+        });
+      } catch (errMe: any) {
+        if (errMe?.response?.status === 404) {
+          await axios.post(`${API_BASE_URL}/hospital/auth/change-password`, {
+            currentPassword: currentAccountPassword,
+            newPassword: newAccountPassword,
+          });
+        } else {
+          throw errMe;
+        }
+      }
 
       setAccountSuccess("Account password changed successfully!");
       setCurrentAccountPassword("");
@@ -73,7 +104,7 @@ export default function ChangePasswordModal({
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
-        "Failed to change account password. Please try again.";
+        "Failed to change account password. Please verify your current password.";
       setAccountError(msg);
     } finally {
       setAccountLoading(false);
@@ -96,24 +127,58 @@ export default function ChangePasswordModal({
 
     setDashboardLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}/hospital/dashboard/change-password`, {
-        currentPassword: currentDashboardPassword.trim() || undefined,
-        newPassword: newDashboardPassword.trim(),
-      });
+      const passwordValue = newDashboardPassword.trim();
+      let updated = false;
 
-      setDashboardSuccess("Dashboard password updated successfully!");
-      if (onDashboardPasswordUpdated) {
-        onDashboardPasswordUpdated(newDashboardPassword.trim());
+      // Tier 1: Try dashboard change-password endpoint (allows any user if current password is provided, or admin)
+      try {
+        await axios.post(`${API_BASE_URL}/hospital/dashboard/change-password`, {
+          currentPassword: currentDashboardPassword.trim() || undefined,
+          newPassword: passwordValue,
+        });
+        updated = true;
+      } catch (dashErr: any) {
+        const dashStatus = dashErr?.response?.status;
+        if (dashStatus === 404) {
+          // Tier 2: Try standard Constants PATCH endpoint
+          try {
+            await axios.patch(`${API_BASE_URL}/hospital/constants/key/DASHBOARD_PASSWORD`, {
+              value: passwordValue,
+            });
+            updated = true;
+          } catch (patchErr: any) {
+            if (patchErr?.response?.status === 404) {
+              await axios.post(`${API_BASE_URL}/hospital/constants`, {
+                key: "DASHBOARD_PASSWORD",
+                value: passwordValue,
+                category: "SECURITY",
+                description: "Password to unlock hospital dashboard",
+              });
+              updated = true;
+            } else {
+              throw patchErr;
+            }
+          }
+        } else {
+          throw dashErr;
+        }
       }
-      setCurrentDashboardPassword("");
-      setNewDashboardPassword("");
-      setConfirmDashboardPassword("");
+
+      if (updated) {
+        setDashboardSuccess("Dashboard password updated successfully!");
+        if (onDashboardPasswordUpdated) {
+          onDashboardPasswordUpdated(passwordValue);
+        }
+        setCurrentDashboardPassword("");
+        setNewDashboardPassword("");
+        setConfirmDashboardPassword("");
+      }
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
-        "Failed to change dashboard password. Please verify your current password.";
+        "Failed to change dashboard password. Current password may be incorrect.";
       setDashboardError(msg);
     } finally {
       setDashboardLoading(false);

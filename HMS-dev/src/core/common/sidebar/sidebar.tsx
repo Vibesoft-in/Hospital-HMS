@@ -201,8 +201,10 @@ const Sidebar = () => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Start Logo - PranaOS + collapse button in same row */}
-        <div className="sidebar-logo d-flex align-items-center justify-content-between gap-2">
+        <div
+          className="sidebar-logo d-flex align-items-center justify-content-between gap-2"
+          style={{ overflow: "hidden", minHeight: "64px", height: "64px" }}
+        >
           {/* <span className="avatar rounded flex-shrink-0 p-1 overflow-hidden bg-white d-flex align-items-center justify-content-center" style={{ width: 52, height: 52 }}>
             <Image src="/JJM Logo.png" alt="JJM Hospital" width={48} height={48} style={{ objectFit: "contain" }} />
           </span> */}

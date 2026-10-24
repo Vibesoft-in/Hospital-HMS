@@ -37,17 +37,27 @@
         .dark-logo, .logo-normal{
           img{
             width: auto;
-            height: auto;
-            max-width: none;
+            max-width: 100%;
+            max-height: 38px;
+            object-fit: contain;
           }
         }
         .logo-normal .avatar img {
-            width: 48px !important;
-            height: 48px !important;
-            max-width: 48px;
+            width: 38px !important;
+            height: 38px !important;
+            max-width: 38px;
             object-fit: contain;
         }
-        .logo-small, .dark-logo {
+        .logo-small {
+            display: none;
+            img {
+                width: 32px !important;
+                height: 32px !important;
+                max-width: 32px;
+                object-fit: contain;
+            }
+        }
+        .dark-logo {
             display: none;
         }
         #toggle_btn {

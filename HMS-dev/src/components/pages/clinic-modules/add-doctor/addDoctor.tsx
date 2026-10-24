@@ -152,7 +152,11 @@ const AddDoctorComponent = () => {
       //   uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
       // }
       if (posterFile) {
-        uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
+        try {
+          uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
+        } catch (uploadErr) {
+          console.warn("Poster upload warning, proceeding with doctor creation:", uploadErr);
+        }
       }
 
       // Map visit types to API shape: visitType, appointmentType, charge
@@ -202,16 +206,23 @@ const AddDoctorComponent = () => {
 
       const response = await axios.post(`${API_BASE_URL}/hospital/doctors`, doctorData);
       const isSuccess = response.status >= 200 && response.status < 300;
-      const hasSuccessCode = response.data?.code === 200;
+      const hasSuccessCode = response.data?.code === 200 || response.data?.code === 201;
 
       if (isSuccess || hasSuccessCode) {
         router.push(all_routes.doctorsList);
       } else {
-        console.error("Failed to create doctor:", response.data);
+        const errorMsg = response.data?.message || "Failed to create doctor";
+        alert(errorMsg);
       }
     } catch (error: any) {
       console.error("Error creating doctor:", error);
       console.error("Error details:", error.response?.data);
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create doctor. Please check required fields.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
