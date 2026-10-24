@@ -7,6 +7,7 @@ import SCol10Chart from "./chart/scol10Chart";
 import Modals from "./modals/modals";
 import Link from "next/link";
 import ImageWithBasePath from "@/core/imageWithBasePath";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PatientDahboardComponent = () => {
   return (
@@ -125,9 +126,9 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-01.jpg"
-                          alt="img"
+                        <DoctorAvatar
+                          gender="Male"
+                          size={40}
                           className="rounded-circle"
                         />
                       </Link>
@@ -147,9 +148,9 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-02.jpg"
-                          alt="img"
+                        <DoctorAvatar
+                          gender="Female"
+                          size={40}
                           className="rounded-circle"
                         />
                       </Link>
@@ -171,9 +172,9 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-03.jpg"
-                          alt="img"
+                        <DoctorAvatar
+                          gender="Female"
+                          size={40}
                           className="rounded-circle"
                         />
                       </Link>
@@ -193,9 +194,9 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-04.jpg"
-                          alt="img"
+                        <DoctorAvatar
+                          gender="Male"
+                          size={40}
                           className="rounded-circle"
                         />
                       </Link>
@@ -215,9 +216,9 @@ const PatientDahboardComponent = () => {
                   <div className="d-flex align-items-center justify-content-between mb-0">
                     <div className="d-flex align-items-center">
                       <Link href="#" className="avatar me-2 flex-shrink-0">
-                        <ImageWithBasePath
-                          src="assets/img/doctors/doctor-05.jpg"
-                          alt="img"
+                        <DoctorAvatar
+                          gender="Female"
+                          size={40}
                           className="rounded-circle"
                         />
                       </Link>
@@ -717,9 +718,9 @@ const PatientDahboardComponent = () => {
                           <td className="ps-0">
                             <div className="d-flex align-items-center">
                               <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-06.jpg"
-                                  alt="img"
+                                <DoctorAvatar
+                                  gender="Male"
+                                  size={40}
                                   className="rounded-circle"
                                 />
                               </Link>
@@ -749,9 +750,9 @@ const PatientDahboardComponent = () => {
                           <td className="ps-0">
                             <div className="d-flex align-items-center">
                               <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-07.jpg"
-                                  alt="img"
+                                <DoctorAvatar
+                                  gender="Female"
+                                  size={40}
                                   className="rounded-circle"
                                 />
                               </Link>
@@ -781,9 +782,9 @@ const PatientDahboardComponent = () => {
                           <td className="ps-0">
                             <div className="d-flex align-items-center">
                               <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-08.jpg"
-                                  alt="img"
+                                <DoctorAvatar
+                                  gender="Female"
+                                  size={40}
                                   className="rounded-circle"
                                 />
                               </Link>
@@ -813,9 +814,9 @@ const PatientDahboardComponent = () => {
                           <td className="ps-0">
                             <div className="d-flex align-items-center">
                               <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-09.jpg"
-                                  alt="img"
+                                <DoctorAvatar
+                                  gender="Female"
+                                  size={40}
                                   className="rounded-circle"
                                 />
                               </Link>
@@ -845,9 +846,9 @@ const PatientDahboardComponent = () => {
                           <td className="ps-0">
                             <div className="d-flex align-items-center">
                               <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-10.jpg"
-                                  alt="img"
+                                <DoctorAvatar
+                                  gender="Male"
+                                  size={40}
                                   className="rounded-circle"
                                 />
                               </Link>
@@ -933,9 +934,9 @@ const PatientDahboardComponent = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Link href="#" className="avatar me-2">
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-01.jpg"
-                              alt="img"
+                            <DoctorAvatar
+                              gender="Male"
+                              size={40}
                               className="rounded-circle"
                             />
                           </Link>
@@ -1001,9 +1002,9 @@ const PatientDahboardComponent = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Link href="#" className="avatar me-2">
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-09.jpg"
-                              alt="img"
+                            <DoctorAvatar
+                              gender="Female"
+                              size={40}
                               className="rounded-circle"
                             />
                           </Link>
@@ -1069,9 +1070,9 @@ const PatientDahboardComponent = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Link href="#" className="avatar me-2">
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-03.jpg"
-                              alt="img"
+                            <DoctorAvatar
+                              gender="Female"
+                              size={40}
                               className="rounded-circle"
                             />
                           </Link>
@@ -1137,9 +1138,9 @@ const PatientDahboardComponent = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Link href="#" className="avatar me-2">
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-04.jpg"
-                              alt="img"
+                            <DoctorAvatar
+                              gender="Male"
+                              size={40}
                               className="rounded-circle"
                             />
                           </Link>
@@ -1205,9 +1206,9 @@ const PatientDahboardComponent = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Link href="#" className="avatar me-2">
-                            <ImageWithBasePath
-                              src="assets/img/doctors/doctor-05.jpg"
-                              alt="img"
+                            <DoctorAvatar
+                              gender="Female"
+                              size={40}
                               className="rounded-circle"
                             />
                           </Link>

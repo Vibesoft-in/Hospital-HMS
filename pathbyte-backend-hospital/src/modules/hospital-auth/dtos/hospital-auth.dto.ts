@@ -23,6 +23,7 @@ export interface UpdateUserDTO {
   phoneNumber?: string;
   role?: HospitalUserRole;
   isActive?: boolean;
+  tokenVersion?: number;
   linkedDoctorId?: string;
 }
 
@@ -48,6 +49,7 @@ export interface AuthUserDTO {
   name: string;
   phoneNumber?: string;
   role: HospitalUserRole;
+  tokenVersion?: number;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;

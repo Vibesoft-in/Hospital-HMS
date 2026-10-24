@@ -66,6 +66,7 @@ const hospitalPatientSchema = new Schema<HospitalPatientDoc>(
     abhaPatientId: { type: String, default: null }, // Cross-reference to AbhaPatient._id
     abhaLinked: { type: Boolean, default: false },  // True once ABHA is linked
     isMRPatient: { type: Boolean, default: false }, // Set to true when an MR visit is created for this patient
+    doctorId: { type: String, index: true },
     createdBy: { type: String }, // Hospital user _id who created this patient
   },
   { timestamps: true }

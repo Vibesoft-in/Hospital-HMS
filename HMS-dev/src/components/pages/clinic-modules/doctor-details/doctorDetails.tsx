@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { all_routes } from "../../../../routes/all_routes";
 import { API_BASE_URL } from "@/environment";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 interface IVisitType {
   visitType: string;
@@ -104,8 +105,17 @@ const DoctorDetailsComponent = () => {
 
     fetchDoctor();
 
+    const handleDoctorUpdated = (e: any) => {
+      const updatedId = e?.detail?.doctorId;
+      if (!updatedId || updatedId === idFromParam || updatedId === doctor?._id || updatedId === doctor?.doctorId) {
+        fetchDoctor();
+      }
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
     };
   }, [idFromParam]);
 
@@ -177,27 +187,14 @@ const DoctorDetailsComponent = () => {
                 <div className="d-flex align-items-start align-items-sm-center flex-column flex-sm-row gap-4">
                   {/* Doctor Avatar / Poster */}
                   <div className="flex-shrink-0">
-                    {posterImage ? (
-                      <div
-                        className="rounded-3 border overflow-hidden position-relative shadow-sm"
-                        style={{ width: "120px", height: "140px", backgroundColor: "#f8f9fa" }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={posterImage}
-                          alt={displayName}
-                          className="w-100 h-100"
-                          style={{ objectFit: "cover", objectPosition: "top" }}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        className="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center shadow-sm fw-bold"
-                        style={{ width: "120px", height: "140px", fontSize: "2.2rem" }}
-                      >
-                        {initials}
-                      </div>
-                    )}
+                    <DoctorAvatar
+                      imageUrl={posterImage}
+                      gender={doctor?.gender}
+                      shape="rounded"
+                      style={{ width: "120px", height: "140px" }}
+                      className="shadow-sm border"
+                      alt={displayName}
+                    />
                   </div>
 
                   {/* Doctor Quick Info */}

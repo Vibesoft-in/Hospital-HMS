@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import dayjs from "dayjs";
+import DOMPurify from "isomorphic-dompurify";
 
 export interface IPrintXrayReportData {
   sessionId?: string;
@@ -280,7 +281,7 @@ const PrintXrayReport = ({ reportData, onClose }: IPrintXrayReportProps) => {
             <div className="xray-report-title">{xrayReportTitle}</div>
             <div
               className="xray-report-html"
-              dangerouslySetInnerHTML={{ __html: reportData.reportHtml ?? "" }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(reportData.reportHtml ?? "") }}
             />
           </div>
 

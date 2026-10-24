@@ -79,16 +79,21 @@ export const trackEnumeration = (req: Request, res: Response, next: NextFunction
           }, "Enumeration attack detected - IP blocked");
           
           // Unblock after duration
-          setTimeout(() => {
+          const unblockTimer = setTimeout(() => {
             BLOCKED_IPS.delete(ip);
             notFoundCounts.delete(ip);
             logger.info({ ip }, "IP unblocked after timeout");
           }, BLOCK_DURATION);
+          if (unblockTimer.unref) {
+            unblockTimer.unref();
+          }
           
-          return res.status(403).json({ 
+          res.status(403);
+          res.setHeader("Content-Type", "application/json");
+          return originalSend.call(this, JSON.stringify({ 
             error: "FORBIDDEN",
             message: "Access denied due to suspicious activity"
-          });
+          }));
         }
       }
     }
@@ -99,10 +104,15 @@ export const trackEnumeration = (req: Request, res: Response, next: NextFunction
   next();
 };
 
+export const _resetEnumerationTracking = (): void => {
+  notFoundCounts.clear();
+  BLOCKED_IPS.clear();
+};
+
 /**
  * Clean up old tracking data periodically
  */
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of notFoundCounts.entries()) {
     if (now - record.timestamp > 60000) {
@@ -110,6 +120,9 @@ setInterval(() => {
     }
   }
 }, 60000); // Clean every minute
+if (cleanupTimer.unref) {
+  cleanupTimer.unref();
+}
 
 /**
  * Normalize error responses to prevent information disclosure

@@ -178,6 +178,7 @@ class HospitalUserService {
     }
     
     user.passwordHash = await hashPassword(input.newPassword);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
     
     const { passwordHash, ...userWithoutPassword } = user.toObject();

@@ -18,6 +18,7 @@ import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PatientPrescriptionsComponent = () => {
   const getModalContainer = () => {
@@ -42,9 +43,10 @@ const PatientPrescriptionsComponent = () => {
             href={all_routes.patientappointmentdetails}
             className="avatar avatar-md me-2"
           >
-            <ImageWithBasePath
-              src={`assets/img/doctors/${render.img}`}
-              alt="product"
+            <DoctorAvatar
+              imageUrl={render.imageUrl || render.doctor?.imageUrl}
+              gender={render.gender || render.doctor?.gender}
+              size={40}
               className="rounded-circle"
             />
           </Link>

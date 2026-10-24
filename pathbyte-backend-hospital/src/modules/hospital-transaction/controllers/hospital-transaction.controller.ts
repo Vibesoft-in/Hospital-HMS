@@ -44,11 +44,15 @@ async function readHospitalTransaction(
   next: NextFunction
 ) {
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const transaction = await hospitalTransactionService.getHospitalTransactionById(id);
+    const transaction = await hospitalTransactionService.getHospitalTransactionById(id, ownershipFilter);
     return response.success({ transaction }, "Transaction retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to get transaction", err.message ?? undefined)
     );
@@ -91,11 +95,15 @@ async function updateHospitalTransaction(
   }
 
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const updatedTransaction = await hospitalTransactionService.updateHospitalTransactionById(id, input as any);
+    const updatedTransaction = await hospitalTransactionService.updateHospitalTransactionById(id, input as any, ownershipFilter);
     return response.success({ transaction: updatedTransaction }, "Transaction updated successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to update transaction", err.message ?? undefined)
     );
@@ -108,11 +116,15 @@ async function deleteHospitalTransaction(
   next: NextFunction
 ) {
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    await hospitalTransactionService.deleteHospitalTransactionById(id);
+    await hospitalTransactionService.deleteHospitalTransactionById(id, ownershipFilter);
     return response.success({}, "Transaction deleted successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to delete transaction", err.message ?? undefined)
     );

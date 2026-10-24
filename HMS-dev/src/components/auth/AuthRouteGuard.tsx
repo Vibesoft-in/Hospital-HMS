@@ -3,7 +3,7 @@
 import NotFoundScreen from "@/components/auth/error-modules/NotFoundScreen";
 import { isAuthenticated, isPublicPath } from "@/core/auth/routeGuard";
 import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
-import { isSharedAuthEnabled, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
+import { getAccessToken, silentRefresh } from "@/core/auth/inMemoryToken";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -20,11 +20,30 @@ const AuthRouteGuard = ({ children }: IAuthRouteGuardProps) => {
     let cancelled = false;
 
     const verifySession = async () => {
-      if (isSharedAuthEnabled() && !localStorage.getItem("authToken")) {
-        await syncHospitalSessionFromSharedCookie();
+      const currentPath = pathname ?? "";
+      if (isPublicPath(currentPath)) {
+        setChecked(true);
+        setAuthed(true);
+        return;
+      }
+
+      const hasAuthUser = typeof window !== "undefined" && Boolean(window.localStorage.getItem("authUser"));
+      const hasCookie = typeof document !== "undefined" && document.cookie?.includes("hms_auth=1");
+
+      if (!hasAuthUser && !hasCookie && !getAccessToken()) {
+        if (!cancelled) {
+          setAuthed(false);
+          setChecked(true);
+        }
+        return;
+      }
+
+      let token = getAccessToken();
+      if (!token) {
+        token = await silentRefresh();
       }
       if (cancelled) return;
-      const authenticated = isAuthenticated();
+      const authenticated = Boolean(token || isAuthenticated());
       if (authenticated) {
         setHmsAuthCookie();
       }
@@ -42,7 +61,11 @@ const AuthRouteGuard = ({ children }: IAuthRouteGuardProps) => {
   if (!checked) {
     return (
       <div className="auth-bg d-flex align-items-center justify-content-center min-vh-100">
-        <span className="text-muted">Loading...</span>
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-2" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
       </div>
     );
   }

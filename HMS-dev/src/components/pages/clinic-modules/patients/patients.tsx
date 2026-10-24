@@ -17,6 +17,8 @@ import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
+import DOMPurify from "isomorphic-dompurify";
+
 interface IPatient {
   _id: string;
   mrd: string;
@@ -243,14 +245,14 @@ const PatientsComponent = () => {
   return (
     <>
       <style dangerouslySetInnerHTML={{
-        __html: `
+        __html: DOMPurify.sanitize(`
           .datatable .ant-table-tbody > tr > td {
             color: #000 !important;
           }
           .datatable .ant-table-thead > tr > th {
             color: #000 !important;
           }
-        `
+        `)
       }} />
       {/* ========================
 			Start Page Content

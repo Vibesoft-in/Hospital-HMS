@@ -11,6 +11,7 @@ import { DatePicker } from "antd";
 import { Specialization, StatusActive } from "@/core/common/selectOption";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const SpecializationsComponent = () => {
   const data = SpecializationsListData;
@@ -26,9 +27,10 @@ const SpecializationsComponent = () => {
             data-bs-toggle="modal"
             data-bs-target="#view_staff"
           >
-            <ImageWithBasePath
-              src={`assets/img/doctors/${render.img}`}
-              alt="Doctor"
+            <DoctorAvatar
+              imageUrl={render.imageUrl}
+              gender={render.gender}
+              size={36}
               className="rounded-circle"
             />
           </Link>

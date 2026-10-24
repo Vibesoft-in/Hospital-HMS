@@ -10,6 +10,7 @@ import {
   syncHospitalSessionFromSharedCookie,
 } from "@/core/auth/sharedAuth";
 import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
+import { getAccessToken, setAccessToken, silentRefresh } from "@/core/auth/inMemoryToken";
 import { all_routes } from "@/routes/all_routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,13 +39,11 @@ const LoginComponent = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (isSharedAuthEnabled()) {
-        const sync = await syncHospitalSessionFromSharedCookie();
-        if (cancelled) return;
-        if (sync !== "restored") return;
-      } else if (!localStorage.getItem("authToken")) {
-        return;
+      let token = getAccessToken();
+      if (!token) {
+        token = await silentRefresh();
       }
+      if (cancelled || !token) return;
 
       setHmsAuthCookie();
       try {
@@ -85,21 +84,32 @@ const LoginComponent = () => {
       setLoading(true);
 
       if (isSharedAuthEnabled()) {
-        const shared = await postSharedLogin(email.trim(), password);
-        if (!shared.ok) {
-          setError(shared.message || "Login failed.");
-          return;
+        try {
+          const shared = await postSharedLogin(email.trim(), password);
+          if (shared.ok) {
+            const raw = localStorage.getItem("authUser");
+            const user = raw ? JSON.parse(raw) : null;
+            router.push(getPostLoginRoute(user?.role));
+            return;
+          }
+          // If shared auth explicitly rejected credentials (e.g., 401 unauthorized), display the message
+          if (shared.message && !shared.message.toLowerCase().includes("timeout") && !shared.message.toLowerCase().includes("network")) {
+            setError(shared.message);
+            return;
+          }
+        } catch {
+          // Fall through to direct hospital login
         }
-        const raw = localStorage.getItem("authUser");
-        const user = raw ? JSON.parse(raw) : null;
-        router.push(getPostLoginRoute(user?.role));
-        return;
       }
 
-      const response = await axios.post(`${API_BASE_URL}/hospital/auth/login`, {
-        email: email.trim(),
-        password,
-      });
+      const response = await axios.post(
+        `${API_BASE_URL}/hospital/auth/login`,
+        {
+          email: email.trim(),
+          password,
+        },
+        { withCredentials: true }
+      );
 
       const accessToken =
         (response.data as any)?.data?.accessToken ||
@@ -109,7 +119,7 @@ const LoginComponent = () => {
 
       try {
         if (accessToken) {
-          localStorage.setItem("authToken", accessToken);
+          setAccessToken(accessToken);
         }
         if (user) {
           localStorage.setItem("authUser", JSON.stringify(user));

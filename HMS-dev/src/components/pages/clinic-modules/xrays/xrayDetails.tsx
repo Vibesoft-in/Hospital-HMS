@@ -9,6 +9,7 @@ import DefaultEditor from "react-simple-wysiwyg";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
+import DOMPurify from "isomorphic-dompurify";
 
 interface IXraySessionPatient {
   _id?: string;
@@ -307,7 +308,7 @@ const XrayDetailsComponent = () => {
     <div className="page-wrapper xray-details-page">
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .xray-details-page .xray-upload-panel {
             background: #fff;
             border: 1px solid #e9ecef;
@@ -384,7 +385,7 @@ const XrayDetailsComponent = () => {
             font-size: 12px;
             margin-bottom: 0.75rem;
           }
-        `,
+        `),
         }}
       />
       <div className="content">

@@ -217,8 +217,8 @@ export interface HospitalIPDDoc extends HospitalIPD, Document {}
 export interface HospitalIPDModel extends Model<HospitalIPDDoc> {
   createIPD(data: HospitalIPD): Promise<HospitalIPD>;
   readIPDs(query: any, search: any, skip: number, limit: number): Promise<{ data: any[]; totalCount: number }>;
-  readIPDById(id: string): Promise<any>;
+  readIPDById(id: string, filter?: any): Promise<any>;
   readIPDsForPathlab(query: any, search: string, skip: number, limit: number): Promise<{ data: any[]; totalCount: number }>;
-  updateIPD(id: string, updates: Partial<HospitalIPD>): Promise<HospitalIPD>;
-  softDeleteIPD(id: string, deletedBy?: string): Promise<void>;
+  updateIPD(id: string, updates: Partial<HospitalIPD>, filter?: any): Promise<HospitalIPD>;
+  softDeleteIPD(id: string, deletedBy?: string, filter?: any): Promise<void>;
 }

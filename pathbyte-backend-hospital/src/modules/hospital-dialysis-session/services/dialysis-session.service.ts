@@ -268,8 +268,8 @@ class DialysisSessionService {
     return session;
   }
 
-  async getDialysisSessionById(id: string): Promise<DialysisSessionResponseDTO> {
-    const session = await DialysisSessionModel.readDialysisSessionById(id);
+  async getDialysisSessionById(id: string, filter: any = {}): Promise<DialysisSessionResponseDTO> {
+    const session = await DialysisSessionModel.readDialysisSessionById(id, filter);
     return session as DialysisSessionResponseDTO;
   }
 
@@ -287,9 +287,14 @@ class DialysisSessionService {
 
   async updateDialysisSessionById(
     id: string,
-    updates: Partial<DialysisSession>
+    updates: Partial<DialysisSession>,
+    filter: any = {}
   ): Promise<DialysisSessionResponseDTO> {
-    const existingSession = await DialysisSessionModel.findById(id).lean();
+    const existingSession = await DialysisSessionModel.findOne({
+      _id: id,
+      isDeleted: { $ne: true },
+      ...(filter || {}),
+    }).lean();
     if (!existingSession) {
       throw new APIError(404, "Dialysis Session Not Found", `Dialysis session with ID '${id}' not found`);
     }
@@ -334,14 +339,14 @@ class DialysisSessionService {
       }
     }
 
-    const updatedSession = await DialysisSessionModel.findByIdAndUpdate(
-      id,
+    const updatedSession = await DialysisSessionModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: updates },
       { new: true, runValidators: true }
     );
     
     if (!updatedSession) {
-      throw new Error(`Dialysis session with ID '${id}' not found`);
+      throw new APIError(404, "Dialysis Session Not Found", `Dialysis session with ID '${id}' not found`);
     }
 
     return updatedSession.toObject() as DialysisSessionResponseDTO;
@@ -351,11 +356,15 @@ class DialysisSessionService {
     await DialysisSessionModel.deleteDialysisSession(sessionId, deletedBy);
   }
 
-  async deleteDialysisSessionById(id: string): Promise<void> {
-    const deleted = await DialysisSessionModel.findByIdAndDelete(id);
+  async deleteDialysisSessionById(id: string, filter: any = {}): Promise<void> {
+    const deleted = await DialysisSessionModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
+      { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: "system" } },
+      { new: true }
+    );
     
     if (!deleted) {
-      throw new Error(`Dialysis session with ID '${id}' not found`);
+      throw new APIError(404, "Dialysis Session Not Found", `Dialysis session with ID '${id}' not found`);
     }
   }
 

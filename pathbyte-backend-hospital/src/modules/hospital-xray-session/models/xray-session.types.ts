@@ -13,6 +13,7 @@ export interface XraySession {
   procedureId?: string;
   daycareAppointmentId?: string | null;
   ipdId?: string | null;
+  doctorId?: string;
   source: XraySessionSource;
   // Xray-specific fields
   bodyPart?: string;
@@ -39,7 +40,7 @@ export interface XraySessionModel extends Model<XraySessionDoc> {
   createXraySession(newSession: XraySession): Promise<XraySession>;
   readXraySessions(query: any, search: any, skip: number, limit: number): Promise<any>;
   readXraySession(sessionId: string): Promise<any>;
-  readXraySessionById(id: string): Promise<any>;
+  readXraySessionById(id: string, filter?: any): Promise<any>;
   readXrayTokenQueue(date: string): Promise<any[]>;
   updateXraySession(sessionId: string, updates: Partial<XraySession>): Promise<XraySession>;
   deleteXraySession(sessionId: string, deletedBy?: string): Promise<void>;

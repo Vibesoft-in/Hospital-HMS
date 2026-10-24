@@ -1,6 +1,6 @@
 "use client";
 
-import { DatePicker } from "antd";
+import { DatePicker, Pagination } from "antd";
 import { Department, Status } from "@/core/common/selectOption";
 import type { Option } from "@/core/common/common-select/commonSelect";
 import { all_routes } from "../../../../routes/all_routes";
@@ -15,6 +15,7 @@ import { API_BASE_URL } from "@/environment";
 import dayjs from "dayjs";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 interface IDoctor {
   _id: string;
@@ -26,6 +27,7 @@ interface IDoctor {
   designation: string;
   yearsOfExperience: number;
   gender: string;
+  imageUrl?: string;
   status?: string;
   createdAt?: string;
   visitTypes: Array<{
@@ -91,6 +93,16 @@ const DoctorsListComponent = () => {
     fetchDoctors();
   }, [appliedDepartment, appliedStatus, appliedDate, page, limit, searchText]);
 
+  useEffect(() => {
+    const handleDoctorUpdated = () => {
+      fetchDoctors();
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
+  }, []);
+
   const fetchDoctors = async () => {
     try {
       setLoading(true);
@@ -143,13 +155,16 @@ const DoctorsListComponent = () => {
       sorter: false,
       showSorterTooltip: false,
       render: (text: string, record: IDoctor) => (
-        <Link
-          href={`/doctor-details?id=${record._id || record.doctorId}`}
-          className="text-primary fw-semibold text-decoration-none"
-          title="View Doctor Profile"
-        >
-          {text}
-        </Link>
+        <div className="d-flex align-items-center gap-2">
+          <DoctorAvatar imageUrl={record.imageUrl} gender={record.gender} size={32} />
+          <Link
+            href={`/doctor-details?id=${record._id || record.doctorId}`}
+            className="text-primary fw-semibold text-decoration-none"
+            title="View Doctor Profile"
+          >
+            {text}
+          </Link>
+        </div>
       ),
     },
     {
@@ -195,12 +210,12 @@ const DoctorsListComponent = () => {
         const queueHref = `/qd/${record.doctorId || record._id}`;
         const profileHref = `/doctor-details?id=${record._id || record.doctorId}`;
         return (
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-1 gap-sm-2 flex-nowrap">
             <Link
               href={queueHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-soft-primary btn-sm d-inline-flex align-items-center gap-1"
+              className="btn btn-soft-primary btn-sm d-inline-flex align-items-center gap-1 text-nowrap"
               title="View queue display"
             >
               <i className="ti ti-presentation fs-16" />
@@ -237,6 +252,17 @@ const DoctorsListComponent = () => {
                 <i className="ti ti-edit fs-16" />
               </Link>
             </div>
+            <div className="action-item">
+              <Link
+                href="#"
+                data-bs-toggle="modal"
+                data-bs-target="#delete_modal"
+                data-doctor-id={record._id}
+                title="Delete"
+              >
+                <i className="ti ti-trash fs-16 text-danger" />
+              </Link>
+            </div>
           </div>
         );
       },
@@ -260,66 +286,19 @@ const DoctorsListComponent = () => {
         {/* Start Content */}
         <div className="content">
           {/* Start Page Header */}
-          <div className="d-flex align-items-sm-center flex-sm-row flex-column gap-2 mb-3 pb-3 border-bottom">
-            <div className="flex-grow-1">
-              <h4 className="fw-bold mb-0">
-                Doctor List
-                <span className="badge badge-soft-primary fs-13 fw-medium ms-2">
+          <div className="d-flex align-items-sm-center justify-content-between flex-sm-row flex-column gap-2 mb-3 pb-3 border-bottom">
+            <div className="flex-grow-1 min-w-0">
+              <h4 className="fw-bold mb-0 d-flex align-items-center flex-wrap gap-2">
+                <span>Doctor List</span>
+                <span className="badge badge-soft-primary fs-13 fw-medium">
                   Total Doctors : {totalCount}
                 </span>
               </h4>
             </div>
-            <div className="text-end d-flex">
-              {/* dropdown*/}
-              {/* <div className="dropdown me-1">
-                <Link
-                  href="#"
-                  className="btn btn-md fs-14 fw-normal border bg-white rounded text-dark d-inline-flex align-items-center"
-                  data-bs-toggle="dropdown"
-                >
-                  Export
-                  <i className="ti ti-chevron-down ms-2" />
-                </Link>
-                <ul className="dropdown-menu p-2">
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as PDF
-                    </Link>
-                  </li>
-                  <li>
-                    <Link className="dropdown-item" href="#">
-                      Download as Excel
-                    </Link>
-                  </li>
-                </ul>
-              </div> */}
-              {/* <div className="bg-white border shadow-sm rounded px-1 pb-0 text-center d-flex align-items-center justify-content-center">
-                <Link
-                  href={all_routes.doctorsList}
-                  className="bg-light rounded p-1 d-flex align-items-center justify-content-center"
-                >
-                  <i className="ti ti-list fs-14 text-dark" />
-                </Link>
-                <Link
-                  href={all_routes.doctors}
-                  className="bg-white rounded p-1 d-flex align-items-center justify-content-center"
-                >
-                  <i className="ti ti-layout-grid fs-14 text-body" />
-                </Link>
-              </div> */}
-              {/* Commented out modal trigger - redirecting to add doctor page instead */}
-              {/* <Link
-                href="#"
-                className="btn btn-primary ms-2 fs-13 btn-md"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#add_doctor"
-              >
-                <i className="ti ti-plus me-1" />
-                New Doctor
-              </Link> */}
+            <div className="d-flex align-items-center flex-wrap gap-2">
               <Link
                 href={all_routes.addDoctors}
-                className="btn btn-primary ms-2 fs-13 btn-md"
+                className="btn btn-primary fs-13 btn-md text-nowrap"
               >
                 <i className="ti ti-plus me-1" />
                 New Doctor
@@ -327,18 +306,18 @@ const DoctorsListComponent = () => {
             </div>
           </div>
           {/* End Page Header */}
-          <div className=" d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-            <div className="search-set mb-3">
-              <div className="d-flex align-items-center flex-wrap gap-2">
-                <div className="table-search d-flex align-items-center mb-0">
-                  <div className="search-input">
+          <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 mb-3 doctors-list-search-wrapper">
+            <div className="search-set w-100 flex-md-grow-1" style={{ maxWidth: "420px" }}>
+              <div className="d-flex align-items-center w-100">
+                <div className="table-search d-flex align-items-center w-100 mb-0">
+                  <div className="search-input w-100">
                     <SearchInput value={searchText} onChange={handleSearch} />
                   </div>
                 </div>
               </div>
             </div>
-            <div className="d-flex table-dropdown mb-3 pb-1 right-content align-items-center flex-wrap row-gap-3">
-              <div className="dropdown me-2">
+            <div className="d-flex table-dropdown align-items-center justify-content-between justify-content-md-end w-100 w-md-auto gap-2">
+              <div className="dropdown">
                 <Link
                   href="#"
                   className="btn btn-white bg-white fs-14 py-1 border d-inline-flex text-dark align-items-center"
@@ -351,6 +330,7 @@ const DoctorsListComponent = () => {
                 <div
                   className="dropdown-menu dropdown-lg dropdown-menu-end filter-dropdown p-0"
                   id="filter-dropdown"
+                  style={{ maxWidth: "calc(100vw - 32px)" }}
                 >
                   <div className="d-flex align-items-center justify-content-between border-bottom filter-header px-3 py-2">
                     <h4 className="mb-0">Filter</h4>
@@ -409,7 +389,9 @@ const DoctorsListComponent = () => {
               </div>
             </div>
           </div>
-          <div className="table-responsive">
+
+          {/* Desktop Table View (>=md) */}
+          <div className="table-responsive d-none d-md-block">
             {loading ? (
               <div className="text-center py-5">
                 <div className="spinner-border text-primary" role="status">
@@ -429,6 +411,173 @@ const DoctorsListComponent = () => {
               />
             )}
           </div>
+
+          {/* Mobile & Small Tablet Card-Based View (<md) */}
+          <div className="d-md-none">
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading doctors...</span>
+                </div>
+              </div>
+            ) : doctors.length === 0 ? (
+              <div className="card text-center p-4">
+                <p className="text-muted mb-0">No doctors found.</p>
+              </div>
+            ) : (
+              <>
+                <div className="row g-3">
+                  {doctors.map((record) => {
+                    const queueHref = `/qd/${record.doctorId || record._id}`;
+                    const profileHref = `/doctor-details?id=${record._id || record.doctorId}`;
+                    const isActive = record.status?.toLowerCase() === "active";
+
+                    return (
+                      <div className="col-12 col-sm-6" key={record._id || record.doctorId}>
+                        <div className="card h-100 mb-0 shadow-sm border">
+                          <div className="card-body p-3 d-flex flex-column justify-content-between">
+                            <div>
+                              {/* Doctor Header: Avatar, Name, Department/Specialization, Status */}
+                              <div className="d-flex align-items-start gap-3 mb-2">
+                                <Link href={profileHref} className="flex-shrink-0">
+                                  <DoctorAvatar
+                                    imageUrl={record.imageUrl}
+                                    gender={record.gender}
+                                    size={48}
+                                    className="rounded-circle"
+                                  />
+                                </Link>
+                                <div className="flex-grow-1 min-w-0">
+                                  <div className="d-flex align-items-start justify-content-between gap-1 mb-1">
+                                    <Link
+                                      href={profileHref}
+                                      className="text-primary fw-semibold text-decoration-none text-truncate d-block fs-14"
+                                      title={record.name}
+                                    >
+                                      {record.name}
+                                    </Link>
+                                    <span
+                                      className={`badge ${
+                                        isActive
+                                          ? "badge-soft-success"
+                                          : "badge-soft-secondary"
+                                      } fs-11 flex-shrink-0`}
+                                    >
+                                      {record.status || "Active"}
+                                    </span>
+                                  </div>
+                                  <div className="text-muted fs-12 text-truncate">
+                                    {record.department || record.designation || "General Medicine"}
+                                  </div>
+                                  <div className="text-muted fs-11 d-flex align-items-center gap-2 mt-1">
+                                    <span className="text-dark fw-medium">{record.doctorId}</span>
+                                    {record.yearsOfExperience ? (
+                                      <>
+                                        <span>•</span>
+                                        <span>{record.yearsOfExperience} yrs exp</span>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Contact Information */}
+                              {(record.phone || record.email) && (
+                                <div className="bg-light rounded p-2 mb-3 fs-12">
+                                  {record.phone && (
+                                    <div className="d-flex align-items-center gap-2 text-muted mb-1 text-truncate">
+                                      <i className="ti ti-phone fs-13 text-gray-5 flex-shrink-0" />
+                                      <span className="text-truncate">{record.phone}</span>
+                                    </div>
+                                  )}
+                                  {record.email && (
+                                    <div className="d-flex align-items-center gap-2 text-muted text-truncate">
+                                      <i className="ti ti-mail fs-13 text-gray-5 flex-shrink-0" />
+                                      <span className="text-truncate">{record.email}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom: Action Buttons */}
+                            <div className="d-flex align-items-center justify-content-between pt-2 border-top flex-wrap gap-2">
+                              <Link
+                                href={queueHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-soft-primary btn-sm d-inline-flex align-items-center gap-1 text-nowrap"
+                                title="View queue display"
+                              >
+                                <i className="ti ti-presentation fs-15" />
+                                <span>Queue</span>
+                              </Link>
+
+                              <div className="d-flex align-items-center gap-1">
+                                <div className="action-item">
+                                  <Link href={profileHref} title="View Doctor Profile">
+                                    <i className="ti ti-user fs-15" />
+                                  </Link>
+                                </div>
+                                <div className="action-item">
+                                  <Link
+                                    href="#"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#schedule_details"
+                                    data-doctor-id={record._id}
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Schedule"
+                                  >
+                                    <i className="ti ti-clock fs-15" />
+                                  </Link>
+                                </div>
+                                <div className="action-item">
+                                  <Link
+                                    href="#"
+                                    data-bs-toggle="offcanvas"
+                                    data-bs-target="#edit_doctor"
+                                    data-doctor-id={record._id}
+                                    title="Edit"
+                                  >
+                                    <i className="ti ti-edit fs-15" />
+                                  </Link>
+                                </div>
+                                <div className="action-item">
+                                  <Link
+                                    href="#"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#delete_modal"
+                                    data-doctor-id={record._id}
+                                    title="Delete"
+                                  >
+                                    <i className="ti ti-trash fs-15 text-danger" />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Mobile Pagination */}
+                {totalCount > limit && (
+                  <div className="d-flex justify-content-center mt-3 pt-2">
+                    <Pagination
+                      current={page}
+                      pageSize={limit}
+                      total={totalCount}
+                      onChange={handlePaginationChange}
+                      showSizeChanger={false}
+                      size="small"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
         {/* End Content */}
         {/* Footer Start */}
@@ -446,7 +595,31 @@ const DoctorsListComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
-      <Modals />
+      <Modals onDoctorUpdated={() => fetchDoctors()} />
+      <style jsx global>{`
+        .table-responsive {
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch;
+        }
+        .table-responsive .ant-table-wrapper {
+          overflow-x: auto !important;
+        }
+        .page-wrapper {
+          overflow-x: hidden;
+        }
+        @media (max-width: 767.98px) {
+          .doctors-list-search-wrapper .search-set,
+          .doctors-list-search-wrapper .table-search,
+          .doctors-list-search-wrapper .search-input,
+          .doctors-list-search-wrapper .search-input input {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .doctors-list-search-wrapper .filter-dropdown {
+            max-width: calc(100vw - 32px) !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

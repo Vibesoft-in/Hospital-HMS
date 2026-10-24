@@ -9,8 +9,8 @@ import { hashPassword, comparePassword } from "@src/libs/password";
 import { signAccessToken, signRefreshToken } from "@src/libs/jwt";
 
 function toAuthUser(u: any): AuthUserDTO {
-  const { _id, userId, username, email, name, phoneNumber, role, isActive, createdAt, updatedAt } = u;
-  return { _id, userId, username, email, name, phoneNumber, role, isActive, createdAt, updatedAt };
+  const { _id, userId, username, email, name, phoneNumber, role, isActive, tokenVersion, createdAt, updatedAt } = u;
+  return { _id, userId, username, email, name, phoneNumber, role, isActive, tokenVersion, createdAt, updatedAt };
 }
 
 class HospitalAuthService {
@@ -29,7 +29,8 @@ class HospitalAuthService {
     const payload = { 
       sub: user.userId, 
       role: user.role,
-      type: "hospital" as const
+      type: "hospital" as const,
+      tokenVersion: user.tokenVersion ?? 0,
     };
     
     return {
@@ -52,6 +53,7 @@ class HospitalAuthService {
     }
     
     user.passwordHash = await hashPassword(input.newPassword);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
     
     return toAuthUser(user.toObject());

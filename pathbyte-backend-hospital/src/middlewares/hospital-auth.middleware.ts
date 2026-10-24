@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { APIError } from "@src/shared";
 import { verifyAccessToken, HospitalJwtPayload } from "@src/libs/jwt";
 import HospitalUserModel from "@src/modules/hospital-auth/models/hospital-user.model";
@@ -80,7 +80,7 @@ export function requireHospitalAuth(requiredRole?: HospitalUserRole) {
 
       // Role-based access check if a specific role is required
       if (requiredRole) {
-        if (user.role === "ADMIN" || user.role === "ACCOUNTANT") return next(); // ADMIN and ACCOUNTANT bypass all role checks
+        if (user.role === "ADMIN") return next(); // ADMIN bypasses all role checks
         if (user.role !== requiredRole) {
           return next(
             new APIError(403, "Forbidden", `This action requires ${requiredRole} role.`)
@@ -113,7 +113,7 @@ export function requireAnyRole(...roles: HospitalUserRole[]) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     const user = req.hospitalUser;
     if (!user) return next(new APIError(401, "Unauthorized", "Not authenticated."));
-    if (user.role === "ADMIN" || user.role === "ACCOUNTANT") return next();
+    if (user.role === "ADMIN") return next();
     if (roles.includes(user.role)) return next();
     return next(new APIError(403, "Forbidden", `Access restricted to: ${roles.join(", ")}.`));
   };
@@ -138,9 +138,16 @@ export function blockDoctorWrite() {
  * Use on create/update/delete transaction routes.
  */
 export function requireHospitalAdminStrict() {
-  return async (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.hospitalUser) {
+      return requireHospitalAuth()(req, res, () => {
+        const user = req.hospitalUser;
+        if (!user) return next(new APIError(401, "Unauthorized", "Not authenticated."));
+        if (user.role === "ADMIN") return next();
+        return next(new APIError(403, "Forbidden", "This action requires ADMIN role."));
+      });
+    }
     const user = req.hospitalUser;
-    if (!user) return next(new APIError(401, "Unauthorized", "Not authenticated."));
     if (user.role === "ADMIN") return next();
     return next(new APIError(403, "Forbidden", "This action requires ADMIN role."));
   };

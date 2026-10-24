@@ -5,7 +5,7 @@ import { Types } from "mongoose";
 export type JwtPayload = { sub: string; roles: Types.ObjectId[] };
 
 // Extended JWT payload for hospital system
-export type HospitalJwtPayload = { sub: string; role: string; type: "hospital" };
+export type HospitalJwtPayload = { sub: string; role: string; type: "hospital"; tokenVersion?: number };
 
 // Union type for all JWT payloads
 export type AnyJwtPayload = JwtPayload | HospitalJwtPayload;

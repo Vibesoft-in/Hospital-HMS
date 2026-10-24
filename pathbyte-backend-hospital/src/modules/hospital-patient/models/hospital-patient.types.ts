@@ -42,6 +42,7 @@ export interface HospitalPatient {
   abhaPatientId?: string;   // Cross-reference to AbhaPatient._id
   abhaLinked?: boolean;     // True once ABHA has been linked to this patient
   isMRPatient?: boolean; // True once an MR visit has been created for this patient
+  doctorId?: string;
   createdBy?: string; // Hospital user _id who created this patient
   createdAt?: Date;
   updatedAt?: Date;

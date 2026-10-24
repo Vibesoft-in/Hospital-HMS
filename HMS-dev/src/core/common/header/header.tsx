@@ -7,10 +7,10 @@ import { updateTheme } from "../../redux/themeSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { setMobileSidebar } from "../../redux/sidebarSlice";
 import Link from "next/link";
-import { isSharedAuthEnabled, postSharedLogout, syncHospitalSessionFromSharedCookie } from "@/core/auth/sharedAuth";
-import { clearLocalAuthSession } from "@/core/auth/sessionCookie";
+import { getAccessToken, silentRefresh, postHospitalLogout } from "@/core/auth/inMemoryToken";
 import { all_routes } from "@/routes/all_routes";
 import { usePathname, useRouter } from "next/navigation";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const Header = () => {
 
@@ -56,11 +56,9 @@ const Header = () => {
 
     let cancelled = false;
     (async () => {
-      let token = window.localStorage.getItem("authToken");
-      if (!token && isSharedAuthEnabled()) {
-        await syncHospitalSessionFromSharedCookie();
-        if (cancelled) return;
-        token = window.localStorage.getItem("authToken");
+      let token = getAccessToken();
+      if (!token) {
+        token = await silentRefresh();
       }
       if (cancelled) return;
       if (!token) {
@@ -296,10 +294,10 @@ const Header = () => {
                     >
                       <div className="d-flex">
                         <div className="me-2 position-relative flex-shrink-0">
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-01.jpg"
-                            className="avatar-md rounded-circle"
-                            alt=""
+                          <DoctorAvatar
+                            gender="Male"
+                            size={40}
+                            className="rounded-circle"
                           />
                         </div>
                         <div className="flex-grow-1">
@@ -340,10 +338,10 @@ const Header = () => {
                     >
                       <div className="d-flex">
                         <div className="me-2 position-relative flex-shrink-0">
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-06.jpg"
-                            className="avatar-md rounded-circle"
-                            alt=""
+                          <DoctorAvatar
+                            gender="Female"
+                            size={40}
+                            className="rounded-circle"
                           />
                         </div>
                         <div className="flex-grow-1">
@@ -387,10 +385,10 @@ const Header = () => {
                     >
                       <div className="d-flex">
                         <div className="me-2 position-relative flex-shrink-0">
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-02.jpg"
-                            className="avatar-md rounded-circle"
-                            alt=""
+                          <DoctorAvatar
+                            gender="Female"
+                            size={40}
+                            className="rounded-circle"
                           />
                         </div>
                         <div className="flex-grow-1">
@@ -437,10 +435,10 @@ const Header = () => {
                     >
                       <div className="d-flex">
                         <div className="me-2 position-relative flex-shrink-0">
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-07.jpg"
-                            className="avatar-md rounded-circle"
-                            alt=""
+                          <DoctorAvatar
+                            gender="Female"
+                            size={40}
+                            className="rounded-circle"
                           />
                         </div>
                         <div className="flex-grow-1">
@@ -559,10 +557,7 @@ const Header = () => {
                     className="dropdown-item text-danger"
                     onClick={async (e) => {
                       e.preventDefault();
-                      if (isSharedAuthEnabled()) {
-                        await postSharedLogout();
-                      }
-                      clearLocalAuthSession();
+                      await postHospitalLogout();
                       router.replace(all_routes.login);
                     }}
                   >

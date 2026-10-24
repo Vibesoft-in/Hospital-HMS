@@ -48,9 +48,10 @@ async function readDialysisSession(
   const { id } = request.params;
   
   try {
-    const session = await dialysisSessionService.getDialysisSessionById(id);
+    const session = await dialysisSessionService.getDialysisSessionById(id, request.ownershipFilter || {});
     return response.success({ session }, "Dialysis session retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError) return next(err);
     return next(
       new AppError(500, "Unable to get dialysis session", err.message ?? undefined)
     );
@@ -68,6 +69,7 @@ async function searchDialysisSessionBySessionId(
     const session = await dialysisSessionService.getDialysisSession(sessionId);
     return response.success({ session }, "Dialysis session retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError) return next(err);
     return next(
       new AppError(500, "Unable to get dialysis session", err.message ?? undefined)
     );
@@ -95,9 +97,10 @@ async function updateDialysisSession(
   const { id } = request.params;
   
   try {
-    const updatedSession = await dialysisSessionService.updateDialysisSessionById(id, input as any);
+    const updatedSession = await dialysisSessionService.updateDialysisSessionById(id, input as any, request.ownershipFilter || {});
     return response.success({ session: updatedSession }, "Dialysis session updated successfully");
   } catch (err: any) {
+    if (err instanceof APIError) return next(err);
     return next(
       new AppError(500, "Unable to update dialysis session", err.message ?? undefined)
     );
@@ -112,9 +115,10 @@ async function deleteDialysisSession(
   const { id } = request.params;
   
   try {
-    await dialysisSessionService.deleteDialysisSessionById(id);
+    await dialysisSessionService.deleteDialysisSessionById(id, request.ownershipFilter || {});
     return response.success({}, "Dialysis session deleted successfully");
   } catch (err: any) {
+    if (err instanceof APIError) return next(err);
     return next(
       new AppError(500, "Unable to delete dialysis session", err.message ?? undefined)
     );

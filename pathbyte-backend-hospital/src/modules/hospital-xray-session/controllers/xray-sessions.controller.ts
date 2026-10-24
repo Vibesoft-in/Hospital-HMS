@@ -49,7 +49,7 @@ async function readXraySessions(req: Request, res: Response, next: NextFunction)
       skip = skipResult || 0;
     }
 
-    const query: any  = {};
+    const query: any  = { ...(req.ownershipFilter || {}) };
     const search: any = {};
 
     const {

@@ -5,7 +5,8 @@ class DaycareAppointmentController {
   async getDaycareAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const appointment = await DaycareAppointmentService.getDaycareAppointmentById(id);
+      const ownershipFilter = req.ownershipFilter || {};
+      const appointment = await DaycareAppointmentService.getDaycareAppointmentById(id, ownershipFilter);
       res.success(appointment, "Day care appointment retrieved successfully");
     } catch (error) {
       next(error);
@@ -16,7 +17,8 @@ class DaycareAppointmentController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      const appointment = await DaycareAppointmentService.updateDaycareAppointmentById(id, updates);
+      const ownershipFilter = req.ownershipFilter || {};
+      const appointment = await DaycareAppointmentService.updateDaycareAppointmentById(id, updates, ownershipFilter);
       res.success(appointment, "Day care appointment updated successfully");
     } catch (error) {
       next(error);
@@ -26,7 +28,8 @@ class DaycareAppointmentController {
   async deleteDaycareAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await DaycareAppointmentService.deleteDaycareAppointmentById(id);
+      const ownershipFilter = req.ownershipFilter || {};
+      await DaycareAppointmentService.deleteDaycareAppointmentById(id, ownershipFilter);
       res.success(null, "Day care appointment deleted successfully");
     } catch (error) {
       next(error);

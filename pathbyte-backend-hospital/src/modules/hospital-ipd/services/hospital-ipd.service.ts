@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import { randomUUID } from "crypto";
 import HospitalIPDModel from "../models/hospital-ipd.model";
 import { getNextSequence } from "@src/libs/counter";
@@ -1189,8 +1189,8 @@ class HospitalIPDService {
     return { ipds, totalCount: result.totalCount };
   }
 
-  async getIPDById(id: string): Promise<any> {
-    let ipd = await HospitalIPDModel.readIPDById(id);
+  async getIPDById(id: string, filter: any = {}): Promise<any> {
+    let ipd = await HospitalIPDModel.readIPDById(id, filter);
 
     // Populate test billing items with full case data and dialysis sessions
     if (ipd.billingCharges?.length) {
@@ -1222,10 +1222,10 @@ class HospitalIPDService {
     return ipd;
   }
 
-  async updateIPD(id: string, input: any): Promise<any> {
+  async updateIPD(id: string, input: any, filter: any = {}): Promise<any> {
     const { transaction, discountPassword, billingCharges: rawCharges, ...updates } = input;
 
-    const existing = await HospitalIPDModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean() as any;
+    const existing = await HospitalIPDModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) }).lean() as any;
     if (!existing) throw new APIError(404, "IPD Not Found", `No IPD with ID '${id}' found.`);
 
     // Block updates on discharged IPDs (use discharge endpoint instead)
@@ -1387,7 +1387,7 @@ class HospitalIPDService {
       if (updates.discount > 0) updates.discountAuthorizedAt = new Date();
     }
 
-    await HospitalIPDModel.updateIPD(id, updates);
+    await HospitalIPDModel.updateIPD(id, updates, filter);
 
     // Create transaction if provided
     if (transaction) {
@@ -1807,8 +1807,8 @@ class HospitalIPDService {
     return this._populateIPD(id);
   }
 
-  async deleteIPD(id: string, deletedBy?: string): Promise<void> {
-    const existing = await HospitalIPDModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean() as any;
+  async deleteIPD(id: string, deletedBy?: string, filter: any = {}): Promise<void> {
+    const existing = await HospitalIPDModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) }).lean() as any;
     if (!existing) throw new APIError(404, "IPD Not Found", `No IPD with ID '${id}' found.`);
 
     // Release bed
@@ -1816,7 +1816,7 @@ class HospitalIPDService {
       try { await HospitalBedService.releaseBed(existing.bedId); } catch {}
     }
 
-    await HospitalIPDModel.softDeleteIPD(id, deletedBy);
+    await HospitalIPDModel.softDeleteIPD(id, deletedBy, filter);
     await HospitalTransactionService.deleteTransactionsByVisitId(id);
   }
 

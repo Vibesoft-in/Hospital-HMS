@@ -1,6 +1,9 @@
 "use client";
 
 
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
 import { DatePicker } from "antd";
 import {
   Amount,
@@ -14,8 +17,59 @@ import Modals from "./modals/modals";
 import { all_routes } from "../../../../routes/all_routes";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
+
+interface IDoctor {
+  _id: string;
+  doctorId: string;
+  name: string;
+  email: string;
+  phone: string;
+  department: string;
+  designation: string;
+  yearsOfExperience: number;
+  gender: string;
+  imageUrl?: string;
+  status?: string;
+}
 
 const DoctorsComponent = () => {
+  const [doctors, setDoctors] = useState<IDoctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchDoctors = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/hospital/doctors`, {
+        params: { limit: 50 },
+        withCredentials: true,
+      });
+      if (res.data?.status === "SUCCESS") {
+        setDoctors(res.data.data.doctors || []);
+        setTotalCount(res.data.data.pagination?.totalCount || (res.data.data.doctors || []).length);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch doctors:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
+
+  useEffect(() => {
+    const handleDoctorUpdated = () => {
+      fetchDoctors();
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
+  }, [fetchDoctors]);
+
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -35,7 +89,7 @@ const DoctorsComponent = () => {
               <h4 className="fw-bold mb-0">
                 Doctor Grid
                 <span className="badge badge-soft-primary fs-13 fw-medium ms-2">
-                  Total Doctors : 565
+                  Total Doctors : {totalCount}
                 </span>
               </h4>
             </div>
@@ -193,1022 +247,88 @@ const DoctorsComponent = () => {
           </div>
           {/* End Page Header */}
           <div className="row">
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-01.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Mick Thompson
+            {loading ? (
+              <div className="col-12 text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading doctors...</span>
+                </div>
+              </div>
+            ) : doctors.length === 0 ? (
+              <div className="col-12 text-center py-5">
+                <p className="text-muted fs-15">No doctors found.</p>
+              </div>
+            ) : (
+              doctors.map((doc) => (
+                <div className="col-xl-4 col-md-6" key={doc._id}>
+                  <div className="card">
+                    <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
+                      <div className="me-3 doctor-profile-img">
+                        <Link href={`${all_routes.doctorsDetails}?id=${doc.doctorId || doc._id}`}>
+                          <DoctorAvatar
+                            imageUrl={doc.imageUrl}
+                            gender={doc.gender}
+                            size={72}
+                            className="rounded"
+                          />
                         </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
                       </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Cardiologist</span>
-                    <p className="mb-2 fs-13">Available : Mon, 20 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
+                      <div className="flex-fill">
+                        <div className="d-flex align-items-center justify-content-between mb-1">
+                          <h6 className="mb-0 fw-semibold text-truncate">
+                            <Link href={`${all_routes.doctorsDetails}?id=${doc.doctorId || doc._id}`}>
+                              {doc.name}
+                            </Link>
+                          </h6>
+                          <div className="action-item">
+                            <Link href="#" data-bs-toggle="dropdown">
+                              <i className="ti ti-dots-vertical" />
+                            </Link>
+                            <ul className="dropdown-menu">
+                              <li>
+                                <Link
+                                  href={all_routes.editDoctors}
+                                  className="dropdown-item d-flex align-items-center"
+                                >
+                                  Edit
+                                </Link>
+                              </li>
+                              <li>
+                                <Link
+                                  href="#"
+                                  className="dropdown-item d-flex align-items-center"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#delete_modal"
+                                >
+                                  Delete
+                                </Link>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                        <span className="d-block mb-1 fs-13 text-muted">
+                          {doc.department || "General Medicine"}
                         </span>
-                        $499
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
+                        <p className="mb-2 fs-13 text-muted">
+                          {doc.designation || `ID: ${doc.doctorId}`}
+                          {doc.yearsOfExperience ? ` • ${doc.yearsOfExperience} yrs exp` : ""}
+                        </p>
+                        <div className="d-flex align-items-center justify-content-between">
+                          <span className={`badge ${doc.status === "Active" ? "badge-soft-success" : "badge-soft-secondary"}`}>
+                            {doc.status || "Active"}
+                          </span>
+                          <Link
+                            href={all_routes.appointmentCalendar}
+                            className="avatar avatar-xs border text-muted fs-14"
+                          >
+                            <i className="ti ti-calendar-cog" />
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-02.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Sarah Johnson
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">
-                      Orthopedic Surgeon
-                    </span>
-                    <p className="mb-2 fs-13">Available : Wed, 22 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $450
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-03.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Emily Carter
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Pediatrician</span>
-                    <p className="mb-2 fs-13">Available : Fri, 24 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $300
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-04.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>Dr. David Lee</Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Gynecologist</span>
-                    <p className="mb-2 fs-13">Available : Tue, 21 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $250
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-05.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>Dr. Anna Kim</Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Psychiatrist</span>
-                    <p className="mb-2 fs-13">Available : Mon, 27 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $350
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-06.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. John Smith
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Neurosurgeon</span>
-                    <p className="mb-2 fs-13">Available : Thu, Jan 30, 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $499
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-07.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Lisa White
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Oncologist</span>
-                    <p className="mb-2 fs-13">Available : Sat, 25 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $200
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-08.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Patricia Brown
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Pulmonologist</span>
-                    <p className="mb-2 fs-13">Available : Sun, 01 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $450
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-09.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Rachel Green
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Urologist</span>
-                    <p className="mb-2 fs-13">Available : Tue, 28 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $400
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-10.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Michael Smith
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Cardiologist</span>
-                    <p className="mb-2 fs-13">Available : Thu, 05 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $300
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-11.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Sarah Johnson
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Surgeon</span>
-                    <p className="mb-2 fs-13">Available : Mon, 09 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $500
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-12.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Adrian White
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Practitioner</span>
-                    <p className="mb-2 fs-13">Available : Sat, 25 Jan 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $200
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-13.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>Dr. Ken Clark</Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Dermatologist</span>
-                    <p className="mb-2 fs-13">Available : Wed, 12 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $350
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-14.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Oliver King
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Orthopedist</span>
-                    <p className="mb-2 fs-13">Available : Fri, 14 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $600
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
-            <div className="col-xl-4 col-md-6">
-              <div className="card">
-                <div className="card-body d-flex align-items-center flex-sm-nowrap flex-wrap row-gap-3">
-                  <div className="me-3 doctor-profile-img">
-                    <Link href={all_routes.doctorsDetails}>
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-15.jpg"
-                        className="rounded"
-                        alt=""
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex-fill">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <h6 className="mb-0 fw-semibold">
-                        <Link href={all_routes.doctorsDetails}>
-                          Dr. Avan Davis
-                        </Link>
-                      </h6>
-                      <div className="action-item">
-                        <Link href="#" data-bs-toggle="dropdown">
-                          <i className="ti ti-dots-vertical" />
-                        </Link>
-                        <ul className="dropdown-menu">
-                          <li>
-                            <Link
-                              href={all_routes.editDoctors}
-                              className="dropdown-item d-flex align-items-center"
-                            >
-                              Edit
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              href="#"
-                              className="dropdown-item d-flex align-items-center"
-                              data-bs-toggle="modal"
-                              data-bs-target="#delete_modal"
-                            >
-                              Delete
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span className="d-block mb-2 fs-13">Endocrinologist</span>
-                    <p className="mb-2 fs-13">Available : Tue, 17 Feb 2025</p>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <h6 className="text-primary fs-14 mb-0">
-                        <span className="text-muted fs-13 fw-normal">
-                          Starts From :
-                        </span>
-                        $375
-                      </h6>
-                      <Link
-                        href={all_routes.appointmentCalendar}
-                        className="avatar avatar-xs border text-muted fs-14"
-                      >
-                        <i className="ti ti-calendar-cog" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-                {/* end card body */}
-              </div>
-              {/* end card */}
-            </div>
-            {/* end col */}
+              ))
+            )}
           </div>
           <div className="text-center">
             <Link href="#" className="btn btn-white bg-white text-dark fs-13">
@@ -1233,7 +353,7 @@ const DoctorsComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
-      <Modals />
+      <Modals onDoctorUpdated={() => fetchDoctors()} />
     </>
   );
 };

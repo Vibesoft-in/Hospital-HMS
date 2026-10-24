@@ -38,7 +38,7 @@ async function createXraySession(req: Request, res: Response, next: NextFunction
 async function readXraySession(req: Request, res: Response, next: NextFunction) {
   const { id } = req.params;
   try {
-    const session = await xraySessionService.getXraySessionById(id);
+    const session = await xraySessionService.getXraySessionById(id, req.ownershipFilter || {});
     return res.success({ session }, "Xray session retrieved successfully");
   } catch (err: any) {
     if (err instanceof APIError) return next(err);
@@ -68,7 +68,7 @@ async function updateXraySession(req: Request, res: Response, next: NextFunction
 
   const { id } = req.params;
   try {
-    const session = await xraySessionService.updateXraySessionById(id, input);
+    const session = await xraySessionService.updateXraySessionById(id, input, req.ownershipFilter || {});
 
     // Emit status-change SSE event if session has a token date
     if ((session as any).tokenDate) {
@@ -88,7 +88,7 @@ async function updateXraySession(req: Request, res: Response, next: NextFunction
 async function deleteXraySession(req: Request, res: Response, next: NextFunction) {
   const { id } = req.params;
   try {
-    await xraySessionService.deleteXraySessionById(id);
+    await xraySessionService.deleteXraySessionById(id, req.ownershipFilter || {});
     logger.info({ id }, "Xray session deleted");
     return res.success({}, "Xray session deleted successfully");
   } catch (err: any) {

@@ -1,4 +1,5 @@
 import DaycareAppointmentModel from "../models/daycare-appointment.model";
+import { APIError } from "@src/shared";
 import HospitalPatientService from "../../hospital-patient/services/hospital-patient.service";
 import HospitalTransactionService from "../../hospital-transaction/services/hospital-transaction.service";
 import { getNextSequence } from "@src/libs/counter";
@@ -521,8 +522,8 @@ class DaycareAppointmentService {
   }
 
   // Get by MongoDB _id
-  async getDaycareAppointmentById(id: string): Promise<DaycareAppointmentResponseDTO> {
-    const appointment = await DaycareAppointmentModel.readDaycareAppointmentById(id);
+  async getDaycareAppointmentById(id: string, filter: any = {}): Promise<DaycareAppointmentResponseDTO> {
+    const appointment = await DaycareAppointmentModel.readDaycareAppointmentById(id, filter);
     return this._populateAppointment(appointment, { id });
   }
 
@@ -535,7 +536,8 @@ class DaycareAppointmentService {
   // Update by MongoDB _id
   async updateDaycareAppointmentById(
     id: string,
-    updates: Partial<DaycareAppointment> & { procedureIds?: string[]; discountPassword?: string }
+    updates: Partial<DaycareAppointment> & { procedureIds?: string[]; discountPassword?: string },
+    filter: any = {}
   ): Promise<DaycareAppointmentResponseDTO> {
     const { procedureIds, discountPassword, ...rest } = updates as any;
 
@@ -549,9 +551,8 @@ class DaycareAppointmentService {
     // If procedureIds or procedures are being updated, recalculate pricing and sync sessions
     if (effectiveProcedureIds !== undefined) {
       // Fetch existing appointment to get current values and existing procedures
-      const existing = await DaycareAppointmentModel.findById(id).lean() as any;
+      const existing = await DaycareAppointmentModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) }).lean() as any;
       if (!existing) {
-        const { APIError } = await import("@src/shared");
         throw new APIError(404, "Appointment Not Found", `No day care appointment with ID '${id}' found.`);
       }
 
@@ -826,20 +827,20 @@ class DaycareAppointmentService {
       }
     }
 
-    const updatedAppointment = await DaycareAppointmentModel.updateDaycareAppointmentById(id, rest);
+    const updatedAppointment = await DaycareAppointmentModel.updateDaycareAppointmentById(id, rest, filter);
     return transformS3Urls(updatedAppointment) as DaycareAppointmentResponseDTO;
   }
 
   // Delete by MongoDB _id
-  async deleteDaycareAppointmentById(id: string): Promise<void> {
-    const appointment = await DaycareAppointmentModel.findOne({ _id: id, isDeleted: { $ne: true } });
+  async deleteDaycareAppointmentById(id: string, filter: any = {}): Promise<void> {
+    const appointment = await DaycareAppointmentModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) });
     if (!appointment) {
-      throw new Error(`Day care appointment with ID '${id}' not found`);
+      throw new APIError(404, "Appointment Not Found", `Day care appointment with ID '${id}' not found`);
     }
 
     // Soft delete the appointment
     await DaycareAppointmentModel.updateOne(
-      { _id: id },
+      { _id: id, ...(filter || {}) },
       { $set: { isDeleted: true, deletedAt: new Date() } }
     );
 

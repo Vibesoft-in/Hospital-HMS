@@ -18,6 +18,7 @@ import {
   type IQueueSortBy,
   type ISessionSlot,
 } from "./sessionQueue";
+import { getDoctorDefaultAvatar } from "@/components/common/DoctorAvatar";
 
 const VIEW_ROTATE_MS = 10000;
 
@@ -48,6 +49,7 @@ interface IQueueDisplay {
   yearsOfExperience?: number | null;
   opdNumber?: string | null;
   posterUrl?: string | null;
+  gender?: string | null;
   shift?: string | null;
   currentSessionSlot: ISessionSlot;
   sessionSlot: string;
@@ -125,6 +127,7 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
         : typeof data.imageUrl === "string" && data.imageUrl.trim()
         ? data.imageUrl
         : null,
+    gender: (data.gender as string) ?? null,
     shift: (data.shift as string) ?? null,
     currentSessionSlot: parseCurrentSessionSlot(data),
     sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
@@ -247,18 +250,37 @@ const QueueDisplayComponent = () => {
   // Direct fetch doctor profile to guarantee photo/posterUrl is available
   useEffect(() => {
     if (!doctorId || !API_BASE_URL) return;
-    axios
-      .get(`${API_BASE_URL}/hospital/doctors/${doctorId}`)
-      .then((res) => {
-        const doc = res.data?.data?.doctor || res.data?.doctor || res.data?.data || res.data;
-        const photo = doc?.posterUrl || doc?.imageUrl;
-        if (photo && typeof photo === "string") {
-          setDisplay((prev) => (prev ? { ...prev, posterUrl: photo } : prev));
-        }
-      })
-      .catch((err) => {
-        console.warn("Direct doctor photo fetch warning:", err);
-      });
+
+    const fetchDocProfile = () => {
+      axios
+        .get(`${API_BASE_URL}/hospital/doctors/${doctorId}`)
+        .then((res) => {
+          const doc = res.data?.data?.doctor || res.data?.doctor || res.data?.data || res.data;
+          const photo = doc?.posterUrl || doc?.imageUrl;
+          if (photo && typeof photo === "string") {
+            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: doc?.gender || prev.gender } : prev));
+          } else if (doc?.gender) {
+            setDisplay((prev) => (prev ? { ...prev, gender: doc.gender } : prev));
+          }
+        })
+        .catch((err) => {
+          console.warn("Direct doctor photo fetch warning:", err);
+        });
+    };
+
+    fetchDocProfile();
+
+    const handleDoctorUpdated = (e: any) => {
+      const updatedId = e?.detail?.doctorId;
+      if (!updatedId || updatedId === doctorId) {
+        fetchDocProfile();
+      }
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
   }, [doctorId]);
 
   useEffect(() => {
@@ -474,7 +496,8 @@ const QueueDisplayComponent = () => {
 
   const rawName = display?.doctorName?.trim() ?? "";
   const rawPoster = display?.posterUrl?.trim() || (display as any)?.imageUrl?.trim() || "";
-  const doctorPosterSrc = rawPoster || DEFAULT_DOCTOR_POSTER;
+  const fallbackAvatar = getDoctorDefaultAvatar(display?.gender);
+  const doctorPosterSrc = rawPoster || fallbackAvatar;
   const doctorName = rawName
     ? rawName.startsWith("Dr.")
       ? rawName
@@ -610,8 +633,8 @@ const QueueDisplayComponent = () => {
               className="position-absolute top-0 start-0 w-100 h-100"
               style={{ objectFit: "cover", objectPosition: "top" }}
               onError={(e) => {
-                if (e.currentTarget.src !== DEFAULT_DOCTOR_POSTER) {
-                  e.currentTarget.src = DEFAULT_DOCTOR_POSTER;
+                if (e.currentTarget.src !== fallbackAvatar) {
+                  e.currentTarget.src = fallbackAvatar;
                 }
               }}
             />

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/environment";
+import { getAccessToken } from "@/core/auth/accessToken";
 
 export interface IHealthDataStreamParams {
   patientId: string;
@@ -327,8 +328,7 @@ export const streamHealthData = async (
   const streamUrl = buildHealthDataStreamUrl(params);
   handlers.onStatus?.("connecting");
 
-  const token =
-    typeof window !== "undefined" ? window.localStorage.getItem("authToken") : null;
+  const token = getAccessToken();
 
   const response = await fetch(streamUrl, {
     method: "GET",

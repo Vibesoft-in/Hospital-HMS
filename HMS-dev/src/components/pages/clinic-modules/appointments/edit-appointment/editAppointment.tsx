@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import DOMPurify from "isomorphic-dompurify";
 import { all_routes } from "../../../../../routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
@@ -39,6 +40,8 @@ interface IDoctor {
   _id: string;
   name: string;
   department?: string;
+  imageUrl?: string;
+  gender?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
   weeklySchedule?: IWeeklyScheduleDay[];
@@ -129,7 +132,12 @@ const EditAppointmentComponent = () => {
       if (res.data?.code === 200 && res.data?.data?.doctors) {
         const list: IDoctor[] = res.data.data.doctors;
         setDoctors(list);
-        setDoctorOptions(list.map((d) => ({ value: d._id, label: d.department ? `${d.name} (${d.department})` : d.name })));
+        setDoctorOptions(list.map((d) => ({
+          value: d._id,
+          label: d.department ? `${d.name} (${d.department})` : d.name,
+          imageUrl: d.imageUrl,
+          gender: d.gender,
+        })));
       }
     } catch (e) {
       console.error("Error fetching doctors:", e);
@@ -255,6 +263,14 @@ const EditAppointmentComponent = () => {
     if (visitId) {
       fetchDoctors().then(() => fetchVisitForEdit(visitId));
     }
+
+    const handleDoctorUpdated = () => {
+      fetchDoctors();
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
   }, [visitId, fetchDoctors, fetchVisitForEdit]);
 
   useEffect(() => {
@@ -509,7 +525,7 @@ const EditAppointmentComponent = () => {
     <div className="page-wrapper">
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .page-wrapper input::placeholder,
           .page-wrapper textarea::placeholder {
             color: #000 !important;
@@ -562,7 +578,7 @@ const EditAppointmentComponent = () => {
           .page-wrapper .card .react-select__menu .react-select__option--is-selected * {
             color: #ffffff !important;
           }
-        `,
+        `),
         }}
       />
       {showDiscountPasswordDialog && (

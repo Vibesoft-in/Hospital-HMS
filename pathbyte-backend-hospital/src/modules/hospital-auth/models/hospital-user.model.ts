@@ -1,4 +1,4 @@
-﻿import mongoose, { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { APIError } from "@src/shared";
 import { HospitalUserDoc, HospitalUserModel, HospitalUser } from "./hospital-user.types";
 
@@ -25,6 +25,7 @@ const hospitalUserSchema = new Schema<HospitalUserDoc>(
       required: true 
     },
     linkedDoctorId: { type: String, default: null }, // _id of HospitalDoctor for DOCTOR role
+    tokenVersion: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     deleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
@@ -103,11 +104,15 @@ hospitalUserSchema.statics = {
 
   async updateUser(
     id: string,
-    updates: Partial<HospitalUser>
+    updates: any
   ): Promise<HospitalUser | null> {
+    const updateQuery: any = { $set: updates };
+    if (updates.isActive === false || updates.passwordHash) {
+      updateQuery.$inc = { tokenVersion: 1 };
+    }
     return await this.findOneAndUpdate(
       { _id: new Types.ObjectId(id), deleted: { $ne: true } },
-      { $set: updates },
+      updateQuery,
       { new: true }
     ).select("-passwordHash").lean();
   },
@@ -115,7 +120,10 @@ hospitalUserSchema.statics = {
   async softDeleteUser(id: string): Promise<void> {
     const deleted = await this.findOneAndUpdate(
       { _id: new Types.ObjectId(id), deleted: { $ne: true } },
-      { $set: { deleted: true, deletedAt: new Date() } },
+      { 
+        $set: { deleted: true, deletedAt: new Date(), isActive: false },
+        $inc: { tokenVersion: 1 }
+      },
       { new: true }
     );
 

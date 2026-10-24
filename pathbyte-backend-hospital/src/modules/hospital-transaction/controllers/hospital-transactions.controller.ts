@@ -148,6 +148,8 @@ async function readHospitalTransactions(
 
     // Filters that require join resolution (applied after lookup in aggregation)
     const joinFilters: any = {};
+    const ownerFilter = request.ownershipFilter || {};
+    if (ownerFilter.doctorId) joinFilters.doctorId = ownerFilter.doctorId;
     if (doctorId)    joinFilters.doctorId    = doctorId as string;
     if (patientId)   joinFilters.patientId   = patientId as string;
     if (department)  joinFilters.department  = department as string;

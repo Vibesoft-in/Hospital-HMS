@@ -29,6 +29,8 @@ const STATUS_OPTIONS: Option[] = [
 interface IDoctor {
   _id: string;
   name: string;
+  imageUrl?: string;
+  gender?: string;
   sessions?: string[];
 }
 
@@ -125,7 +127,12 @@ const Modals = ({ appointment, appointmentRecord }: IModalsProps) => {
       if (res.data?.code === 200 && res.data?.data?.doctors) {
         const list: IDoctor[] = res.data.data.doctors;
         setDoctors(list);
-        setDoctorOptions(list.map((d) => ({ value: d._id, label: d.name })));
+        setDoctorOptions(list.map((d) => ({
+          value: d._id,
+          label: d.name,
+          imageUrl: d.imageUrl,
+          gender: d.gender,
+        })));
       }
     } catch (e) {
       console.error("Error fetching doctors:", e);

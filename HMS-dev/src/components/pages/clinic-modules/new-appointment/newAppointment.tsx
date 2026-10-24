@@ -2,6 +2,7 @@
 
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { all_routes } from "../../../../routes/all_routes";
 import {
   Title,
@@ -97,6 +98,8 @@ interface IDoctor {
   _id: string;
   name: string;
   department?: string;
+  imageUrl?: string;
+  gender?: string;
   sessions?: string[];
   visitTypes?: IVisitTypeCharge[];
   weeklySchedule?: IWeeklyScheduleDay[];
@@ -541,6 +544,8 @@ const NewAppointmentComponent = () => {
           doctorsList.map((doctor: IDoctor) => ({
             value: doctor._id,
             label: doctor.department ? `${doctor.name} (${doctor.department})` : doctor.name,
+            imageUrl: doctor.imageUrl,
+            gender: doctor.gender,
           }))
         );
         setDoctors((prev) => {
@@ -559,10 +564,18 @@ const NewAppointmentComponent = () => {
     }
   }, [selectedDoctor?.value]);
 
-  // Fetch doctors once on mount (initial list)
+  // Fetch doctors once on mount and when doctor updates
   useEffect(() => {
     fetchDoctorsWithSearch("");
-  }, []);
+
+    const handleDoctorUpdated = () => {
+      fetchDoctorsWithSearch("");
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
+  }, [fetchDoctorsWithSearch]);
 
   const handleDoctorInputChange = useCallback(
     (value: string) => {
@@ -2261,6 +2274,8 @@ const NewAppointmentComponent = () => {
                 doctorList.map((doctor: IDoctor) => ({
                   value: doctor._id,
                   label: doctor.name,
+                  imageUrl: doctor.imageUrl,
+                  gender: doctor.gender,
                 }))
               );
             }
@@ -2622,7 +2637,7 @@ const NewAppointmentComponent = () => {
       )}
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .page-wrapper input::placeholder,
           .page-wrapper textarea::placeholder {
             color: #000 !important;
@@ -2682,7 +2697,7 @@ const NewAppointmentComponent = () => {
             to { transform: rotate(360deg); }
           }
           /* OPD / Daycare tabs reuse global nav-tabs styling from appointment list */
-        `,
+        `),
         }}
       />
       {/* IPD Discount password dialog */}

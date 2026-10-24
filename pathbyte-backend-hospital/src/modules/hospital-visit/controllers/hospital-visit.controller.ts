@@ -260,9 +260,10 @@ async function readHospitalVisit(
   next: NextFunction
 ) {
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const visit = await hospitalVisitService.getHospitalVisitById(id);
+    const visit = await hospitalVisitService.getHospitalVisitById(id, ownershipFilter);
     return response.success({ visit }, "Visit retrieved successfully");
   } catch (err: any) {
     logger.error({ error: err.message, visitId: id }, "Failed to retrieve visit");
@@ -329,14 +330,15 @@ async function updateHospitalVisit(
   }
 
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
     // Get old visit to check if status or date changed
-    const oldVisit = await hospitalVisitService.getHospitalVisitById(id);
+    const oldVisit = await hospitalVisitService.getHospitalVisitById(id, ownershipFilter);
     const oldStatus = oldVisit.status;
     const oldDate = typeof oldVisit.visitDate === 'string' ? oldVisit.visitDate : new Date(oldVisit.visitDate).toISOString().split('T')[0];
     
-    const updatedVisit = await hospitalVisitService.updateHospitalVisitById(id, input as any);
+    const updatedVisit = await hospitalVisitService.updateHospitalVisitById(id, input as any, ownershipFilter);
     logger.info({ visitId: id, updates: Object.keys(input), hasTransaction: !!input.transaction }, "Visit updated successfully");
     
     // Emit event for live updates with populated patient info
@@ -405,10 +407,11 @@ async function deleteHospitalVisit(
   next: NextFunction
 ) {
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
     // Get visit info before deleting for event emission
-    const visit = await hospitalVisitService.getHospitalVisitById(id);
+    const visit = await hospitalVisitService.getHospitalVisitById(id, ownershipFilter);
     const visitDate = typeof visit.visitDate === 'string' ? visit.visitDate : new Date(visit.visitDate).toISOString().split('T')[0];
     
     // Get doctor info for event
@@ -430,7 +433,7 @@ async function deleteHospitalVisit(
       shift
     } : undefined;
     
-    await hospitalVisitService.deleteHospitalVisitById(id);
+    await hospitalVisitService.deleteHospitalVisitById(id, ownershipFilter);
     logger.info({ visitId: id }, "Visit deleted successfully");
     
     // Emit delete event
@@ -883,6 +886,7 @@ async function reorderVisitToken(
 ) {
   const { id } = request.params;
   const { newTokenNumber } = request.body;
+  const ownershipFilter = request.ownershipFilter || {};
   
   if (!newTokenNumber) {
     return next(new APIError(400, "Bad Request", "newTokenNumber is required in request body"));
@@ -893,7 +897,7 @@ async function reorderVisitToken(
   }
   
   try {
-    const result = await hospitalVisitService.reorderVisitToken(id, newTokenNumber);
+    const result = await hospitalVisitService.reorderVisitToken(id, newTokenNumber, ownershipFilter);
     
     logger.info({ 
       visitId: id, 

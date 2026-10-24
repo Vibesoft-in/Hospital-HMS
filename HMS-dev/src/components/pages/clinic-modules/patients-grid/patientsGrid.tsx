@@ -5,6 +5,7 @@ import ImageWithBasePath from "@/core/imageWithBasePath";
 import { DatePicker } from "antd";
 import { all_routes } from "../../../../routes/all_routes";
 import Link from "next/link";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PatientsGridComponent = () => {
   const getModalContainer = () => {
@@ -210,10 +211,10 @@ const PatientsGridComponent = () => {
                                     type="checkbox"
                                   />
                                   <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-01.jpg"
+                                    <DoctorAvatar
+                                      gender="Male"
+                                      size={24}
                                       className="flex-shrink-0 rounded-circle"
-                                      alt="img"
                                     />
                                   </span>
                                   Dr. Mick Thompson
@@ -226,10 +227,10 @@ const PatientsGridComponent = () => {
                                     type="checkbox"
                                   />
                                   <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-02.jpg"
+                                    <DoctorAvatar
+                                      gender="Female"
+                                      size={24}
                                       className="flex-shrink-0 rounded-circle"
-                                      alt="img"
                                     />
                                   </span>
                                   Dr. Sarah Johnson
@@ -242,10 +243,10 @@ const PatientsGridComponent = () => {
                                     type="checkbox"
                                   />
                                   <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-03.jpg"
+                                    <DoctorAvatar
+                                      gender="Female"
+                                      size={24}
                                       className="flex-shrink-0 rounded-circle"
-                                      alt="img"
                                     />
                                   </span>
                                   Dr. Emily Carter
@@ -258,10 +259,10 @@ const PatientsGridComponent = () => {
                                     type="checkbox"
                                   />
                                   <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-04.jpg"
+                                    <DoctorAvatar
+                                      gender="Male"
+                                      size={24}
                                       className="flex-shrink-0 rounded-circle"
-                                      alt="img"
                                     />
                                   </span>
                                   Dr. David Lee
@@ -274,10 +275,10 @@ const PatientsGridComponent = () => {
                                     type="checkbox"
                                   />
                                   <span className="avatar avatar-xs rounded-circle me-2">
-                                    <ImageWithBasePath
-                                      src="assets/img/doctors/doctor-05.jpg"
+                                    <DoctorAvatar
+                                      gender="Female"
+                                      size={24}
                                       className="flex-shrink-0 rounded-circle"
-                                      alt="img"
                                     />
                                   </span>
                                   Dr. Anna Kim

@@ -1,28 +1,61 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { sidebarMenus } from "./settingsSidebarData";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-
-
+import { all_routes } from "@/routes/all_routes";
 
 const SettingsSidebar = () => {
   const location = usePathname();
   const [openMenus, setOpenMenus] = useState<number[]>([]);
+  const reduxRole = useSelector((state: any) => state.auth?.user?.role);
+  const [localRole, setLocalRole] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? (localStorage.getItem("authUser") || localStorage.getItem("hospitalUser")) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setLocalRole((parsed?.role || "").trim().toUpperCase());
+      }
+    } catch {}
+  }, []);
+
+  const userRole = (reduxRole || localRole || "").trim().toUpperCase();
+  const isAdmin = userRole === "ADMIN";
+
+  const visibleMenus = useMemo(() => {
+    return sidebarMenus
+      .map((menu) => ({
+        ...menu,
+        submenus: menu.submenus.filter((sub) => {
+          if (
+            (sub.to === all_routes.securitysettings ||
+              sub.label === "Security" ||
+              sub.label === "Change Password") &&
+            !isAdmin
+          ) {
+            return false;
+          }
+          return true;
+        }),
+      }))
+      .filter((menu) => menu.submenus.length > 0);
+  }, [isAdmin]);
 
   // Open the menu if any submenu is active
   useEffect(() => {
     const activeMenus: number[] = [];
-    sidebarMenus.forEach((menu, idx) => {
+    visibleMenus.forEach((menu, idx) => {
       if (menu.submenus.some((sub) => sub.to === location)) {
         activeMenus.push(idx);
       }
     });
     setOpenMenus(activeMenus);
-  }, [location]);
+  }, [location, visibleMenus]);
 
   const handleMenuClick = (idx: number) => {
     setOpenMenus((prev) =>
@@ -35,7 +68,7 @@ const SettingsSidebar = () => {
       <div className="sidebar-inner" data-simplebar="">
         <div id="sidebar-menu5" className="sidebar-menu mt-0 p-0">
           <ul>
-            {sidebarMenus.map((menu, idx) => {
+            {visibleMenus.map((menu, idx) => {
               const isOpen = openMenus.includes(idx);
               const isActive = menu.submenus.some((sub) => sub.to === location);
 

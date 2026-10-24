@@ -6,6 +6,7 @@ import Link from "next/link";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { all_routes } from "@/routes/all_routes";
+import DOMPurify from "isomorphic-dompurify";
 
 interface IProcedureDetail {
   _id: string;
@@ -112,12 +113,12 @@ const ProcedureDetailsContent = () => {
     <div className="page-wrapper">
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .page-wrapper .card .form-label,
           .page-wrapper .card p {
             color: #000 !important;
           }
-        `,
+        `),
         }}
       />
       <div className="content">

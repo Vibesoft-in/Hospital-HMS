@@ -9,6 +9,7 @@ import SCol7Chart from "./charts/scol7";
 import CircleChart2 from "./charts/circleChart2";
 import Link from "next/link";
 import ImageWithBasePath from "@/core/imageWithBasePath";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const DoctorDashboardComponent = () => {
   return (
@@ -148,9 +149,9 @@ const DoctorDashboardComponent = () => {
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-3">
                     <Link href="#" className="avatar me-2 flex-shrink-0">
-                      <ImageWithBasePath
-                        src="assets/img/doctors/doctor-01.jpg"
-                        alt="img"
+                      <DoctorAvatar
+                        gender="Male"
+                        size={40}
                         className="rounded-circle"
                       />
                     </Link>

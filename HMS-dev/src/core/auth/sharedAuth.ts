@@ -1,8 +1,9 @@
 import axios from "axios";
 import { API_BASE_URL, SHARED_AUTH_BASE_URL } from "@/environment";
 import { setHmsAuthCookie } from "@/core/auth/sessionCookie";
+import { setAccessToken } from "@/core/auth/accessToken";
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 5000;
 const parsedTimeout = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
 const requestTimeoutMs =
   Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : DEFAULT_TIMEOUT_MS;
@@ -82,7 +83,7 @@ export const syncHospitalSessionFromSharedCookie = async (): Promise<ISessionSyn
     if (payload.user) {
       const normalized = normalizeUserForStorage(payload.user);
       if (payload.accessToken) {
-        window.localStorage.setItem("authToken", payload.accessToken);
+        setAccessToken(payload.accessToken);
       }
       window.localStorage.setItem("authUser", JSON.stringify(normalized));
       setHmsAuthCookie();
@@ -116,7 +117,7 @@ export const postSharedLogin = async (email: string, password: string): Promise<
     }
     const normalized = normalizeUserForStorage(payload.user);
     if (payload.accessToken) {
-      window.localStorage.setItem("authToken", payload.accessToken);
+      setAccessToken(payload.accessToken);
     }
     window.localStorage.setItem("authUser", JSON.stringify(normalized));
     setHmsAuthCookie();
@@ -130,9 +131,10 @@ export const postSharedLogin = async (email: string, password: string): Promise<
 };
 
 /**
- * POST /logout — clears shared cookie domain-wide.
+ * POST /logout — clears shared cookie domain-wide and in-memory token.
  */
 export const postSharedLogout = async (): Promise<void> => {
+  setAccessToken(null);
   const base = getBase();
   if (!isSharedAuthEnabled() || !base || typeof window === "undefined") return;
   try {

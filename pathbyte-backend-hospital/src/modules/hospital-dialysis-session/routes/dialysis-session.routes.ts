@@ -7,7 +7,7 @@ const router = Router();
 
 // All dialysis routes require auth — ADMIN and DIALYSIS only
 router.use(requireHospitalUser());
-router.use(requireAnyRole("ADMIN", "DIALYSIS"));
+router.use(requireAnyRole("ADMIN", "DIALYSIS", "DOCTOR"));
 
 // Monthly dialysis calendar
 router.get("/calendar", dialysisSessionsController.getMonthlyCalendar);

@@ -104,9 +104,9 @@ hospitalPharmaTokenSchema.statics = {
     };
   },
 
-  async readHospitalPharmaToken(id: string) {
+  async readHospitalPharmaToken(id: string, filter: any = {}) {
     const pipeline: any[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } } },
+      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) } },
       ...buildPatientLookupStages(),
     ];
     const results = await this.aggregate(pipeline);
@@ -125,9 +125,9 @@ hospitalPharmaTokenSchema.statics = {
     return this.aggregate(pipeline);
   },
 
-  async updateHospitalPharmaToken(id: string, updates: Partial<HospitalPharmaToken>): Promise<HospitalPharmaToken> {
+  async updateHospitalPharmaToken(id: string, updates: Partial<HospitalPharmaToken>, filter: any = {}): Promise<HospitalPharmaToken> {
     const updated = await this.findOneAndUpdate(
-      { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } },
+      { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: updates },
       { new: true }
     );
@@ -137,9 +137,9 @@ hospitalPharmaTokenSchema.statics = {
     return updated.toObject();
   },
 
-  async deleteHospitalPharmaToken(id: string, deletedBy?: string): Promise<void> {
+  async deleteHospitalPharmaToken(id: string, deletedBy?: string, filter: any = {}): Promise<void> {
     const updated = await this.findOneAndUpdate(
-      { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } },
+      { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: deletedBy || "system" } },
       { new: true }
     );

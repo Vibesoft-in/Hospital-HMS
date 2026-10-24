@@ -1134,7 +1134,7 @@ dialysisSessionSchema.statics = {
     return session;
   },
 
-  async readDialysisSessionById(id: string) {
+  async readDialysisSessionById(id: string, filter: any = {}) {
     // Convert string ID to ObjectId for aggregation
     const mongoose = require('mongoose');
     let objectId;
@@ -1149,7 +1149,7 @@ dialysisSessionSchema.statics = {
     }
 
     const pipeline: any[] = [
-      { $match: { _id: objectId, isDeleted: { $ne: true } } },
+      { $match: { _id: objectId, isDeleted: { $ne: true }, ...(filter || {}) } },
       
       // Lookup visit details
       {

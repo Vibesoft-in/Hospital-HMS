@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { APIError } from "@src/shared";
 import HospitalTransactionModel from "../models/hospital-transaction.model";
 import { getNextSequence } from "@src/libs/counter";
 import { transformS3Urls } from "@src/libs/utils/s3Upload";
@@ -90,10 +91,16 @@ class HospitalTransactionService {
     return transformS3Urls(transaction) as HospitalTransactionResponseDTO;
   }
 
-  async getHospitalTransactionById(id: string): Promise<HospitalTransactionResponseDTO> {
-    // Use readHospitalTransaction by _id — delegate to model aggregate
-    const transactions = await HospitalTransactionModel.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } } },
+  async getHospitalTransactionById(id: string, filter: any = {}): Promise<HospitalTransactionResponseDTO> {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new APIError(400, "Invalid Transaction ID", `The provided transaction ID '${id}' is not a valid MongoDB ObjectId format.`);
+    }
+
+    const { doctorId: filterDoctorId, ...directFilter } = filter || {};
+    const matchQuery: any = { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...directFilter };
+
+    const pipeline: any[] = [
+      { $match: matchQuery },
       {
         $addFields: {
           visitObjectId: {
@@ -107,18 +114,51 @@ class HospitalTransactionService {
       },
       { $lookup: { from: "hospitalvisits",       localField: "visitObjectId", foreignField: "_id", as: "_visitArr", pipeline: [{ $match: { isDeleted: { $ne: true } } }] } },
       { $lookup: { from: "daycareappointments",  localField: "visitObjectId", foreignField: "_id", as: "_daycareArr", pipeline: [{ $match: { isDeleted: { $ne: true } } }] } },
+      { $lookup: { from: "hospitalipds",         localField: "visitObjectId", foreignField: "_id", as: "_ipdArr", pipeline: [{ $match: { isDeleted: { $ne: true } } }] } },
       {
         $addFields: {
           visitDetails: {
             $cond: {
               if: { $gt: [{ $size: "$_visitArr" }, 0] },
               then: { $arrayElemAt: ["$_visitArr", 0] },
-              else: { $cond: { if: { $gt: [{ $size: "$_daycareArr" }, 0] }, then: { $arrayElemAt: ["$_daycareArr", 0] }, else: null } }
+              else: {
+                $cond: {
+                  if: { $gt: [{ $size: "$_daycareArr" }, 0] },
+                  then: { $arrayElemAt: ["$_daycareArr", 0] },
+                  else: {
+                    $cond: {
+                      if: { $gt: [{ $size: "$_ipdArr" }, 0] },
+                      then: { $arrayElemAt: ["$_ipdArr", 0] },
+                      else: null
+                    }
+                  }
+                }
+              }
             }
           },
-          _isVisit: { $gt: [{ $size: "$_visitArr" }, 0] }
+          _isVisit: { $gt: [{ $size: "$_visitArr" }, 0] },
+          _isDaycare: {
+            $and: [
+              { $eq: [{ $size: "$_visitArr" }, 0] },
+              { $gt: [{ $size: "$_daycareArr" }, 0] }
+            ]
+          },
+          _isIPD: {
+            $and: [
+              { $eq: [{ $size: "$_visitArr" }, 0] },
+              { $eq: [{ $size: "$_daycareArr" }, 0] },
+              { $gt: [{ $size: "$_ipdArr" }, 0] }
+            ]
+          }
         }
       },
+    ];
+
+    if (filterDoctorId) {
+      pipeline.push({ $match: { "visitDetails.doctorId": filterDoctorId } });
+    }
+
+    pipeline.push(
       {
         $addFields: {
           patientObjectId: {
@@ -147,7 +187,19 @@ class HospitalTransactionService {
       { $unwind: { path: "$doctorDetails", preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          visitReadableId: { $cond: { if: "$_isVisit", then: { $ifNull: ["$visitDetails.visitId", null] }, else: { $ifNull: ["$visitDetails.daycareId", null] } } },
+          visitReadableId: {
+            $cond: {
+              if: "$_isVisit",
+              then: { $ifNull: ["$visitDetails.visitId", null] },
+              else: {
+                $cond: {
+                  if: "$_isDaycare",
+                  then: { $ifNull: ["$visitDetails.daycareId", null] },
+                  else: { $ifNull: ["$visitDetails.ipdId", null] }
+                }
+              }
+            }
+          },
           visitType: {
             $cond: {
               if: "$_isVisit",
@@ -159,7 +211,13 @@ class HospitalTransactionService {
             $cond: {
               if: "$_isVisit",
               then: { $ifNull: ["$visitDetails.appointmentType", null] },
-              else: { $cond: { if: { $ne: ["$visitDetails", null] }, then: "Day Care", else: null } }
+              else: {
+                $cond: {
+                  if: "$_isDaycare",
+                  then: "Day Care",
+                  else: { $cond: { if: "$_isIPD", then: "IPD", else: null } }
+                }
+              }
             }
           },
           doctorName:      { $ifNull: ["$doctorDetails.name", null] },
@@ -167,12 +225,14 @@ class HospitalTransactionService {
           patientPhone:    { $ifNull: ["$patientDetails.phone", null] }
         }
       },
-      { $project: { _visitArr: 0, _daycareArr: 0, _isVisit: 0, visitObjectId: 0, patientObjectId: 0, doctorObjectId: 0, visitDetails: 0, patientDetails: 0, doctorDetails: 0, __v: 0 } }
-    ]);
+      { $project: { _visitArr: 0, _daycareArr: 0, _ipdArr: 0, _isVisit: 0, _isDaycare: 0, _isIPD: 0, visitObjectId: 0, patientObjectId: 0, doctorObjectId: 0, visitDetails: 0, patientDetails: 0, doctorDetails: 0, __v: 0 } }
+    );
+
+    const transactions = await HospitalTransactionModel.aggregate(pipeline);
 
     const transaction = transactions[0];
     if (!transaction) {
-      throw new Error(`Transaction with ID '${id}' not found`);
+      throw new APIError(404, "Transaction Not Found", `Transaction with ID '${id}' not found`);
     }
 
     if (transaction._id && typeof transaction._id === "object") transaction._id = transaction._id.toString();
@@ -204,8 +264,13 @@ class HospitalTransactionService {
 
   async updateHospitalTransactionById(
     id: string,
-    updates: Partial<HospitalTransaction>
+    updates: Partial<HospitalTransaction>,
+    filter: any = {}
   ): Promise<HospitalTransactionResponseDTO> {
+    if (filter && Object.keys(filter).length > 0) {
+      await this.getHospitalTransactionById(id, filter);
+    }
+
     // Convert transactionDate string to Date object with validation if provided
     const updateData: any = { ...updates };
     if (updates.transactionDate) {
@@ -220,14 +285,14 @@ class HospitalTransactionService {
       }
     }
     
-    const updatedTransaction = await HospitalTransactionModel.findByIdAndUpdate(
-      id,
+    const updatedTransaction = await HospitalTransactionModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true } },
       { $set: updateData },
       { new: true }
     );
     
     if (!updatedTransaction) {
-      throw new Error(`Transaction with ID '${id}' not found`);
+      throw new APIError(404, "Transaction Not Found", `Transaction with ID '${id}' not found`);
     }
 
     // Transform S3 URLs to signed URLs
@@ -241,11 +306,15 @@ class HospitalTransactionService {
       { new: true }
     );
     if (!deleted) {
-      throw new Error(`Transaction with ID '${transactionId}' not found`);
+      throw new APIError(404, "Transaction Not Found", `Transaction with ID '${transactionId}' not found`);
     }
   }
 
-  async deleteHospitalTransactionById(id: string): Promise<void> {
+  async deleteHospitalTransactionById(id: string, filter: any = {}): Promise<void> {
+    if (filter && Object.keys(filter).length > 0) {
+      await this.getHospitalTransactionById(id, filter);
+    }
+
     const deleted = await HospitalTransactionModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
       { $set: { isDeleted: true, deletedAt: new Date() } },
@@ -253,7 +322,7 @@ class HospitalTransactionService {
     );
     
     if (!deleted) {
-      throw new Error(`Transaction with ID '${id}' not found`);
+      throw new APIError(404, "Transaction Not Found", `Transaction with ID '${id}' not found`);
     }
   }
 

@@ -1,4 +1,5 @@
 import HospitalPatientModel from "../models/hospital-patient.model";
+import { APIError } from "@src/shared";
 import { getNextSequence } from "@src/libs/counter";
 import { transformS3UrlsAsync } from "@src/libs/utils/s3Upload";
 import {
@@ -60,14 +61,15 @@ class HospitalPatientService {
     return await transformS3UrlsAsync(patient) as HospitalPatientResponseDTO;
   }
 
-  async getHospitalPatientById(id: string): Promise<HospitalPatientResponseDTO> {
+  async getHospitalPatientById(id: string, filter: any = {}): Promise<HospitalPatientResponseDTO> {
     const patient = await HospitalPatientModel.findOne({
       _id: id,
+      ...(filter || {}),
       isDeleted: { $ne: true }
     }).select("-__v -isDeleted -deletedAt -deletedBy").lean();
 
     if (!patient) {
-      throw new Error(`Patient with ID '${id}' not found`);
+      throw new APIError(404, "Patient Not Found", `Patient with ID '${id}' not found`);
     }
 
     const serializedPatient = { ...(patient as any) };
@@ -110,7 +112,8 @@ class HospitalPatientService {
 
   async updateHospitalPatientById(
     id: string,
-    updates: UpdateHospitalPatientDTO
+    updates: UpdateHospitalPatientDTO,
+    filter: any = {}
   ): Promise<HospitalPatientResponseDTO> {
     const updateData: any = { ...updates };
     if (updates.dob) {
@@ -126,13 +129,13 @@ class HospitalPatientService {
     }
 
     const updatedPatient = await HospitalPatientModel.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+      { _id: id, ...(filter || {}), isDeleted: { $ne: true } },
       { $set: updateData },
       { new: true }
     );
 
     if (!updatedPatient) {
-      throw new Error(`Patient with ID '${id}' not found`);
+      throw new APIError(404, "Patient Not Found", `Patient with ID '${id}' not found`);
     }
 
     const serializedPatient = updatedPatient.toObject();
@@ -143,9 +146,9 @@ class HospitalPatientService {
     await HospitalPatientModel.deleteHospitalPatient(mrd, deletedBy);
   }
 
-  async deleteHospitalPatientById(id: string, deletedBy?: string): Promise<void> {
+  async deleteHospitalPatientById(id: string, deletedBy?: string, filter: any = {}): Promise<void> {
     const updated = await HospitalPatientModel.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+      { _id: id, ...(filter || {}), isDeleted: { $ne: true } },
       {
         $set: {
           isDeleted: true,
@@ -157,7 +160,7 @@ class HospitalPatientService {
     );
 
     if (!updated) {
-      throw new Error(`Patient with ID '${id}' not found`);
+      throw new APIError(404, "Patient Not Found", `Patient with ID '${id}' not found`);
     }
   }
 

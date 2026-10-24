@@ -33,8 +33,8 @@ class HospitalPharmaTokenService {
     return HospitalPharmaTokenModel.readHospitalPharmaTokens(query, search, skip, limit);
   }
 
-  async getHospitalPharmaTokenById(id: string): Promise<any> {
-    return HospitalPharmaTokenModel.readHospitalPharmaToken(id);
+  async getHospitalPharmaTokenById(id: string, filter: any = {}): Promise<any> {
+    return HospitalPharmaTokenModel.readHospitalPharmaToken(id, filter);
   }
 
   async getQueueForDate(date?: string): Promise<any[]> {
@@ -44,13 +44,14 @@ class HospitalPharmaTokenService {
 
   async updateHospitalPharmaToken(
     id: string,
-    updates: Partial<Pick<HospitalPharmaToken, "status">>
+    updates: Partial<Pick<HospitalPharmaToken, "status">>,
+    filter: any = {}
   ): Promise<HospitalPharmaToken> {
-    return HospitalPharmaTokenModel.updateHospitalPharmaToken(id, updates);
+    return HospitalPharmaTokenModel.updateHospitalPharmaToken(id, updates, filter);
   }
 
-  async deleteHospitalPharmaToken(id: string, deletedBy?: string): Promise<void> {
-    return HospitalPharmaTokenModel.deleteHospitalPharmaToken(id, deletedBy);
+  async deleteHospitalPharmaToken(id: string, deletedBy?: string, filter: any = {}): Promise<void> {
+    return HospitalPharmaTokenModel.deleteHospitalPharmaToken(id, deletedBy, filter);
   }
 
   getTodayIST(): string {

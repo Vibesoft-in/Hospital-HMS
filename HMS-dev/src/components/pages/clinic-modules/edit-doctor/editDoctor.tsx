@@ -21,6 +21,7 @@ import EducationForms from "@/core/common/duplicate-forms/educationForm";
 import RewardsForms from "@/core/common/duplicate-forms/rewardsForm";
 import IndianPhoneInput from "@/core/common/indianPhoneInput/IndianPhoneInput";
 import Link from "next/link";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const EditDoctorComponent = () => {
   const getModalContainer = () => {
@@ -82,10 +83,10 @@ const EditDoctorComponent = () => {
                           <div className="mb-3 d-flex align-items-center">
                             <label className="form-label">Profile Image</label>
                             <div className="drag-upload-btn avatar avatar-xxl rounded-circle bg-light text-muted position-relative overflow-hidden z-1 mb-2 ms-4 p-0">
-                              <ImageWithBasePath
-                                src="assets/img/doctors/doctor-01.jpg"
+                              <DoctorAvatar
+                                gender={gender?.value || "Male"}
+                                size={100}
                                 className="position-relative z-n1"
-                                alt=""
                               />
                               <input
                                 type="file"

@@ -1,5 +1,6 @@
 const HospitalProcedureModel = require("../models/hospital-procedure.model").default;
 import { getNextSequence } from "@src/libs/counter";
+import { sanitizeRichText } from "@src/libs/utils/sanitizeHtml";
 import { 
   CreateHospitalProcedureDTO, 
   HospitalProcedureResponseDTO 
@@ -10,6 +11,13 @@ class HospitalProcedureService {
   async createHospitalProcedure(
     newProcedure: CreateHospitalProcedureDTO
   ): Promise<HospitalProcedureResponseDTO> {
+    if (newProcedure.description) {
+      newProcedure.description = sanitizeRichText(newProcedure.description);
+    }
+    if (newProcedure.metaData) {
+      newProcedure.metaData = sanitizeRichText(newProcedure.metaData);
+    }
+
     // Generate procedureId
     const nextProcedureId = await getNextSequence("hospitalProcedureId");
     const generatedProcedureId = `PROC${String(nextProcedureId).padStart(5, "0")}`;
@@ -63,6 +71,13 @@ class HospitalProcedureService {
     procedureId: string,
     updates: Partial<HospitalProcedure>
   ): Promise<HospitalProcedureResponseDTO> {
+    if (updates.description) {
+      updates.description = sanitizeRichText(updates.description);
+    }
+    if (updates.metaData) {
+      updates.metaData = sanitizeRichText(updates.metaData);
+    }
+
     const updatedProcedure = await HospitalProcedureModel.updateHospitalProcedure(
       procedureId,
       updates
@@ -75,6 +90,13 @@ class HospitalProcedureService {
     id: string,
     updates: Partial<HospitalProcedure>
   ): Promise<HospitalProcedureResponseDTO> {
+    if (updates.description) {
+      updates.description = sanitizeRichText(updates.description);
+    }
+    if (updates.metaData) {
+      updates.metaData = sanitizeRichText(updates.metaData);
+    }
+
     const updatedProcedure = await HospitalProcedureModel.findByIdAndUpdate(
       id,
       { $set: updates },

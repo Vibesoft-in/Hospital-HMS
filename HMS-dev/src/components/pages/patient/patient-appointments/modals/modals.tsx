@@ -5,8 +5,14 @@ import { DatePicker } from "antd";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import Link from "next/link";
 import CommonTimePicker from "@/core/common/common-time-pickers/CommonTimePicker";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
-const Modals = () => {
+export interface IPatientAppointmentModalProps {
+  appointment?: any;
+  doctor?: any;
+}
+
+const Modals: React.FC<IPatientAppointmentModalProps> = ({ appointment, doctor }) => {
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -408,19 +414,17 @@ const Modals = () => {
           </h6>
           <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 bg-light mx-3 p-3 rounded my-3">
             <div className="d-flex align-items-center gap-2">
-              <div className="avatar avatar-lg">
-                <ImageWithBasePath
-                  src="assets/img/doctors/doctor-01.jpg"
-                  alt="doctor-01"
-                  className="img-fluid img1 rounded-circle"
-                />
-              </div>
+              <DoctorAvatar
+                imageUrl={appointment?.doctor?.imageUrl || appointment?.imageUrl || appointment?.DoctorImage || doctor?.imageUrl}
+                gender={appointment?.doctor?.gender || appointment?.gender || doctor?.gender}
+                size={48}
+                className="rounded-circle"
+                alt={appointment?.Doctor_Name || appointment?.doctor?.name || doctor?.name || "Doctor"}
+              />
               <h6 className="fs-14 fw-semibold m-0">
-                
-                Dr. Emily Carter
+                {appointment?.Doctor_Name || appointment?.doctor?.name || doctor?.name || "Dr. Emily Carter"}
                 <span className="d-block fs-13 fw-normal text-body pt-1">
-                  
-                  Pediatrician
+                  {appointment?.role || appointment?.doctor?.department || doctor?.department || "Pediatrician"}
                 </span>
               </h6>
             </div>

@@ -23,6 +23,7 @@ import {
 import { getIpdProcedureNamesForListing } from "@/components/pages/clinic-modules/ipd-appointments/ipdProcedureRows";
 import { importMedicinesExcel } from "@/core/api/medicineApi";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import DOMPurify from "isomorphic-dompurify";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
 
 interface IDoctor {
@@ -833,14 +834,14 @@ const IpdAppointmentsComponent = () => {
     <>
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .datatable .ant-table-tbody > tr > td {
             color: #000 !important;
           }
           .datatable .ant-table-thead > tr > th {
             color: #000 !important;
           }
-        `,
+        `),
         }}
       />
       <div className="page-wrapper">

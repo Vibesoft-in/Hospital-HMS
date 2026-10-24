@@ -382,8 +382,8 @@ daycareAppointmentSchema.statics = {
     return appointment.toObject();
   },
 
-  async readDaycareAppointmentById(id: string) {
-    const appointment = await this.findOne({ _id: id, isDeleted: { $ne: true } });
+  async readDaycareAppointmentById(id: string, filter: any = {}) {
+    const appointment = await this.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) });
     
     if (!appointment) {
       throw new APIError(
@@ -419,10 +419,11 @@ daycareAppointmentSchema.statics = {
 
   async updateDaycareAppointmentById(
     id: string,
-    updates: Partial<DaycareAppointment>
+    updates: Partial<DaycareAppointment>,
+    filter: any = {}
   ): Promise<DaycareAppointment> {
     const updated = await this.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: updates },
       { new: true }
     );
@@ -450,8 +451,8 @@ daycareAppointmentSchema.statics = {
     }
   },
 
-  async deleteDaycareAppointmentById(id: string): Promise<void> {
-    const deleted = await this.findByIdAndDelete(id);
+  async deleteDaycareAppointmentById(id: string, filter: any = {}): Promise<void> {
+    const deleted = await this.findOneAndDelete({ _id: id, ...(filter || {}) });
     
     if (!deleted) {
       throw new APIError(

@@ -7,6 +7,7 @@ import ImageWithBasePath from "@/core/imageWithBasePath";
 import { DatePicker } from "antd";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const ExpensesModalComponent = () => {
   const getModalContainer = () => {
@@ -331,11 +332,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Dottie Sellers
                             </label>
@@ -347,11 +344,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Cheryl Bilodeau
                             </label>
@@ -363,11 +356,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Diane Nash
                             </label>
@@ -379,11 +368,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Sally Cavazos
                             </label>
@@ -871,11 +856,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Dottie Sellers
                             </label>
@@ -887,11 +868,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Cheryl Bilodeau
                             </label>
@@ -903,11 +880,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Diane Nash
                             </label>
@@ -919,11 +892,7 @@ const ExpensesModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Sally Cavazos
                             </label>

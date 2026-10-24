@@ -82,11 +82,15 @@ async function readHospitalPatient(
   next: NextFunction
 ) {
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const patient = await hospitalPatientService.getHospitalPatientById(id);
+    const patient = await hospitalPatientService.getHospitalPatientById(id, ownershipFilter);
     return response.success({ patient }, "Patient retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to get patient", err.message ?? undefined)
     );
@@ -128,11 +132,15 @@ async function searchHospitalPatientByAbha(
     const { transformS3UrlsAsync } = await import("@src/libs/utils/s3Upload");
 
     const orConditions: any[] = [];
-    if (abhaAddress) orConditions.push({ abhaAddress: { $regex: `^${abhaAddress}$`, $options: "i" } });
+    if (abhaAddress) {
+      const sanitizedAbhaAddress = (abhaAddress as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      orConditions.push({ abhaAddress: { $regex: `^${sanitizedAbhaAddress}$`, $options: "i" } });
+    }
     if (abhaNumber) orConditions.push({ abhaNumber: abhaNumber as string });
 
     const doc = await HospitalPatientModel.findOne({
       $or: orConditions,
+      ...(request.ownershipFilter || {}),
       isDeleted: { $ne: true },
     }).select("-__v -isDeleted -deletedAt -deletedBy").lean();
 
@@ -142,9 +150,9 @@ async function searchHospitalPatientByAbha(
 
     const patient = await transformS3UrlsAsync(doc as any);
 
-
     return response.success({ patient }, "Patient retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError) return next(err);
     return next(
       new AppError(500, "Unable to search patient", err.message ?? undefined)
     );
@@ -176,11 +184,15 @@ async function updateHospitalPatient(
   }
 
   const { id } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const updatedPatient = await hospitalPatientService.updateHospitalPatientById(id, input);
+    const updatedPatient = await hospitalPatientService.updateHospitalPatientById(id, input, ownershipFilter);
     return response.success({ patient: updatedPatient }, "Patient updated successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to update patient", err.message ?? undefined)
     );
@@ -194,11 +206,15 @@ async function deleteHospitalPatient(
 ) {
   const { id } = request.params;
   const deletedBy = request.body?.deletedBy || 'system'; // Optional, defaults to 'system'
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    await hospitalPatientService.deleteHospitalPatientById(id, deletedBy);
+    await hospitalPatientService.deleteHospitalPatientById(id, deletedBy, ownershipFilter);
     return response.success({}, "Patient deleted successfully");
   } catch (err: any) {
+    if (err instanceof APIError || err?.statusCode === 404) {
+      return next(err);
+    }
     return next(
       new AppError(500, "Unable to delete patient", err.message ?? undefined)
     );

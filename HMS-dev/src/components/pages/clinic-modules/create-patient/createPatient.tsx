@@ -2,6 +2,7 @@
 
 
 import { useState, useCallback } from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { all_routes } from "../../../../routes/all_routes";
 import {
   Blood_Group,
@@ -226,7 +227,7 @@ const CreatePatientComponent = () => {
   return (
     <>
       <style dangerouslySetInnerHTML={{
-        __html: `
+        __html: DOMPurify.sanitize(`
           .page-wrapper input::placeholder,
           .page-wrapper textarea::placeholder {
             color: #000 !important;
@@ -245,7 +246,7 @@ const CreatePatientComponent = () => {
           .page-wrapper textarea:-ms-input-placeholder {
             color: #000 !important;
           }
-        `
+        `)
       }} />
       {/* ========================
 			Start Page Content

@@ -6,6 +6,7 @@ import { all_routes } from "../../../../../routes/all_routes";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import Link from "next/link";
 import CommonTimePicker from "@/core/common/common-time-pickers/CommonTimePicker";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const Modals = () => {
   const getModalContainer = () => {
@@ -406,9 +407,9 @@ const Modals = () => {
           <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 bg-light mx-3 p-3 rounded my-3">
             <div className="d-flex align-items-center gap-2">
               <div className="avatar avatar-lg">
-                <ImageWithBasePath
-                  src="assets/img/doctors/doctor-01.jpg"
-                  alt="doctor-01"
+                <DoctorAvatar
+                  gender="Female"
+                  size={48}
                   className="img-fluid img1 rounded-circle"
                 />
               </div>

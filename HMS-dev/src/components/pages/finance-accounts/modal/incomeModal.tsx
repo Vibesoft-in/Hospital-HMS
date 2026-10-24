@@ -1,13 +1,37 @@
 "use client";
 
-import  { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { DatePicker } from "antd";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const IncomeModalComponent = () => {
+  const [doctors, setDoctors] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    const fetchDoctors = () => {
+      axios
+        .get(`${API_BASE_URL}/hospital/doctors`, { params: { limit: 50 } })
+        .then((res) => {
+          const list = res.data?.data?.doctors || res.data?.doctors || [];
+          if (Array.isArray(list) && list.length > 0) {
+            setDoctors(list);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchDoctors();
+    window.addEventListener("doctor-updated", fetchDoctors);
+    return () => window.removeEventListener("doctor-updated", fetchDoctors);
+  }, []);
+
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -198,70 +222,39 @@ const IncomeModalComponent = () => {
                               Stella Mary
                             </label>
                           </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Carol Lam
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Jesus Adams
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Ezra Belcher
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Glen Lentz
-                            </label>
-                          </li>
+                          {doctors.length > 0 ? (
+                            doctors.map((doc) => (
+                              <li key={doc._id}>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input
+                                    className="form-check-input m-0 me-2"
+                                    type="checkbox"
+                                  />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar
+                                      imageUrl={doc.imageUrl}
+                                      gender={doc.gender}
+                                      size={24}
+                                      className="rounded-circle"
+                                    />
+                                  </span>
+                                  {doc.name}
+                                </label>
+                              </li>
+                            ))
+                          ) : (
+                            <>
+                              <li>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input className="form-check-input m-0 me-2" type="checkbox" />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar size={24} className="rounded-circle" />
+                                  </span>
+                                  Dr. Smith
+                                </label>
+                              </li>
+                            </>
+                          )}
                           <li>
                             <label className="dropdown-item px-2 d-flex align-items-center text-dark">
                               <input
@@ -614,70 +607,39 @@ const IncomeModalComponent = () => {
                               Stella Mary
                             </label>
                           </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Carol Lam
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Jesus Adams
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Ezra Belcher
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Glen Lentz
-                            </label>
-                          </li>
+                          {doctors.length > 0 ? (
+                            doctors.map((doc) => (
+                              <li key={doc._id}>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input
+                                    className="form-check-input m-0 me-2"
+                                    type="checkbox"
+                                  />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar
+                                      imageUrl={doc.imageUrl}
+                                      gender={doc.gender}
+                                      size={24}
+                                      className="rounded-circle"
+                                    />
+                                  </span>
+                                  {doc.name}
+                                </label>
+                              </li>
+                            ))
+                          ) : (
+                            <>
+                              <li>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input className="form-check-input m-0 me-2" type="checkbox" />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar size={24} className="rounded-circle" />
+                                  </span>
+                                  Dr. Smith
+                                </label>
+                              </li>
+                            </>
+                          )}
                           <li>
                             <label className="dropdown-item px-2 d-flex align-items-center text-dark">
                               <input

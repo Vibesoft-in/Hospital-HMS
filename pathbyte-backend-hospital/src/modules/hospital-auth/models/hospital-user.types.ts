@@ -1,4 +1,4 @@
-﻿import { Document, Model } from "mongoose";
+import { Document, Model } from "mongoose";
 
 export type HospitalUserRole = "ADMIN" | "RECEPTIONIST" | "RECEPTIONIST2" | "DOCTOR" | "DIALYSIS" | "PHARMACIST" | "ACCOUNTANT" | "XRAY";
 
@@ -10,7 +10,8 @@ export interface HospitalUser {
   name: string;
   phoneNumber?: string;
   role: HospitalUserRole;
-  linkedDoctorId?: string; // _id of HospitalDoctor â€” required for DOCTOR role
+  linkedDoctorId?: string; // _id of HospitalDoctor — required for DOCTOR role
+  tokenVersion?: number;
   isActive: boolean;
   deleted: boolean;
   deletedAt?: Date;

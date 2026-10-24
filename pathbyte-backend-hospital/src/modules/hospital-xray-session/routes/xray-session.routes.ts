@@ -5,7 +5,7 @@ import { requireHospitalUser, requireAnyRole } from "@src/middlewares/hospital-a
 const router = Router();
 
 router.use(requireHospitalUser());
-router.use(requireAnyRole("ADMIN", "XRAY"));
+router.use(requireAnyRole("ADMIN", "XRAY", "DOCTOR"));
 
 // Create a new xray session
 router.post("/", XraySessionController.createXraySession);

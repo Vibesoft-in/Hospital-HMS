@@ -15,21 +15,14 @@ const {
 } = hospitalPatientHandler;
 
 // All routes require authentication
-// ADMIN, RECEPTIONIST, RECEPTIONIST2, DIALYSIS, PHARMACIST, and XRAY can access patients
+// ADMIN, RECEPTIONIST, RECEPTIONIST2, DIALYSIS, PHARMACIST, XRAY, and DOCTOR can access patients (DOCTOR is read-only)
 router.use(requireHospitalUser());
-router.use(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY"));
+router.use(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY", "DOCTOR"));
 
 router
   .route("")
-  .get(readHospitalPatients)
+  .get(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY", "DOCTOR"), readHospitalPatients)
   .post(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY"), createHospitalPatient);
-
-// Get by MongoDB _id
-router
-  .route("/:id")
-  .get(readHospitalPatient)
-  .patch(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY"), updateHospitalPatient)
-  .delete(requireHospitalAdmin(), deleteHospitalPatient); // Only admin can delete
 
 // Search by readable MRD
 router
@@ -40,6 +33,13 @@ router
 router
   .route("/search/abha")
   .get(searchHospitalPatientByAbha);
+
+// Get by MongoDB _id
+router
+  .route("/:id")
+  .get(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY", "DOCTOR"), readHospitalPatient)
+  .patch(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY"), updateHospitalPatient)
+  .delete(requireHospitalAdmin(), deleteHospitalPatient); // Only admin can delete
 
 // Restore soft deleted patient (admin only)
 router

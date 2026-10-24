@@ -1,9 +1,17 @@
 import { Request, Response, NextFunction } from "express";
-import { stripHtmlTags, containsHtml } from "@src/libs/utils/sanitizeHtml";
+import { stripHtmlTags, containsHtml, sanitizeRichText } from "@src/libs/utils/sanitizeHtml";
+
+const RICH_TEXT_FIELDS = new Set([
+  "reportHtml",
+  "findings",
+  "impression",
+  "description",
+  "metaData",
+]);
 
 /**
  * Middleware to sanitize all text inputs in request body
- * Recursively strips HTML tags from all string fields
+ * Recursively strips HTML tags from regular string fields, and sanitizes rich-text fields
  * Apply this middleware before validation
  */
 export function sanitizeInput(req: Request, _res: Response, next: NextFunction) {
@@ -16,14 +24,14 @@ export function sanitizeInput(req: Request, _res: Response, next: NextFunction) 
 /**
  * Recursively sanitize all string values in an object
  */
-function sanitizeObject(obj: any): any {
+function sanitizeObject(obj: any, parentKey?: string): any {
   if (obj === null || obj === undefined) {
     return obj;
   }
 
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item));
+    return obj.map(item => sanitizeObject(item, parentKey));
   }
 
   // Handle objects
@@ -31,15 +39,20 @@ function sanitizeObject(obj: any): any {
     const sanitized: any = {};
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
-        sanitized[key] = sanitizeObject(obj[key]);
+        sanitized[key] = sanitizeObject(obj[key], key);
       }
     }
     return sanitized;
   }
 
-  // Handle strings - strip HTML if present
-  if (typeof obj === 'string' && containsHtml(obj)) {
-    return stripHtmlTags(obj);
+  // Handle strings
+  if (typeof obj === 'string') {
+    if (parentKey && RICH_TEXT_FIELDS.has(parentKey)) {
+      return sanitizeRichText(obj);
+    }
+    if (containsHtml(obj)) {
+      return stripHtmlTags(obj);
+    }
   }
 
   // Return other types as-is (numbers, booleans, etc.)

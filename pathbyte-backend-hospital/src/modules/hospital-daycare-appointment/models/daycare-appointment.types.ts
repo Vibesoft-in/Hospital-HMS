@@ -61,11 +61,11 @@ export interface DaycareAppointmentModel extends Model<DaycareAppointmentDoc> {
   createDaycareAppointment(newAppointment: DaycareAppointment): Promise<DaycareAppointment>;
   readDaycareAppointments(query: any, search: any, skip: number, limit: number): Promise<any>;
   readDaycareAppointment(daycareId: string): Promise<any>;
-  readDaycareAppointmentById(id: string): Promise<any>;
+  readDaycareAppointmentById(id: string, filter?: any): Promise<any>;
   updateDaycareAppointment(daycareId: string, updates: Partial<DaycareAppointment>): Promise<DaycareAppointment>;
-  updateDaycareAppointmentById(id: string, updates: Partial<DaycareAppointment>): Promise<DaycareAppointment>;
+  updateDaycareAppointmentById(id: string, updates: Partial<DaycareAppointment>, filter?: any): Promise<DaycareAppointment>;
   deleteDaycareAppointment(daycareId: string): Promise<void>;
-  deleteDaycareAppointmentById(id: string): Promise<void>;
+  deleteDaycareAppointmentById(id: string, filter?: any): Promise<void>;
   getAppointmentsByPatient(patientId: string): Promise<any[]>;
   getAppointmentsByDoctor(doctorId: string, date?: Date): Promise<any[]>;
   calculatePrice(

@@ -1,6 +1,8 @@
 const XraySessionModel = require("../models/xray-session.model").default;
+import { APIError } from "@src/shared";
 import { getNextSequence } from "@src/libs/counter";
 import { getS3SignedUrl } from "@src/libs/utils/s3Upload";
+import { sanitizeRichText } from "@src/libs/utils/sanitizeHtml";
 import { CreateXraySessionDTO, UpdateXraySessionDTO, XraySessionResponseDTO } from "../dtos/xray-session.dto";
 import { XraySession } from "../models/xray-session.types";
 
@@ -63,7 +65,7 @@ class XraySessionService {
       }
     }
 
-    const session = await XraySessionModel.createXraySession({
+    const sessionInput: any = {
       ...newSession,
       patientId,
       sessionId,
@@ -74,7 +76,13 @@ class XraySessionService {
       status: newSession.status || "Pending",
       daycareAppointmentId: newSession.daycareAppointmentId || null,
       reportDate: newSession.reportDate ? new Date(newSession.reportDate) : undefined,
-    } as XraySession);
+    };
+
+    if (sessionInput.findings) sessionInput.findings = sanitizeRichText(sessionInput.findings);
+    if (sessionInput.impression) sessionInput.impression = sanitizeRichText(sessionInput.impression);
+    if (sessionInput.reportHtml) sessionInput.reportHtml = sanitizeRichText(sessionInput.reportHtml);
+
+    const session = await XraySessionModel.createXraySession(sessionInput as XraySession);
 
     return session as XraySessionResponseDTO;
   }
@@ -113,7 +121,7 @@ class XraySessionService {
       source: "manual",
       isUltrasound,
       status: "Pending",
-      reportHtml: input.reportHtml,
+      reportHtml: input.reportHtml ? sanitizeRichText(input.reportHtml) : undefined,
       docUrl: input.docUrl,
     } as XraySession);
 
@@ -134,8 +142,8 @@ class XraySessionService {
     return resolveDocUrl(session);
   }
 
-  async getXraySessionById(id: string): Promise<XraySessionResponseDTO> {
-    const session = await XraySessionModel.readXraySessionById(id);
+  async getXraySessionById(id: string, filter: any = {}): Promise<XraySessionResponseDTO> {
+    const session = await XraySessionModel.readXraySessionById(id, filter);
     return resolveDocUrl(session);
   }
 
@@ -146,20 +154,35 @@ class XraySessionService {
   }
 
   async updateXraySession(sessionId: string, updates: Partial<XraySession>): Promise<XraySessionResponseDTO> {
-    const session = await XraySessionModel.updateXraySession(sessionId, updates);
+    const payload: any = { ...updates };
+    if (payload.findings) payload.findings = sanitizeRichText(payload.findings);
+    if (payload.impression) payload.impression = sanitizeRichText(payload.impression);
+    if (payload.reportHtml) payload.reportHtml = sanitizeRichText(payload.reportHtml);
+
+    const session = await XraySessionModel.updateXraySession(sessionId, payload);
     return resolveDocUrl(session);
   }
 
-  async updateXraySessionById(id: string, updates: UpdateXraySessionDTO): Promise<XraySessionResponseDTO> {
+  async updateXraySessionById(id: string, updates: UpdateXraySessionDTO, filter: any = {}): Promise<XraySessionResponseDTO> {
     const payload: any = { ...updates };
     if (payload.reportDate) payload.reportDate = new Date(payload.reportDate);
+    if (payload.findings) payload.findings = sanitizeRichText(payload.findings);
+    if (payload.impression) payload.impression = sanitizeRichText(payload.impression);
+    if (payload.reportHtml) payload.reportHtml = sanitizeRichText(payload.reportHtml);
 
-    const updated = await XraySessionModel.findByIdAndUpdate(
-      id,
+    const existing = await XraySessionModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) });
+    if (!existing) {
+      throw new APIError(404, "Xray Session Not Found", `Xray session with ID '${id}' not found`);
+    }
+
+    const updated = await XraySessionModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: payload },
       { new: true, runValidators: true }
     );
-    if (!updated) throw new Error(`Xray session with ID '${id}' not found`);
+    if (!updated) {
+      throw new APIError(404, "Xray Session Not Found", `Xray session with ID '${id}' not found`);
+    }
     return resolveDocUrl(updated.toObject());
   }
 
@@ -167,9 +190,15 @@ class XraySessionService {
     await XraySessionModel.deleteXraySession(sessionId, deletedBy);
   }
 
-  async deleteXraySessionById(id: string): Promise<void> {
-    const deleted = await XraySessionModel.findByIdAndDelete(id);
-    if (!deleted) throw new Error(`Xray session with ID '${id}' not found`);
+  async deleteXraySessionById(id: string, filter: any = {}): Promise<void> {
+    const deleted = await XraySessionModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
+      { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: "system" } },
+      { new: true }
+    );
+    if (!deleted) {
+      throw new APIError(404, "Xray Session Not Found", `Xray session with ID '${id}' not found`);
+    }
   }
 
   async getSessionsByVisit(visitId: string): Promise<XraySessionResponseDTO[]> {

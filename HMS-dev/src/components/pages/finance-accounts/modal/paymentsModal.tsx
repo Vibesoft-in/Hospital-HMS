@@ -1,10 +1,35 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { DatePicker } from "antd";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PaymentsModalComponent = () => {
+  const [doctors, setDoctors] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    const fetchDoctors = () => {
+      axios
+        .get(`${API_BASE_URL}/hospital/doctors`, { params: { limit: 50 } })
+        .then((res) => {
+          const list = res.data?.data?.doctors || res.data?.doctors || [];
+          if (Array.isArray(list) && list.length > 0) {
+            setDoctors(list);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchDoctors();
+    window.addEventListener("doctor-updated", fetchDoctors);
+    return () => window.removeEventListener("doctor-updated", fetchDoctors);
+  }, []);
+
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
     return modalElement ? modalElement : document.body; // Fallback to document.body if modalElement is null
@@ -285,166 +310,36 @@ const PaymentsModalComponent = () => {
                           </div>
                         </div>
                         <ul className="mb-0 list-style-none">
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Mick Thompson
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Sarah Johnson
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Emily Carter
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.David Lee
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-05.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Anna Kim
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-06.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.John Smith
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-07.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Lisa White
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-08.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Patrica Brown
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-09.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Rachel Green
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-10.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Michael Smith
-                            </label>
-                          </li>
+                          {doctors.length > 0 ? (
+                            doctors.map((doc) => (
+                              <li key={doc._id}>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input
+                                    className="form-check-input m-0 me-2"
+                                    type="checkbox"
+                                  />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar
+                                      imageUrl={doc.imageUrl}
+                                      gender={doc.gender}
+                                      size={24}
+                                      className="rounded-circle"
+                                    />
+                                  </span>
+                                  {doc.name}
+                                </label>
+                              </li>
+                            ))
+                          ) : (
+                            <li>
+                              <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                <span className="avatar avatar-sm rounded-circle me-2">
+                                  <DoctorAvatar size={24} className="rounded-circle" />
+                                </span>
+                                Select Doctor
+                              </label>
+                            </li>
+                          )}
                         </ul>
                       </div>
                     </div>
@@ -796,11 +691,7 @@ const PaymentsModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Dottie Sellers
                             </label>
@@ -812,11 +703,7 @@ const PaymentsModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Cheryl Bilodeau
                             </label>
@@ -828,11 +715,7 @@ const PaymentsModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Diane Nash
                             </label>
@@ -844,11 +727,7 @@ const PaymentsModalComponent = () => {
                                 type="checkbox"
                               />
                               <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
+                                <DoctorAvatar size={24} className="rounded-circle" />
                               </span>
                               Sally Cavazos
                             </label>
@@ -904,166 +783,36 @@ const PaymentsModalComponent = () => {
                           </div>
                         </div>
                         <ul className="mb-0 list-style-none">
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-01.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Mick Thompson
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-02.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Sarah Johnson
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-03.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Emily Carter
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-04.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.David Lee
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-05.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Anna Kim
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-06.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.John Smith
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-07.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Lisa White
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-08.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Patrica Brown
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-09.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Rachel Green
-                            </label>
-                          </li>
-                          <li>
-                            <label className="dropdown-item px-2 d-flex align-items-center text-dark">
-                              <input
-                                className="form-check-input m-0 me-2"
-                                type="checkbox"
-                              />
-                              <span className="avatar avatar-sm rounded-circle me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/doctors/doctor-10.jpg"
-                                  className="flex-shrink-0 rounded-circle"
-                                  alt="img"
-                                />
-                              </span>
-                              Dr.Michael Smith
-                            </label>
-                          </li>
+                          {doctors.length > 0 ? (
+                            doctors.map((doc) => (
+                              <li key={doc._id}>
+                                <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                  <input
+                                    className="form-check-input m-0 me-2"
+                                    type="checkbox"
+                                  />
+                                  <span className="avatar avatar-sm rounded-circle me-2">
+                                    <DoctorAvatar
+                                      imageUrl={doc.imageUrl}
+                                      gender={doc.gender}
+                                      size={24}
+                                      className="rounded-circle"
+                                    />
+                                  </span>
+                                  {doc.name}
+                                </label>
+                              </li>
+                            ))
+                          ) : (
+                            <li>
+                              <label className="dropdown-item px-2 d-flex align-items-center text-dark">
+                                <span className="avatar avatar-sm rounded-circle me-2">
+                                  <DoctorAvatar size={24} className="rounded-circle" />
+                                </span>
+                                Select Doctor
+                              </label>
+                            </li>
+                          )}
                         </ul>
                       </div>
                     </div>

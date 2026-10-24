@@ -34,7 +34,8 @@ async function createHospitalPharmaToken(req: Request, res: Response, next: Next
 // GET /pharma-tokens/:id
 async function getHospitalPharmaToken(req: Request, res: Response, next: NextFunction) {
   try {
-    const token = await hospitalPharmaTokenService.getHospitalPharmaTokenById(req.params.id);
+    const ownershipFilter = req.ownershipFilter || {};
+    const token = await hospitalPharmaTokenService.getHospitalPharmaTokenById(req.params.id, ownershipFilter);
     return res.success({ token }, "Pharma token retrieved successfully");
   } catch (err: any) {
     if (err instanceof APIError) return next(err);
@@ -50,7 +51,8 @@ async function updateHospitalPharmaToken(req: Request, res: Response, next: Next
       return next(new APIError(400, "Bad Request", validation.errors.map((e) => e.stack).join(". ")));
     }
 
-    const token = await hospitalPharmaTokenService.updateHospitalPharmaToken(req.params.id, req.body);
+    const ownershipFilter = req.ownershipFilter || {};
+    const token = await hospitalPharmaTokenService.updateHospitalPharmaToken(req.params.id, req.body, ownershipFilter);
 
     // Emit SSE event
     const queue = await hospitalPharmaTokenService.getQueueForDate(token.date);
@@ -68,7 +70,8 @@ async function updateHospitalPharmaToken(req: Request, res: Response, next: Next
 async function deleteHospitalPharmaToken(req: Request, res: Response, next: NextFunction) {
   try {
     const deletedBy = (req as any).hospitalUser?._id?.toString();
-    await hospitalPharmaTokenService.deleteHospitalPharmaToken(req.params.id, deletedBy);
+    const ownershipFilter = req.ownershipFilter || {};
+    await hospitalPharmaTokenService.deleteHospitalPharmaToken(req.params.id, deletedBy, ownershipFilter);
     logger.info({ id: req.params.id }, "Pharma token deleted");
     return res.success({}, "Pharma token deleted successfully");
   } catch (err: any) {

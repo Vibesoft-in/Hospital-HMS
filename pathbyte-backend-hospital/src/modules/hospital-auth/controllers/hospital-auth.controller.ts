@@ -55,7 +55,7 @@ async function login(req: Request, res: Response, next: NextFunction) {
 
 async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
-    const token = req.cookies?.hospital_refresh_token;
+    const token = req.cookies?.hospital_refresh_token || req.body?.refreshToken;
     
     if (!token) {
       throw new APIError(401, "Unauthorized", "Missing refresh token.");
@@ -73,10 +73,31 @@ async function refresh(req: Request, res: Response, next: NextFunction) {
     if (!isHospitalToken(payload)) {
       throw new APIError(401, "Unauthorized", "Invalid token type.");
     }
+
+    const HospitalUserModel = (await import("../models/hospital-user.model")).default;
+    const user = await HospitalUserModel.readByUserId((payload as any).sub);
+
+    if (!user) {
+      throw new APIError(401, "Unauthorized", "User no longer exists.");
+    }
+
+    if (!user.isActive) {
+      throw new APIError(401, "Unauthorized", "User is inactive.");
+    }
+
+    if (user.role !== (payload as any).role) {
+      throw new APIError(401, "Unauthorized", "User role has changed.");
+    }
+
+    const expectedVersion = user.tokenVersion ?? 0;
+    const tokenVersion = (payload as any).tokenVersion;
+    if (tokenVersion === undefined || tokenVersion !== expectedVersion) {
+      throw new APIError(401, "Unauthorized", "Refresh token has been revoked.");
+    }
     
     const cleanPayload = { 
-      sub: (payload as any).sub, 
-      role: (payload as any).role,
+      sub: user.userId, 
+      role: user.role,
       type: "hospital" as const
     };
 
@@ -89,6 +110,10 @@ async function refresh(req: Request, res: Response, next: NextFunction) {
     if (err instanceof APIError) {
       return next(err);
     }
+
+    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+      return next(new APIError(401, "Unauthorized", "Invalid or expired refresh token."));
+    }
     
     return next(
       new AppError(500, "Unable to refresh token", err.message ?? undefined)
@@ -96,7 +121,48 @@ async function refresh(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-async function logout(_req: Request, res: Response) {
+async function logout(req: Request, res: Response) {
+  try {
+    let userId: string | undefined = (req as any).hospitalUser?.userId || req.body?.userId;
+
+    const cookieToken = req.cookies?.hospital_refresh_token || req.body?.refreshToken;
+    if (!userId && cookieToken) {
+      try {
+        const { verifyRefreshToken } = await import("@src/libs/jwt");
+        const payload = verifyRefreshToken(cookieToken);
+        if (payload && (payload as any).sub) {
+          userId = (payload as any).sub;
+        }
+      } catch {
+        // ignore invalid token during logout
+      }
+    }
+
+    if (!userId && req.headers.authorization?.startsWith("Bearer ")) {
+      try {
+        const { verifyAccessToken } = await import("@src/libs/jwt");
+        const token = req.headers.authorization.split(" ")[1];
+        const payload = verifyAccessToken(token);
+        if (payload && (payload as any).sub) {
+          userId = (payload as any).sub;
+        }
+      } catch {
+        // ignore invalid token during logout
+      }
+    }
+
+    if (userId) {
+      const HospitalUserModel = (await import("../models/hospital-user.model")).default;
+      await HospitalUserModel.findOneAndUpdate(
+        { userId, deleted: { $ne: true } },
+        { $inc: { tokenVersion: 1 } }
+      );
+      logger.info({ userId }, "Hospital user logged out, tokenVersion incremented");
+    }
+  } catch (err: any) {
+    logger.warn({ error: err.message }, "Error during tokenVersion increment on logout");
+  }
+
   res.clearCookie("hospital_refresh_token", {
     httpOnly: true,
     secure: ["true", "1", "yes"].includes(process.env.COOKIE_SECURE as string),

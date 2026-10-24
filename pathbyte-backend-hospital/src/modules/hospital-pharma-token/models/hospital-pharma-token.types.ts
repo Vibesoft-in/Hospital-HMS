@@ -17,8 +17,8 @@ export interface HospitalPharmaTokenDoc extends HospitalPharmaToken, Document {}
 export interface HospitalPharmaTokenModel extends Model<HospitalPharmaTokenDoc> {
   createHospitalPharmaToken(newToken: Omit<HospitalPharmaToken, "pharmaTokenId">): Promise<HospitalPharmaToken>;
   readHospitalPharmaTokens(query: any, search: any, skip: number, limit: number): Promise<{ tokens: any[]; totalCount: number }>;
-  readHospitalPharmaToken(id: string): Promise<any>;
+  readHospitalPharmaToken(id: string, filter?: any): Promise<any>;
   readHospitalPharmaTokenQueue(date: string): Promise<any[]>;
-  updateHospitalPharmaToken(id: string, updates: Partial<HospitalPharmaToken>): Promise<HospitalPharmaToken>;
-  deleteHospitalPharmaToken(id: string, deletedBy?: string): Promise<void>;
+  updateHospitalPharmaToken(id: string, updates: Partial<HospitalPharmaToken>, filter?: any): Promise<HospitalPharmaToken>;
+  deleteHospitalPharmaToken(id: string, deletedBy?: string, filter?: any): Promise<void>;
 }

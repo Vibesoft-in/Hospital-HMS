@@ -20,8 +20,10 @@ import Datatable from "@/core/common/dataTable";
 import Modals from "./modals/modals";
 import Link from "next/link";
 import CommonSelect from "@/core/common/common-select/commonSelect";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PatientAppointmentsComponent = () => {
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const data = PatientAppoinmentsData;
   const columns = [
     {
@@ -38,10 +40,12 @@ const PatientAppointmentsComponent = () => {
             href={all_routes.patientappointmentdetails}
             className="avatar avatar-md me-2"
           >
-            <ImageWithBasePath
-              src={`assets/img/doctors/${render.img}`}
-              alt="product"
+            <DoctorAvatar
+              imageUrl={render.imageUrl || render.doctor?.imageUrl}
+              gender={render.gender || render.doctor?.gender}
+              size={40}
               className="rounded-circle"
+              alt={text}
             />
           </Link>
           <Link
@@ -96,7 +100,7 @@ const PatientAppointmentsComponent = () => {
     },
     {
       title: "",
-      render: () => (
+      render: (_: any, record: any) => (
         <div className="action-item">
           <>
             <Link href="#" data-bs-toggle="dropdown">
@@ -119,6 +123,7 @@ const PatientAppointmentsComponent = () => {
                   className="dropdown-item d-flex align-items-center"
                   data-bs-toggle="offcanvas"
                   data-bs-target="#view_details"
+                  onClick={() => setSelectedAppointment(record)}
                 >
                   View
                 </Link>
@@ -433,7 +438,7 @@ const PatientAppointmentsComponent = () => {
       {/* ========================
 			End Page Content
 		========================= */}
-      <Modals />
+      <Modals appointment={selectedAppointment} />
     </>
   );
 };

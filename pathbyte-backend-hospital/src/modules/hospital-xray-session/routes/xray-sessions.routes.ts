@@ -9,7 +9,7 @@ router.get("/stream", XraySessionsController.streamXrayTokenQueue);
 
 // All other routes require auth
 router.use(requireHospitalUser());
-router.use(requireAnyRole("ADMIN", "XRAY"));
+router.use(requireAnyRole("ADMIN", "XRAY", "DOCTOR"));
 
 // List sessions with pagination + filters
 router.get("/",      XraySessionsController.readXraySessions);

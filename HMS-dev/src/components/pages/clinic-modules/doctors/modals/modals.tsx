@@ -39,6 +39,7 @@ import {
   validateIndianMobilePhone,
 } from "@/core/utils/formatPatientPhoneForApi";
 import { uploadFileToS3 } from "@/core/utils/uploadFileToS3";
+import { broadcastDoctorUpdate } from "@/core/utils/doctorUpdateEvent";
 import IpdPatientCompactUpload from "@/components/pages/clinic-modules/ipd-appointments/IpdPatientCompactUpload";
 import DialysisSlotsField, {
   type IDialysisSlotForm,
@@ -312,7 +313,7 @@ const ScheduleForm = ({
   );
 };
 
-const Modals = () => {
+const Modals = ({ onDoctorUpdated }: { onDoctorUpdated?: (doctor: any) => void } = {}) => {
   const router = useRouter();
   const getModalContainer = () => {
     const modalElement = document.getElementById("modal-datepicker");
@@ -926,13 +927,21 @@ const Modals = () => {
       const hasSuccessCode = response.data?.code === 200;
 
       if (isSuccess || hasSuccessCode) {
-        // Close modal and refresh
+        // Broadcast doctor update to Redux store and window event so all pages re-render without full page reload
+        broadcastDoctorUpdate({
+          doctorId,
+          imageUrl: (doctorData.imageUrl as string) || "",
+          doctorData: { ...doctorData, _id: doctorId },
+        });
+
+        onDoctorUpdated?.({ ...doctorData, _id: doctorId });
+
+        // Close offcanvas modal
         const modalElement = document.getElementById("edit_doctor");
         if (modalElement) {
           const bsModal = (window as any).bootstrap?.Offcanvas?.getInstance(modalElement);
           bsModal?.hide();
         }
-        window.location.reload();
       } else {
         const errorMsg = response.data?.message || "Failed to update doctor";
         alert(errorMsg);

@@ -42,7 +42,7 @@ class HospitalIPDController {
       let limit = Math.max(1, parseInt(req.query.limit as string) || 10);
       const skip = (page - 1) * limit;
 
-      const query: any = {};
+      const query: any = { ...(req.ownershipFilter || {}) };
       if (req.query.status) query.status = req.query.status;
       if (req.query.doctorId) query.doctorId = req.query.doctorId;
       if (req.query.patientId) query.patientId = req.query.patientId;
@@ -106,7 +106,8 @@ class HospitalIPDController {
 
   async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const ipd = await HospitalIPDService.getIPDById(req.params.id);
+      const ownershipFilter = req.ownershipFilter || {};
+      const ipd = await HospitalIPDService.getIPDById(req.params.id, ownershipFilter);
       res.success(ipd, "IPD retrieved successfully");
     } catch (error) { next(error); }
   }
@@ -115,7 +116,8 @@ class HospitalIPDController {
     const v = validate(req.body, ipdUpdateSchema);
     if (!v.valid) { validationError(next, v.errors); return; }
     try {
-      const ipd = await HospitalIPDService.updateIPD(req.params.id, req.body);
+      const ownershipFilter = req.ownershipFilter || {};
+      const ipd = await HospitalIPDService.updateIPD(req.params.id, req.body, ownershipFilter);
       res.success(ipd, "IPD updated successfully");
     } catch (error) { next(error); }
   }
@@ -123,7 +125,8 @@ class HospitalIPDController {
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const deletedBy = (req as any).hospitalUser?._id?.toString();
-      await HospitalIPDService.deleteIPD(req.params.id, deletedBy);
+      const ownershipFilter = req.ownershipFilter || {};
+      await HospitalIPDService.deleteIPD(req.params.id, deletedBy, ownershipFilter);
       res.success(null, "IPD deleted successfully");
     } catch (error) { next(error); }
   }

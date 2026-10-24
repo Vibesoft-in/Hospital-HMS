@@ -1,8 +1,11 @@
 import { Router } from "express";
 import controller from "../controllers/index";
 import ipdExportController from "../controllers/ipd-export.controller";
+import { requireHospitalUser } from "@src/middlewares/hospital-auth.middleware";
 
 const router = Router();
+
+router.use(requireHospitalUser());
 
 router.post("/calculate-price", controller.calculatePrice);
 router.get("/export", ipdExportController.exportIPDs);

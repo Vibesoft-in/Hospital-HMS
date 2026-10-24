@@ -3,6 +3,7 @@ import ImageWithBasePath from "@/core/imageWithBasePath";
 import Modals from "./modals/modals";
 import PredefinedDatePicker from "@/core/common/datePicker";
 import Link from "next/link";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const NotificationsComponent = () => {
   return (
@@ -52,10 +53,10 @@ const NotificationsComponent = () => {
                     <div className="col-lg-9">
                       <div className="notication-content">
                         <span>
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-01.jpg"
-                            className="img-fluid"
-                            alt="img"
+                          <DoctorAvatar
+                            gender="Male"
+                            size={48}
+                            className="img-fluid rounded-circle"
                           />
                         </span>
                         <div className="notication-info">
@@ -91,10 +92,10 @@ const NotificationsComponent = () => {
                     <div className="col-lg-9">
                       <div className="notication-content">
                         <span>
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-06.jpg"
-                            className="img-fluid"
-                            alt="img"
+                          <DoctorAvatar
+                            gender="Female"
+                            size={48}
+                            className="img-fluid rounded-circle"
                           />
                         </span>
                         <div className="notication-info">
@@ -132,10 +133,10 @@ const NotificationsComponent = () => {
                     <div className="col-lg-9">
                       <div className="notication-content">
                         <span>
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-02.jpg"
-                            className="img-fluid"
-                            alt="img"
+                          <DoctorAvatar
+                            gender="Female"
+                            size={48}
+                            className="img-fluid rounded-circle"
                           />
                         </span>
                         <div className="notication-info">
@@ -171,10 +172,10 @@ const NotificationsComponent = () => {
                     <div className="col-lg-9">
                       <div className="notication-content">
                         <span>
-                          <ImageWithBasePath
-                            src="assets/img/doctors/doctor-07.jpg"
-                            className="img-fluid"
-                            alt="img"
+                          <DoctorAvatar
+                            gender="Female"
+                            size={48}
+                            className="img-fluid rounded-circle"
                           />
                         </span>
                         <div className="notication-info">

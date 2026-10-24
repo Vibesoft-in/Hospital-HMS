@@ -1,7 +1,7 @@
 import express from "express";
 import { hospitalTransactionHandler, hospitalTransactionsHandler } from "../controllers/";
 import exportHandler from "../controllers/hospital-transaction-export.controller";
-import { requireHospitalUser, requireHospitalAdmin, requireAnyRole } from "@src/middlewares/hospital-auth.middleware";
+import { requireHospitalUser, requireHospitalAdminStrict, requireAnyRole } from "@src/middlewares/hospital-auth.middleware";
 
 const router = express.Router();
 const { readHospitalTransactions } = hospitalTransactionsHandler;
@@ -30,8 +30,8 @@ router.route("/export").get(exportHospitalTransactions);
 router
   .route("/:id")
   .get(readHospitalTransaction)
-  .patch(requireHospitalAdmin(), updateHospitalTransaction) // Only admin can update
-  .delete(requireHospitalAdmin(), deleteHospitalTransaction); // Only admin can delete
+  .patch(requireHospitalAdminStrict(), updateHospitalTransaction) // Only admin can update
+  .delete(requireHospitalAdminStrict(), deleteHospitalTransaction); // Only admin can delete
 
 // Search by readable transactionId
 router

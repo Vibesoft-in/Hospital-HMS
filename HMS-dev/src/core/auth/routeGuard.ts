@@ -1,5 +1,6 @@
 import { isPublicPath, matchesPathPrefix } from "@/core/auth/publicPaths";
 import { all_routes } from "@/routes/all_routes";
+import { getAccessToken } from "@/core/auth/accessToken";
 
 export { isPublicPath, matchesPathPrefix };
 
@@ -26,5 +27,5 @@ export const CURATED_ROUTE_PATHS: string[] = [
 
 export const isAuthenticated = (): boolean => {
   if (typeof window === "undefined") return false;
-  return Boolean(localStorage.getItem("authToken") || localStorage.getItem("authUser"));
+  return Boolean(getAccessToken() || localStorage.getItem("authUser"));
 };

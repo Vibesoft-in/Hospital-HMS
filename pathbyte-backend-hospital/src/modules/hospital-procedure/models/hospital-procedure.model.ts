@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { APIError } from "@src/shared";
+import { sanitizeRichText } from "@src/libs/utils/sanitizeHtml";
 import { 
   HospitalProcedure, 
   HospitalProcedureDoc, 
@@ -175,6 +176,29 @@ hospitalProcedureSchema.options.toObject.transform = (_doc: any, ret: any) => {
   }
   return clean;
 };
+
+hospitalProcedureSchema.pre("save", function (next) {
+  if (this.description) {
+    this.description = sanitizeRichText(this.description);
+  }
+  if (this.metaData) {
+    this.metaData = sanitizeRichText(this.metaData);
+  }
+  next();
+});
+
+hospitalProcedureSchema.pre("findOneAndUpdate", function (next) {
+  const update = this.getUpdate() as any;
+  if (!update) return next();
+  const setObj = update.$set || update;
+  if (setObj.description) {
+    setObj.description = sanitizeRichText(setObj.description);
+  }
+  if (setObj.metaData) {
+    setObj.metaData = sanitizeRichText(setObj.metaData);
+  }
+  next();
+});
 
 const HospitalProcedure = mongoose.model<HospitalProcedureDoc, HospitalProcedureModel>("HospitalProcedure", hospitalProcedureSchema);
 

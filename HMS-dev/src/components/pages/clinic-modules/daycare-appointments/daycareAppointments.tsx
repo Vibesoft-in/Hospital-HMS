@@ -17,6 +17,7 @@ import { formatAgeForListing } from "@/core/common/formatAgeForListing";
 import { formatInstantInIST, todayISODateInIST } from "@/core/utils/dayjsIST";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
 import { useFilterDropdownSync } from "@/core/common/filter/useFilterDropdownSync";
+import DOMPurify from "isomorphic-dompurify";
 
 interface IDoctor {
   _id: string;
@@ -757,14 +758,14 @@ const DaycareAppointmentsComponent = () => {
     <>
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .datatable .ant-table-tbody > tr > td {
             color: #000 !important;
           }
           .datatable .ant-table-thead > tr > th {
             color: #000 !important;
           }
-        `,
+        `),
         }}
       />
       <div className="page-wrapper">

@@ -20,8 +20,11 @@ export const hasHmsAuthCookie = (cookieHeader: string | undefined | null): boole
     .some((part) => part.trim().startsWith(`${HMS_AUTH_COOKIE}=1`));
 };
 
+import { setAccessToken } from "@/core/auth/accessToken";
+
 export const clearLocalAuthSession = (): void => {
   if (typeof window === "undefined") return;
+  setAccessToken(null);
   try {
     window.localStorage.removeItem("authToken");
     window.localStorage.removeItem("authUser");

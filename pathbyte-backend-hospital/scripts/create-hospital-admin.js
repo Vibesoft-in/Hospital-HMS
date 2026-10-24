@@ -1,8 +1,23 @@
 const mongoose = require("mongoose");
 const readline = require("readline");
-const bcrypt = require("bcryptjs");
 const path = require("path");
 const fs = require("fs");
+
+// Register ts-node so TypeScript modules can be imported directly
+try {
+  require("ts-node/register");
+} catch (_) {}
+
+let hashPassword;
+try {
+  hashPassword = require("../src/libs/password").hashPassword;
+} catch (e) {
+  try {
+    hashPassword = require("../dist/libs/password").hashPassword;
+  } catch (err) {
+    throw new Error(`Failed to import hashPassword from src/libs/password: ${e.message}`);
+  }
+}
 
 // Load environment variables from config/environments/.env.development
 const envPath = path.join(__dirname, "..", "config", "environments", ".env.development");
@@ -30,9 +45,6 @@ function question(query) {
   });
 }
 
-async function hashPassword(password) {
-  return await bcrypt.hash(password, 10);
-}
 
 async function getNextSequence(name) {
   const Counter = mongoose.model("Counter");

@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useId, useMemo } from "react";
 import Select, { InputActionMeta, FormatOptionLabelMeta } from "react-select";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 export type Option = {
   value: string;
   label: string;
+  imageUrl?: string | null;
+  gender?: string | null;
+  [key: string]: any;
 };
 
 export interface SelectProps {
@@ -49,6 +53,21 @@ const CommonSelect: React.FC<SelectProps> = ({
   const reactId = useId();
   const stableInstanceId = instanceId || `common-select-${reactId}`;
   const showInlineSearch = isSearchable && options.length > 8;
+
+  const defaultOptionLabelRenderer = (option: Option, meta: FormatOptionLabelMeta<Option>) => {
+    if (formatOptionLabel) {
+      return formatOptionLabel(option, meta);
+    }
+    if (option.imageUrl !== undefined || option.gender !== undefined) {
+      return (
+        <div className="d-flex align-items-center gap-2">
+          <DoctorAvatar imageUrl={option.imageUrl} gender={option.gender} size={22} />
+          <span>{option.label}</span>
+        </div>
+      );
+    }
+    return option.label;
+  };
 
   const customStyles = useMemo(() => ({
     option: (base: any, state: any) => ({
@@ -139,7 +158,7 @@ const CommonSelect: React.FC<SelectProps> = ({
         maxMenuHeight={280}
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         menuPosition="fixed"
-        formatOptionLabel={formatOptionLabel}
+        formatOptionLabel={defaultOptionLabelRenderer}
       />
     </div>
   );

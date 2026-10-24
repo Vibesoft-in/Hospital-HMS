@@ -1,13 +1,7 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import hospitalAuthController from "../controllers/hospital-auth.controller";
-import { requireHospitalUser } from "@src/middlewares/hospital-auth.middleware";
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 15,
-  message: { error: "TOO_MANY_REQUESTS", message: "Too many login attempts. Please try again after 15 minutes." },
-});
+import { requireHospitalUser, requireHospitalAdminStrict } from "@src/middlewares/hospital-auth.middleware";
+import { loginLimiter } from "@src/middlewares/rate-limit.middleware";
 
 const router = express.Router();
 
@@ -21,6 +15,6 @@ router.post("/logout", logout);
 // Protected routes - require authentication
 router.get("/me", requireHospitalUser(), getMe);
 router.patch("/me", requireHospitalUser(), updateMe);
-router.post("/me/change-password", requireHospitalUser(), changePassword);
+router.post("/me/change-password", requireHospitalAdminStrict(), changePassword);
 
 export default router;

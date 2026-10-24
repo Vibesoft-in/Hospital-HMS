@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -6,8 +6,19 @@ import compression from "compression";
 import mongoSanitize from "express-mongo-sanitize";
 import { errorHandler } from "../middlewares/error";
 import routesV1 from "../routes/v1";
+import { logger } from "@src/config/logger";
 import successMiddleware from "@src/middlewares/res";
 import { sanitizeInput } from "@src/middlewares/sanitize-input.middleware";
+import {
+  blockScanners,
+  trackEnumeration,
+  validateRequest,
+} from "@src/middlewares/security.middleware";
+import {
+  globalApiLimiter,
+  refreshLimiter,
+  patientSearchLimiter,
+} from "@src/middlewares/rate-limit.middleware";
 
 export default async ({ app }: { app: express.Application }) => {
   // Enable trust proxy to get real IP from nginx
@@ -26,8 +37,26 @@ export default async ({ app }: { app: express.Application }) => {
     })
   );
 
+  // Security middlewares: automated scanner detection, IP enumeration tracking, and path validation
+  // NOTE on normalizeErrors: evaluated and deliberately omitted from global middleware.
+  // Converting 401/403 responses to 404 masks valid authentication/authorization failures,
+  // which breaks frontend session-expiry handling, silent refresh-token flows, and login redirects.
+  app.use(blockScanners);
+  app.use(trackEnumeration);
+  app.use(validateRequest);
+
   // CORS configuration - MUST be before any other middleware
+  const isProduction = process.env.NODE_ENV === "production";
   const allowedOrigins = process.env.ALLOWED_ORIGINS;
+
+  if (isProduction && (!allowedOrigins || allowedOrigins.trim() === "" || allowedOrigins.trim() === "*")) {
+    const errorMessage =
+      "FATAL: ALLOWED_ORIGINS must be explicitly set to specific origin(s) in production and cannot be unset or '*'. " +
+      "Running with credentials: true and wildcard or permissive origins in production is prohibited.";
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
   const corsOrigins = allowedOrigins && allowedOrigins !== "*"
     ? allowedOrigins.split(",").map((o) => o.trim())
     : true;
@@ -68,6 +97,16 @@ export default async ({ app }: { app: express.Application }) => {
   app.head("/status", (_req, res) => {
     res.status(200).end();
   });
+
+  // Rate limiters for /api/v1
+  // Dedicated tighter rate limiters on sensitive endpoints
+  app.use("/api/v1/hospital/auth/refresh", refreshLimiter);
+  app.use("/api/v1/auth/refresh", refreshLimiter);
+  app.use("/api/v1/hospital/patients/search", patientSearchLimiter);
+  app.use("/api/v1/patients/search", patientSearchLimiter);
+
+  // Global rate limiter for all /api/v1 routes
+  app.use("/api/v1", globalApiLimiter);
 
   app.use(successMiddleware);
   app.use("/api/v1", routesV1);

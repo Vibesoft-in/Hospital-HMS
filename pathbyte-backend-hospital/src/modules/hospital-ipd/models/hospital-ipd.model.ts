@@ -466,9 +466,9 @@ hospitalIPDSchema.statics = {
     };
   },
 
-  async readIPDById(id: string) {
+  async readIPDById(id: string, filter: any = {}) {
     const pipeline: any[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } } },
+      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) } },
       ...buildIPDPopulatePipeline(),
       // createdBy user
       {
@@ -533,9 +533,9 @@ hospitalIPDSchema.statics = {
     return ipd;
   },
 
-  async updateIPD(id: string, updates: Partial<HospitalIPD>): Promise<HospitalIPD> {
+  async updateIPD(id: string, updates: Partial<HospitalIPD>, filter: any = {}): Promise<HospitalIPD> {
     const updated = await this.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: updates },
       { new: true }
     );
@@ -543,9 +543,9 @@ hospitalIPDSchema.statics = {
     return updated.toObject();
   },
 
-  async softDeleteIPD(id: string, deletedBy?: string): Promise<void> {
+  async softDeleteIPD(id: string, deletedBy?: string, filter: any = {}): Promise<void> {
     const updated = await this.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: deletedBy || "system" } },
       { new: true }
     );

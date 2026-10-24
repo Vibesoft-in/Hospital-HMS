@@ -157,7 +157,7 @@ export interface DialysisSessionModel extends Model<DialysisSessionDoc> {
   createDialysisSession(newSession: DialysisSession): Promise<DialysisSession>;
   readDialysisSessions(query: any, search: any, skip: number, limit: number): Promise<any>;
   readDialysisSession(sessionId: string): Promise<any>;
-  readDialysisSessionById(id: string): Promise<any>;
+  readDialysisSessionById(id: string, filter?: any): Promise<any>;
   updateDialysisSession(sessionId: string, updates: Partial<DialysisSession>): Promise<DialysisSession>;
   deleteDialysisSession(sessionId: string, deletedBy?: string): Promise<void>;
   restoreDialysisSession(sessionId: string): Promise<DialysisSession>;

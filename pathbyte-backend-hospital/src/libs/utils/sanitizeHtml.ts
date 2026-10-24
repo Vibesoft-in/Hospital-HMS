@@ -68,3 +68,33 @@ export function stripHtmlTags(value: any): string {
   
   return str.trim();
 }
+
+/**
+ * Sanitize rich-text HTML while preserving safe formatting tags (e.g. <p>, <b>, <i>, <table>, etc.).
+ * Strips <script> tags and contents, event handler attributes (on*), and javascript: URLs.
+ */
+export function sanitizeRichText(value: any): string {
+  if (value === null || value === undefined) return '';
+  let str = String(value);
+
+  // 1. Strip script tags and their content
+  str = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  // 2. Strip style tags and their content
+  str = str.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+  // 3. Strip object, embed, iframe, applet, meta, link, base
+  str = str.replace(/<\/?(?:iframe|object|embed|applet|meta|link|base)\b[^>]*>/gi, '');
+
+  // 4. Strip javascript: / vbscript: URLs in attributes
+  str = str.replace(/(href|src|action|data|poster)\s*=\s*"(?:javascript|vbscript):[^"]*"/gi, '$1=""');
+  str = str.replace(/(href|src|action|data|poster)\s*=\s*'(?:javascript|vbscript):[^']*'/gi, '$1=""');
+  str = str.replace(/(href|src|action|data|poster)\s*=\s*(?:javascript|vbscript):[^\s>]*/gi, '$1=""');
+  str = str.replace(/javascript\s*:/gi, 'blocked:');
+  str = str.replace(/vbscript\s*:/gi, 'blocked:');
+
+  // 5. Strip event handler attributes (onclick, onerror, onload, onmouseover, etc.)
+  str = str.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  str = str.replace(/\s+on[a-zA-Z]+(?=[\s>])/gi, '');
+
+  return str.trim();
+}
+

@@ -4,6 +4,7 @@
 import ImageWithBasePath from "@/core/imageWithBasePath";
 import { all_routes } from "../../../../../routes/all_routes";
 import Link from "next/link";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const Modals = () => {
   return (
@@ -38,9 +39,9 @@ const Modals = () => {
             <div className="bg-light p-3 mb-3 border rounded-3 d-flex align-items-center justify-content-between">
               <div className="d-flex align-items-center">
                 <Link href="#" className="avatar avatar-md me-2">
-                  <ImageWithBasePath
-                    src="assets/img/doctors/doctor-03.jpg"
-                    alt="product"
+                  <DoctorAvatar
+                    gender="Female"
+                    size={40}
                     className="rounded-circle"
                   />
                 </Link>

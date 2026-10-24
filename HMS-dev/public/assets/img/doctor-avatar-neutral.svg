@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradNeutral" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="coatGradN" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="headGradN" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8"/>
+      <stop offset="100%" stop-color="#64748B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#bgGradNeutral)"/>
+
+  <!-- Neutral Head Silhouette -->
+  <circle cx="64" cy="46" r="20" fill="url(#headGradN)"/>
+
+  <!-- Neck -->
+  <rect x="58" y="62" width="12" height="14" rx="3" fill="#64748B"/>
+
+  <!-- Medical Cross on Head or Badge -->
+  <path d="M64 36 L64 46 M59 41 L69 41" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Lab Coat Body -->
+  <path d="M22 128 C 22 96, 42 84, 52 82 L 60 128 Z" fill="url(#coatGradN)"/>
+  <path d="M106 128 C 106 96, 86 84, 76 82 L 68 128 Z" fill="url(#coatGradN)"/>
+
+  <!-- Inner V-Neck (Slate Blue) -->
+  <polygon points="56,76 72,76 68,96 60,96" fill="#475569"/>
+
+  <!-- Lab Coat Lapels -->
+  <polygon points="52,82 64,104 58,128 44,86" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="0.75"/>
+  <polygon points="76,82 64,104 70,128 84,86" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="0.75"/>
+
+  <!-- Stethoscope around neck -->
+  <path d="M51 81 C 50 92, 52 103, 56 107 C 58 109, 62 109, 64 107" fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round"/>
+  <path d="M77 81 C 78 92, 76 103, 72 107 C 70 109, 66 109, 64 107" fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round"/>
+  <!-- Stethoscope bell -->
+  <circle cx="64" cy="112" r="5" fill="#64748B" stroke="#94A3B8" stroke-width="1.5"/>
+  <circle cx="64" cy="112" r="2.5" fill="#1E293B"/>
+</svg>

@@ -452,14 +452,16 @@ const Sidebar = () => {
                 </div>
               </div>
               <div className="d-flex align-items-center gap-1 flex-shrink-0">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center"
-                  title="Change Password"
-                  onClick={() => setShowPasswordModal(true)}
-                >
-                  <i className="ti ti-key fs-16" />
-                </button>
+                {sidebarUserRoleRaw?.trim().toUpperCase() === "ADMIN" && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center"
+                    title="Change Password"
+                    onClick={() => setShowPasswordModal(true)}
+                  >
+                    <i className="ti ti-key fs-16" />
+                  </button>
+                )}
                 <Link
                   href={all_routes.login}
                   className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center"

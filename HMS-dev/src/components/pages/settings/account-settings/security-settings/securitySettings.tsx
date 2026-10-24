@@ -1,12 +1,30 @@
 "use client";
 
 
+import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import SettingsSidebar from "@/core/common/settings-sidebar/settingsSidebar"
 import Modals from "./modals/modals"
 import Link from "next/link";
 
 
 const SecuritySettingsComponent = () => {
+  const reduxRole = useSelector((state: any) => state.auth?.user?.role);
+  const [localRole, setLocalRole] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? (localStorage.getItem("authUser") || localStorage.getItem("hospitalUser")) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setLocalRole((parsed?.role || "").trim().toUpperCase());
+      }
+    } catch {}
+  }, []);
+
+  const userRole = (reduxRole || localRole || "").trim().toUpperCase();
+  const isAdmin = userRole === "ADMIN";
+
   return (
     <>
   {/* ========================
@@ -37,27 +55,29 @@ const SecuritySettingsComponent = () => {
                 <div className="row">
                   <div className="col-lg-8">
                     <div>
-                      <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3 border-bottom mb-3 pb-3">
-                        <div className="d-flex align-items-center">
-                          <div>
-                            <h5 className="fs-16 fw-semibold mb-1">Password</h5>
-                            <p className="fs-14">
-                              Set a unique password to secure the account
-                            </p>
+                      {isAdmin && (
+                        <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3 border-bottom mb-3 pb-3">
+                          <div className="d-flex align-items-center">
+                            <div>
+                              <h5 className="fs-16 fw-semibold mb-1">Password</h5>
+                              <p className="fs-14">
+                                Set a unique password to secure the account
+                              </p>
+                            </div>
+                          </div>
+                          <div className="d-flex align-items-center">
+                            <Link
+                              href="#"
+                              data-bs-toggle="modal"
+                              data-bs-target="#change_password"
+                            >
+                              <span className="btn btn-md btn-light p-1 shadow-sm border">
+                                <i className="ti ti-edit" />
+                              </span>
+                            </Link>
                           </div>
                         </div>
-                        <div className="d-flex align-items-center">
-                          <Link
-                            href="#"
-                            data-bs-toggle="modal"
-                            data-bs-target="#change_password"
-                          >
-                            <span className="btn btn-md btn-light p-1 shadow-sm border">
-                              <i className="ti ti-edit" />
-                            </span>
-                          </Link>
-                        </div>
-                      </div>
+                      )}
                       <div className="d-flex align-items-center justify-content-between flex-wrap row-gap-3 border-bottom mb-3 pb-3">
                         <div className="d-flex align-items-center">
                           <div>

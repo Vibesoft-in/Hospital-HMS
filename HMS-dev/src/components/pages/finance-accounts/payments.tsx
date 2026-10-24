@@ -9,6 +9,7 @@ import { all_routes } from "@/routes/all_routes";
 import Datatable from "@/core/common/dataTable";
 import PaymentsModal from "./modal/paymentsModal";
 import ImageWithBasePath from "@/core/imageWithBasePath";
+import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const PaymentsListComponent = () => {
   const data = PaymentsListData;
@@ -44,10 +45,12 @@ const PaymentsListComponent = () => {
       render: (text: any, record: any) => (
         <div className="d-flex align-items-center">
           <Link href={all_routes.doctordetails} className="avatar me-2">
-            <ImageWithBasePath
-              src={`assets/img/doctors/${record.DoctorImage}`}
-              alt="Doctor"
+            <DoctorAvatar
+              imageUrl={record.imageUrl || (record.DoctorImage && !record.DoctorImage.includes(".jpg") ? record.DoctorImage : undefined)}
+              gender={record.gender}
+              size={40}
               className="rounded-circle"
+              alt={text}
             />
           </Link>
           <div>

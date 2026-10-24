@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { APIError } from "@src/shared";
+import { sanitizeRichText } from "@src/libs/utils/sanitizeHtml";
 import { XraySession, XraySessionDoc, XraySessionModel } from "./xray-session.types";
 
 const Schema = mongoose.Schema;
@@ -430,6 +431,7 @@ const xraySessionSchema = new Schema<XraySessionDoc>(
     procedureId:  { type: String, index: true },
     daycareAppointmentId: { type: String, index: true, default: null },
     ipdId:        { type: String, index: true, default: null },
+    doctorId:     { type: String, index: true, default: null },
     source: {
       type: String,
       enum: ["daycare", "ipd", "manual"],
@@ -551,9 +553,9 @@ xraySessionSchema.statics = {
     return results[0];
   },
 
-  async readXraySessionById(id: string) {
+  async readXraySessionById(id: string, filter: any = {}) {
     const pipeline: any[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true } } },
+      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) } },
       ...buildPatientLookupStages(),
       ...buildProcedureLookupStages(),
       ...buildDaycareAppointmentStages(),
@@ -639,6 +641,16 @@ xraySessionSchema.statics = {
 // When a xray session is linked to a daycare appointment with a past tokenDate,
 // align createdAt to that date so reporting reflects the actual appointment day.
 xraySessionSchema.pre("save", function (next) {
+  if (this.reportHtml) {
+    this.reportHtml = sanitizeRichText(this.reportHtml);
+  }
+  if (this.findings) {
+    this.findings = sanitizeRichText(this.findings);
+  }
+  if (this.impression) {
+    this.impression = sanitizeRichText(this.impression);
+  }
+
   if (this.isNew && this.tokenDate) {
     const tokenDay = new Date(this.tokenDate);
     const today = new Date();
@@ -649,6 +661,22 @@ xraySessionSchema.pre("save", function (next) {
     if (!isSameDay) {
       (this as any).createdAt = tokenDay;
     }
+  }
+  next();
+});
+
+xraySessionSchema.pre("findOneAndUpdate", function (next) {
+  const update = this.getUpdate() as any;
+  if (!update) return next();
+  const setObj = update.$set || update;
+  if (setObj.reportHtml) {
+    setObj.reportHtml = sanitizeRichText(setObj.reportHtml);
+  }
+  if (setObj.findings) {
+    setObj.findings = sanitizeRichText(setObj.findings);
+  }
+  if (setObj.impression) {
+    setObj.impression = sanitizeRichText(setObj.impression);
   }
   next();
 });

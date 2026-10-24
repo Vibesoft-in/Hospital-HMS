@@ -675,7 +675,7 @@ class HospitalVisitService {
     return result as HospitalVisitResponseDTO;
   }
 
-  async getHospitalVisitById(id: string): Promise<HospitalVisitResponseDTO> {
+  async getHospitalVisitById(id: string, filter: any = {}): Promise<HospitalVisitResponseDTO> {
     // Validate MongoDB ObjectId format
     if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new APIError(
@@ -687,7 +687,7 @@ class HospitalVisitService {
     
     // Use aggregation to populate patient and doctor
     const pipeline: any[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: { $ne: true }, ...(filter || {}) } },
       
       // Lookup patient details using patientId
       {
@@ -763,7 +763,7 @@ class HospitalVisitService {
     const visit = visits[0];
     
     if (!visit) {
-      throw new Error(`Visit with ID '${id}' not found`);
+      throw new APIError(404, "Visit Not Found", `Visit with ID '${id}' not found`);
     }
     
     // Serialize all dates using helper function
@@ -807,7 +807,8 @@ class HospitalVisitService {
 
   async updateHospitalVisitById(
     id: string,
-    updates: Partial<HospitalVisit> & { transaction?: any }
+    updates: Partial<HospitalVisit> & { transaction?: any },
+    filter: any = {}
   ): Promise<HospitalVisitResponseDTO> {
     // Prevent doctor updates - doctor cannot be changed once visit is created
     if (updates.doctorId) {
@@ -822,9 +823,9 @@ class HospitalVisitService {
     const { transaction, ...visitUpdates } = updates;
 
     // Get the existing visit to access doctorId for price recalculation
-    const existingVisit = await HospitalVisitModel.findById(id);
+    const existingVisit = await HospitalVisitModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) });
     if (!existingVisit) {
-      throw new Error(`Visit with ID '${id}' not found`);
+      throw new APIError(404, "Visit Not Found", `Visit with ID '${id}' not found`);
     }
 
     // Convert visitDate string to Date object with validation if provided
@@ -957,14 +958,14 @@ class HospitalVisitService {
       }, "Token regenerated for visit update");
     }
     
-    const updatedVisit = await HospitalVisitModel.findByIdAndUpdate(
-      id,
+    const updatedVisit = await HospitalVisitModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(filter || {}) },
       { $set: updateData },
       { new: true }
     );
     
     if (!updatedVisit) {
-      throw new Error(`Visit with ID '${id}' not found`);
+      throw new APIError(404, "Visit Not Found", `Visit with ID '${id}' not found`);
     }
 
     // If transaction data is provided, create transaction
@@ -1033,15 +1034,15 @@ class HospitalVisitService {
     logger.info({ visitId, mongoId }, "Hospital visit and related transactions soft-deleted");
   }
 
-  async deleteHospitalVisitById(id: string): Promise<void> {
-    const visit = await HospitalVisitModel.findOne({ _id: id, isDeleted: { $ne: true } });
+  async deleteHospitalVisitById(id: string, filter: any = {}): Promise<void> {
+    const visit = await HospitalVisitModel.findOne({ _id: id, isDeleted: { $ne: true }, ...(filter || {}) });
     if (!visit) {
-      throw new Error(`Visit with ID '${id}' not found`);
+      throw new APIError(404, "Visit Not Found", `Visit with ID '${id}' not found`);
     }
 
     // Soft delete the visit
     await HospitalVisitModel.updateOne(
-      { _id: id },
+      { _id: id, ...(filter || {}) },
       { $set: { isDeleted: true, deletedAt: new Date() } }
     );
 
@@ -1373,7 +1374,7 @@ class HospitalVisitService {
     return this.getPatientDisplayQueue(doctorMongoId, effectiveDate, overrideSessionSlot);
   }
 
-  async reorderVisitToken(visitId: string, newTokenNumber: number): Promise<any> {
+  async reorderVisitToken(visitId: string, newTokenNumber: number, filter: any = {}): Promise<any> {
     // Validate new token number
     if (!newTokenNumber || newTokenNumber < 1) {
       throw new APIError(
@@ -1384,7 +1385,7 @@ class HospitalVisitService {
     }
 
     // Find the target visit
-    const targetVisit = await HospitalVisitModel.findById(visitId);
+    const targetVisit = await HospitalVisitModel.findOne({ _id: visitId, isDeleted: { $ne: true }, ...(filter || {}) });
     if (!targetVisit) {
       throw new APIError(
         404,

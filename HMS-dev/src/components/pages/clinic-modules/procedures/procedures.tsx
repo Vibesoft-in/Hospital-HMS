@@ -13,6 +13,7 @@ import { all_routes } from "@/routes/all_routes";
 import axios from "axios";
 import { API_BASE_URL } from "@/environment";
 import { closeFilterDropdown } from "@/core/common/filter/filterDropdownUtils";
+import DOMPurify from "isomorphic-dompurify";
 
 interface IProcedureRow {
   _id: string;
@@ -230,12 +231,12 @@ const ProceduresComponent = () => {
     <>
       <style
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: DOMPurify.sanitize(`
           .page-wrapper .datatable .ant-table-tbody > tr > td,
           .page-wrapper .datatable .ant-table-thead > tr > th {
             color: #000 !important;
           }
-        `,
+        `),
         }}
       />
       <div className="page-wrapper">

@@ -13,7 +13,7 @@ async function readDialysisSessions(
     const limit = Math.min(200, Math.max(1, parseInt(request.query.limit as string) || 10));
     const skip  = (page - 1) * limit;
 
-    const query: any  = {};
+    const query: any  = { ...(request.ownershipFilter || {}) };
     const search: any = {};
 
     const {
