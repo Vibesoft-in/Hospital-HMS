@@ -12,7 +12,7 @@ async function restoreDump() {
   const uri = process.argv[2] || process.env.DATABASE_URL;
   if (!uri || uri.includes('<db_password>')) {
     console.error("Please provide your MongoDB Atlas password in config/environments/.env.development or pass the full URI as an argument.");
-    console.error("Example: npm run restore-dump -- \"mongodb+srv://vibesoftadmin:YOUR_PASSWORD@cluster0.uce8wgd.mongodb.net/hospital_db?retryWrites=true&w=majority\"");
+    console.error("Example: npm run restore-dump -- \"mongodb+srv://<user>:<password>@<cluster>.mongodb.net/hospital_db?retryWrites=true&w=majority\"");
     process.exit(1);
   }
 

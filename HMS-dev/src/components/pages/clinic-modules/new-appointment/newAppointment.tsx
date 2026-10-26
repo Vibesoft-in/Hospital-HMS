@@ -540,9 +540,10 @@ const NewAppointmentComponent = () => {
 
       if (response.data?.code === 200 && response.data?.data?.doctors) {
         const doctorsList: IDoctor[] = response.data.data.doctors;
+        console.log("[DEBUG] doctorOptions.length after fetchDoctorsWithSearch:", doctorsList.length);
         setDoctorOptions(
           doctorsList.map((doctor: IDoctor) => ({
-            value: doctor._id,
+            value: typeof doctor._id === "string" ? doctor._id : (doctor._id as any)?.toString?.() || String(doctor._id),
             label: doctor.department ? `${doctor.name} (${doctor.department})` : doctor.name,
             imageUrl: doctor.imageUrl,
             gender: doctor.gender,
@@ -1459,6 +1460,20 @@ const NewAppointmentComponent = () => {
       }
 
       if (!selectedPatient) {
+        if (!title?.value || title.value === "Select") {
+          const errorMsg = "Please select a title (Mr., Mrs., Ms., Dr., etc.)";
+          setError(errorMsg);
+          alert(errorMsg);
+          return;
+        }
+
+        if (!gender?.value || gender.value === "Select") {
+          const errorMsg = "Please select patient gender";
+          setError(errorMsg);
+          alert(errorMsg);
+          return;
+        }
+
         const phoneValidation = validateIndianMobilePhone(phone);
         if (!phoneValidation.valid) {
           const errorMsg = phoneValidation.message ?? "Invalid phone number.";
@@ -1589,15 +1604,18 @@ const NewAppointmentComponent = () => {
       }
 
       // For new patients, use /hospital/visits/with-patient endpoint
+      const rawGender = gender?.value !== "Select" ? gender?.value : "";
+      const normalizedGender = rawGender === "Others" ? "Other" : rawGender;
+
       const patientPayload: Record<string, unknown> = {
-        title: title?.value || "",
+        title: title?.value && title.value !== "Select" ? title.value : "Mr.",
         name: name.trim(),
         phone: formatPatientPhoneForApi(phone),
         email: email || undefined,
         age: calculateAge(),
         months: parseAgeComponent(ageMonths),
         days: parseAgeComponent(ageDays),
-        gender: gender?.value !== "Select" ? gender?.value : "",
+        gender: normalizedGender || "Male",
         bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
         address: address || undefined,
         aadharNo: aadharNo || undefined,

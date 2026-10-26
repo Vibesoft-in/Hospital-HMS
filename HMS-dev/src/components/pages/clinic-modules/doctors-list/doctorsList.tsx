@@ -243,10 +243,7 @@ const DoctorsListComponent = () => {
             </div>
             <div className="action-item">
               <Link
-                href="#"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#edit_doctor"
-                data-doctor-id={record._id}
+                href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
                 title="Edit"
               >
                 <i className="ti ti-edit fs-16" />
@@ -533,10 +530,7 @@ const DoctorsListComponent = () => {
                                 </div>
                                 <div className="action-item">
                                   <Link
-                                    href="#"
-                                    data-bs-toggle="offcanvas"
-                                    data-bs-target="#edit_doctor"
-                                    data-doctor-id={record._id}
+                                    href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
                                     title="Edit"
                                   >
                                     <i className="ti ti-edit fs-15" />

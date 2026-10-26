@@ -20,7 +20,34 @@ import {
 } from "./sessionQueue";
 import { getDoctorDefaultAvatar } from "@/components/common/DoctorAvatar";
 
-const VIEW_ROTATE_MS = 10000;
+// ============================================================================
+// POLYFILLS FOR ANDROID 7, 8, 9 & SYSTEM WEBVIEW 66 (66.0.3359.158 / SDK 28)
+// Chrome 66 lacks: globalThis, Promise.allSettled, queueMicrotask, structuredClone
+// ============================================================================
+if (typeof window !== "undefined") {
+  if (typeof (window as any).globalThis === "undefined") {
+    (window as any).globalThis = window;
+  }
+  if (!Promise.allSettled) {
+    Promise.allSettled = function (promises: Iterable<any>) {
+      return Promise.all(
+        Array.from(promises).map(function (p) {
+          return Promise.resolve(p).then(
+            function (value) { return { status: "fulfilled", value: value }; },
+            function (reason) { return { status: "rejected", reason: reason }; }
+          );
+        })
+      );
+    };
+  }
+  if (typeof window.queueMicrotask !== "function") {
+    window.queueMicrotask = function (callback: () => void) {
+      Promise.resolve().then(callback).catch(function (err) {
+        setTimeout(function () { throw err; }, 0);
+      });
+    };
+  }
+}
 
 interface IQueuePatient {
   _id: string;
@@ -64,8 +91,11 @@ interface IQueueDisplay {
 
 const DEFAULT_DOCTOR_POSTER = "/assets/img/Photo3.jpg";
 
-const isEmergencyVisit = (visit?: IQueuePatient): boolean =>
-  (visit?.visitType ?? "").toLowerCase() === "emergency";
+// Safe check: NO `?.` and NO `??`
+const isEmergencyVisit = (visit?: IQueuePatient): boolean => {
+  if (!visit || !visit.visitType) return false;
+  return visit.visitType.toLowerCase() === "emergency";
+};
 
 function sortAndComputeQueue(queue: IQueuePatient[], queueSortBy: IQueueSortBy = "token") {
   const sorted = sortDisplayQueue(queue, queueSortBy);
@@ -75,80 +105,89 @@ function sortAndComputeQueue(queue: IQueuePatient[], queueSortBy: IQueueSortBy =
   return { queue: sorted, totalPatients, emergencyCount, regularCount };
 }
 
-/** Normalize SSE visit to IQueuePatient */
+/** Normalize SSE visit to IQueuePatient (Zero `?.` / Zero `??` - Safe for Chrome 66) */
 function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
-  const patient = (visit.patient as Record<string, unknown>) ?? {};
+  const patient = (visit && visit.patient) ? (visit.patient as Record<string, unknown>) : {};
+  const vId = visit && (visit.visitId || visit._id) ? String(visit.visitId || visit._id) : "";
+  const tokenNum = (visit && visit.tokenNumber != null) ? Number(visit.tokenNumber) : 0;
+  const slot = (visit && visit.sessionSlot) ? parseSessionSlot(visit.sessionSlot) : "Morning";
+  const stat = (visit && visit.status) ? String(visit.status) : "Scheduled";
+
   return {
-    _id: (visit._id as string) ?? (visit.visitId as string) ?? "",
-    visitId: (visit.visitId as string) ?? "",
-    appointmentId: visit.appointmentId as string | undefined,
-    visitType: visit.visitType as string | undefined,
-    visitTime: visit.visitTime as string | undefined,
-    tokenNumber: Number(visit.tokenNumber) ?? 0,
-    sessionSlot: parseSessionSlot(visit.sessionSlot),
-    status: (visit.status as string) ?? "Scheduled",
+    _id: vId,
+    visitId: vId,
+    appointmentId: visit && visit.appointmentId ? String(visit.appointmentId) : undefined,
+    visitType: visit && visit.visitType ? String(visit.visitType) : undefined,
+    visitTime: visit && visit.visitTime ? String(visit.visitTime) : undefined,
+    tokenNumber: isNaN(tokenNum) ? 0 : tokenNum,
+    sessionSlot: slot,
+    status: stat,
     patient: {
-      mrd: (patient.mrd as string) ?? "—",
-      name: (patient.name as string) ?? "—",
-      age: patient.age as number | undefined,
-      gender: patient.gender as string | undefined,
+      mrd: patient && patient.mrd ? String(patient.mrd) : "—",
+      name: patient && patient.name ? String(patient.name) : "—",
+      age: patient && patient.age != null ? Number(patient.age) : undefined,
+      gender: patient && patient.gender ? String(patient.gender) : undefined,
     },
   };
 }
 
-/** Build IQueueDisplay from SSE initial/session-change payload */
+/** Build IQueueDisplay from SSE payload (Zero `?.` / Zero `??` - Safe for Chrome 66) */
 function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
-  const rawQueue = Array.isArray(data.queue)
+  const rawQueue = (data && Array.isArray(data.queue))
     ? (data.queue as Record<string, unknown>[]).map(toQueuePatient)
     : [];
-  const queueSortBy = parseQueueSortBy(data.queueSortBy);
+  const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined);
   const {
     queue,
     totalPatients: computedTotal,
     emergencyCount: computedEmergency,
     regularCount: computedRegular,
   } = sortAndComputeQueue(rawQueue, queueSortBy);
-  const apiTotal = Number(data.totalPatients);
-  const apiEmergency = Number(data.emergencyCount);
-  const apiRegular = Number(data.regularCount);
+
+  const apiTotal = data && data.totalPatients != null ? Number(data.totalPatients) : NaN;
+  const apiEmergency = data && data.emergencyCount != null ? Number(data.emergencyCount) : NaN;
+  const apiRegular = data && data.regularCount != null ? Number(data.regularCount) : NaN;
+
+  let posterUrl: string | null = null;
+  if (data && typeof data.posterUrl === "string" && data.posterUrl.trim()) {
+    posterUrl = data.posterUrl.trim();
+  } else if (data && typeof data.imageUrl === "string" && data.imageUrl.trim()) {
+    posterUrl = data.imageUrl.trim();
+  }
+
+  const currentSlot = parseCurrentSessionSlot(data);
 
   return {
-    doctorId: (data.doctorId as string) ?? "",
-    doctorName: (data.doctorName as string) ?? "—",
-    department: (data.department as string) ?? null,
-    specialization: (data.specialization as string) ?? null,
-    designation: (data.designation as string) ?? null,
-    yearsOfExperience:
-      data.yearsOfExperience != null ? Number(data.yearsOfExperience) : null,
-    opdNumber: (data.opdNumber as string) ?? null,
-    posterUrl:
-      typeof data.posterUrl === "string" && data.posterUrl.trim()
-        ? data.posterUrl
-        : typeof data.imageUrl === "string" && data.imageUrl.trim()
-        ? data.imageUrl
-        : null,
-    gender: (data.gender as string) ?? null,
-    shift: (data.shift as string) ?? null,
-    currentSessionSlot: parseCurrentSessionSlot(data),
-    sessionSlot: parseCurrentSessionSlot(data) ?? "Morning",
-    date: (data.date as string) ?? "",
-    totalPatients: Number.isFinite(apiTotal) ? apiTotal : computedTotal,
-    emergencyCount: Number.isFinite(apiEmergency) ? apiEmergency : computedEmergency,
-    regularCount: Number.isFinite(apiRegular) ? apiRegular : computedRegular,
-    currentTime: typeof data.currentTime === "string" ? data.currentTime : undefined,
+    doctorId: data && data.doctorId ? String(data.doctorId) : "",
+    doctorName: data && data.doctorName ? String(data.doctorName) : "—",
+    department: data && data.department ? String(data.department) : null,
+    specialization: data && data.specialization ? String(data.specialization) : null,
+    designation: data && data.designation ? String(data.designation) : null,
+    yearsOfExperience: data && data.yearsOfExperience != null ? Number(data.yearsOfExperience) : null,
+    opdNumber: data && data.opdNumber ? String(data.opdNumber) : null,
+    posterUrl: posterUrl,
+    gender: data && data.gender ? String(data.gender) : null,
+    shift: data && data.shift ? String(data.shift) : null,
+    currentSessionSlot: currentSlot,
+    sessionSlot: currentSlot ? currentSlot : "Morning",
+    date: data && data.date ? String(data.date) : "",
+    totalPatients: !isNaN(apiTotal) ? apiTotal : computedTotal,
+    emergencyCount: !isNaN(apiEmergency) ? apiEmergency : computedEmergency,
+    regularCount: !isNaN(apiRegular) ? apiRegular : computedRegular,
+    currentTime: data && typeof data.currentTime === "string" ? data.currentTime : undefined,
     queueSortBy,
     queue,
   };
 }
 
-/** MR row highlight */
+/** Color Palettes & Status Definitions */
 const QUEUE_ORANGE_MR = "#FF6600";
 const HEADER_PURPLE = "#6F4A8E";
 const DOCTOR_INFO_BG = "#F4EFFA";
 
 const getStatusDisplay = (status: string, visitType?: string) => {
-  const normalized = status?.toLowerCase() ?? "";
-  const normalizedVisitType = visitType?.toLowerCase().replace(/\s+/g, " ").trim() ?? "";
+  const normalized = status ? status.toLowerCase().trim() : "";
+  const normalizedVisitType = visitType ? visitType.toLowerCase().replace(/\s+/g, " ").trim() : "";
 
   // Consulting (In Progress)
   if (normalized === "consulting" || normalized === "in progress") {
@@ -168,7 +207,7 @@ const getStatusDisplay = (status: string, visitType?: string) => {
     };
   }
 
-  // MR
+  // MR (Medical Representative)
   if (normalizedVisitType === "mr") {
     return {
       label: "In Queue (आप कतार में हैं)",
@@ -177,7 +216,7 @@ const getStatusDisplay = (status: string, visitType?: string) => {
     };
   }
 
-  // Follow-up report — dark gray (before plain Follow-up)
+  // Follow-up report — dark gray
   if (
     normalizedVisitType === "follow-up-report" ||
     normalizedVisitType === "follow up report" ||
@@ -191,7 +230,7 @@ const getStatusDisplay = (status: string, visitType?: string) => {
     };
   }
 
-  // Follow-up
+  // Follow-up — steel blue
   if (
     normalizedVisitType === "follow-up" ||
     normalizedVisitType === "follow up" ||
@@ -214,13 +253,11 @@ const getStatusDisplay = (status: string, visitType?: string) => {
 
 const QueueDisplayComponent = () => {
   const params = useParams();
-  const doctorId = params?.doctorId as string;
+  const doctorId = (params && params.doctorId) ? String(params.doctorId) : "";
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [now, setNow] = useState<Date>(new Date());
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -230,9 +267,13 @@ const QueueDisplayComponent = () => {
     const el = containerRef.current;
     if (!el) return;
     if (!document.fullscreenElement) {
-      el.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+      if (el.requestFullscreen) {
+        el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => { });
+      }
     } else {
-      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => { });
+      }
     }
   }, []);
 
@@ -253,13 +294,17 @@ const QueueDisplayComponent = () => {
 
     const fetchDocProfile = () => {
       axios
-        .get(`${API_BASE_URL}/hospital/doctors/${doctorId}`)
+        .get(API_BASE_URL + "/hospital/doctors/" + doctorId)
         .then((res) => {
-          const doc = res.data?.data?.doctor || res.data?.doctor || res.data?.data || res.data;
-          const photo = doc?.posterUrl || doc?.imageUrl;
+          const resData = res && res.data ? res.data : null;
+          const doc = (resData && resData.data && resData.data.doctor)
+            ? resData.data.doctor
+            : (resData && resData.doctor ? resData.doctor : (resData && resData.data ? resData.data : resData));
+
+          const photo = doc && (doc.posterUrl || doc.imageUrl);
           if (photo && typeof photo === "string") {
-            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: doc?.gender || prev.gender } : prev));
-          } else if (doc?.gender) {
+            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: (doc && doc.gender) ? doc.gender : prev.gender } : prev));
+          } else if (doc && doc.gender) {
             setDisplay((prev) => (prev ? { ...prev, gender: doc.gender } : prev));
           }
         })
@@ -271,7 +316,7 @@ const QueueDisplayComponent = () => {
     fetchDocProfile();
 
     const handleDoctorUpdated = (e: any) => {
-      const updatedId = e?.detail?.doctorId;
+      const updatedId = e && e.detail ? e.detail.doctorId : null;
       if (!updatedId || updatedId === doctorId) {
         fetchDocProfile();
       }
@@ -283,188 +328,228 @@ const QueueDisplayComponent = () => {
     };
   }, [doctorId]);
 
+  // SSE Stream with Instant Real-Time Updates + 2s Auto-Sync (Zero Refresh Needed!)
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
 
     let destroyed = false;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const handleIncomingData = (event: MessageEvent) => {
+      if (destroyed) return;
+      reconnectDelayRef.current = 2000;
+      try {
+        const data = JSON.parse(event.data) as Record<string, unknown>;
+        const rawType = data ? (data.eventType != null ? data.eventType : data.type) : (event.type || "");
+        const type = typeof rawType === "string" ? rawType.trim().toLowerCase() : "";
+
+        // 1. Initial or Full Queue Refresh
+        if (type === "initial" || type === "session-change" || type === "date-change" || type === "queue-refresh" || type === "refresh") {
+          setDisplay(displayFromSSE(data));
+          return;
+        }
+
+        // 2. Status Change (Instant Update for Consulting / Emergency / Completed etc.)
+        if (type === "status-change" || type === "status-updated" || type === "visit-status" || type.indexOf("status") !== -1) {
+          const vData = (data && data.visit) ? (data.visit as Record<string, unknown>) : data;
+          const targetVisitId = String(
+            (vData && (vData.visitId || vData._id || vData.id)) ||
+            (data && (data.visitId || data._id || data.id)) ||
+            ""
+          );
+          const rawNewStatus = String(
+            (vData && (vData.status || vData.newStatus)) ||
+            (data && (data.status || data.newStatus)) ||
+            ""
+          );
+
+          if (targetVisitId && rawNewStatus) {
+            const normalizedStatus = rawNewStatus.toLowerCase().trim();
+            const shouldRemove =
+              normalizedStatus === "completed" ||
+              normalizedStatus === "cancelled" ||
+              normalizedStatus === "canceled" ||
+              normalizedStatus === "no show" ||
+              normalizedStatus === "no_show";
+
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              const nextQueue = shouldRemove
+                ? prev.queue.filter((p) => (p.visitId || p._id) !== targetVisitId)
+                : prev.queue.map((p) => {
+                  if ((p.visitId || p._id) === targetVisitId) {
+                    return { ...p, status: rawNewStatus };
+                  }
+                  return p;
+                });
+
+              const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined, prev.queueSortBy);
+              const { queue, totalPatients, emergencyCount, regularCount } =
+                sortAndComputeQueue(nextQueue, queueSortBy);
+              return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
+            });
+            return;
+          }
+        }
+
+        // 3. New Visit / New Appointment (Instant Insert)
+        if (type === "new-visit" || type === "new-appointment" || type === "appointment-created" || type.indexOf("new") !== -1) {
+          const rawVisit = (data && data.visit)
+            ? (data.visit as Record<string, unknown>)
+            : (data && (data.visitId || data._id || data.tokenNumber != null) ? data : null);
+
+          if (rawVisit) {
+            setDisplay((prev) => {
+              const newPatient = toQueuePatient(rawVisit);
+              if (!prev) return displayFromSSE({ queue: [newPatient] });
+
+              // Update existing or append new
+              const existsIdx = prev.queue.findIndex(
+                (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
+              );
+
+              let updatedList: IQueuePatient[];
+              if (existsIdx >= 0) {
+                updatedList = [...prev.queue];
+                updatedList[existsIdx] = newPatient;
+              } else {
+                updatedList = [...prev.queue, newPatient];
+              }
+
+              const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined, prev.queueSortBy);
+              const { queue, totalPatients, emergencyCount, regularCount } =
+                sortAndComputeQueue(updatedList, queueSortBy);
+
+              return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
+            });
+            return;
+          }
+        }
+
+        // 4. Visit Updated / Details Modified
+        if (type === "visit-updated" || type === "appointment-updated" || type.indexOf("update") !== -1) {
+          const rawVisit = (data && data.visit)
+            ? (data.visit as Record<string, unknown>)
+            : (data && (data.visitId || data._id) ? data : null);
+
+          if (rawVisit) {
+            const updated = toQueuePatient(rawVisit);
+            const matchId = updated.visitId || updated._id;
+
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              const idx = prev.queue.findIndex(
+                (p) => (p.visitId || p._id) === matchId || p._id === String(rawVisit._id)
+              );
+
+              let nextQueue: IQueuePatient[];
+              if (idx >= 0) {
+                nextQueue = [...prev.queue];
+                nextQueue[idx] = { ...prev.queue[idx], ...updated };
+              } else {
+                nextQueue = [...prev.queue, updated];
+              }
+
+              const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined, prev.queueSortBy);
+              const { queue, totalPatients, emergencyCount, regularCount } =
+                sortAndComputeQueue(nextQueue, queueSortBy);
+              return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
+            });
+            return;
+          }
+        }
+
+        // 5. Visit Deleted / Cancelled
+        if (type === "visit-deleted" || type === "appointment-deleted" || type.indexOf("delete") !== -1) {
+          const delId = getDeletedVisitId(data) || String((data && (data.visitId || data._id || data.id)) || "");
+          if (delId) {
+            setDisplay((prev) => {
+              if (!prev) return prev;
+              const nextQueue = prev.queue.filter((p) => (p.visitId || p._id) !== delId);
+              const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined, prev.queueSortBy);
+              const { queue, totalPatients, emergencyCount, regularCount } =
+                sortAndComputeQueue(nextQueue, queueSortBy);
+              return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("SSE parse error:", err);
+      }
+    };
 
     const connect = () => {
       if (destroyed) return;
-      const streamUrl = `${API_BASE_URL}/hospital/visits/display/stream/${doctorId}`;
+      const streamUrl = API_BASE_URL + "/hospital/visits/display/stream/" + doctorId;
       const es = new EventSource(streamUrl);
       eventSourceRef.current = es;
 
-      es.onmessage = (event: MessageEvent) => {
-        if (destroyed) return;
-        // Reset backoff on successful message
-        reconnectDelayRef.current = 2000;
-        try {
-          const data = JSON.parse(event.data) as Record<string, unknown>;
-          const type = ((data.eventType ?? data.type) as string)?.trim().toLowerCase() ?? "";
-
-          switch (type) {
-            case "initial":
-            case "session-change":
-            case "date-change": {
-              setDisplay(displayFromSSE(data));
-              setLoading(false);
-              setError("");
-              break;
-            }
-            case "new-visit": {
-              const visit = data.visit as Record<string, unknown>;
-              if (visit) {
-                setDisplay((prev) => {
-                  if (!prev) return prev;
-                  const newPatient = toQueuePatient(visit);
-                  if (!shouldShowVisitOnScreen(newPatient.sessionSlot, prev.currentSessionSlot)) {
-                    return prev;
-                  }
-                  const exists = prev.queue.some(
-                    (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
-                  );
-                  if (exists) return prev;
-                  const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
-                  const { queue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue([...prev.queue, newPatient], queueSortBy);
-                  return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
-                });
-              }
-              break;
-            }
-            case "status-change": {
-              const visit = data.visit as Record<string, unknown>;
-              if (!visit) break;
-              const updated = toQueuePatient(visit);
-              const visitId = (updated.visitId as string) || (updated._id as string);
-              const newStatus = updated.status;
-              if (!visitId || !newStatus) break;
-              const normalized = newStatus.toLowerCase();
-              const shouldRemove =
-                normalized === "completed" ||
-                normalized === "cancelled" ||
-                normalized === "canceled" ||
-                normalized === "no show" ||
-                normalized === "no_show";
-              setDisplay((prev) => {
-                if (!prev) return prev;
-                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
-                const nextQueue = shouldRemove
-                  ? prev.queue.filter((p) => (p.visitId || p._id) !== visitId)
-                  : prev.queue.map((p) =>
-                      (p.visitId || p._id) === visitId ? { ...p, status: newStatus } : p
-                    );
-                const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue, queueSortBy);
-                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
-              });
-              break;
-            }
-            case "visit-updated": {
-              const visit = data.visit as Record<string, unknown>;
-              if (!visit) break;
-              const updated = toQueuePatient(visit);
-              const matchId = (updated.visitId as string) || (updated._id as string);
-              if (!matchId) break;
-              setDisplay((prev) => {
-                if (!prev) return prev;
-                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
-                const idx = prev.queue.findIndex(
-                  (p) => (p.visitId || p._id) === matchId || p._id === (visit._id as string)
-                );
-                if (!shouldShowVisitOnScreen(updated.sessionSlot, prev.currentSessionSlot)) {
-                  const nextQueue = prev.queue.filter(
-                    (p) => (p.visitId || p._id) !== matchId && p._id !== (visit._id as string)
-                  );
-                  const { queue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue(nextQueue, queueSortBy);
-                  return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
-                }
-                const existing = idx >= 0 ? prev.queue[idx] : null;
-                const merged =
-                  existing && !(visit.patient as Record<string, unknown>)
-                    ? { ...updated, patient: { ...updated.patient, ...existing.patient } }
-                    : { ...updated };
-                const nextQueue = [...prev.queue];
-                if (idx >= 0) nextQueue[idx] = merged;
-                else nextQueue.push(merged);
-                const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue, queueSortBy);
-                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
-              });
-              break;
-            }
-            case "visit-deleted": {
-              const visitId = getDeletedVisitId(data);
-              if (!visitId) break;
-              setDisplay((prev) => {
-                if (!prev) return prev;
-                const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
-                const nextQueue = prev.queue.filter(
-                  (p) => (p.visitId || p._id) !== visitId
-                );
-                const { queue, totalPatients, emergencyCount, regularCount } =
-                  sortAndComputeQueue(nextQueue, queueSortBy);
-                return { ...prev, queueSortBy, queue, totalPatients, emergencyCount, regularCount };
-              });
-              break;
-            }
-            case "queue-refresh": {
-              const rawQ = data.queue as Record<string, unknown>[] | undefined;
-              if (Array.isArray(rawQ)) {
-                setDisplay((prev) => {
-                  if (!prev) return prev;
-                  const currentSessionSlot =
-                    parseCurrentSessionSlot(data) ?? prev.currentSessionSlot;
-                  const queueSortBy = parseQueueSortBy(data.queueSortBy, prev.queueSortBy);
-                  const { queue: sortedQueue, totalPatients, emergencyCount, regularCount } =
-                    sortAndComputeQueue(rawQ.map(toQueuePatient), queueSortBy);
-                  return {
-                    ...prev,
-                    currentSessionSlot,
-                    sessionSlot: currentSessionSlot ?? prev.sessionSlot,
-                    queueSortBy,
-                    queue: sortedQueue,
-                    totalPatients,
-                    emergencyCount,
-                    regularCount,
-                  };
-                });
-              }
-              break;
-            }
-            default:
-              break;
-          }
-        } catch (err) {
-          console.error("SSE parse error:", err);
-        }
-      };
+      es.onmessage = handleIncomingData;
+      const eventNames = [
+        "initial",
+        "session-change",
+        "date-change",
+        "new-visit",
+        "new-appointment",
+        "appointment-created",
+        "status-change",
+        "status-updated",
+        "visit-status",
+        "visit-updated",
+        "appointment-updated",
+        "visit-deleted",
+        "appointment-deleted",
+        "queue-refresh",
+        "refresh"
+      ];
+      for (let i = 0; i < eventNames.length; i++) {
+        es.addEventListener(eventNames[i], handleIncomingData as EventListener);
+      }
 
       es.onerror = () => {
         if (destroyed) return;
         es.close();
         eventSourceRef.current = null;
-        setLoading((prev) => prev);
-        setError("Connection lost. Reconnecting…");
-        // Exponential backoff: 2s → 4s → 8s → max 30s
         const delay = Math.min(reconnectDelayRef.current, 30000);
-        reconnectDelayRef.current = delay * 2;
+        reconnectDelayRef.current = delay * 1.5;
         reconnectTimerRef.current = setTimeout(connect, delay);
       };
     };
 
-    setError("");
     connect();
+
+    // ULTRA-FAST 2-SECOND REAL-TIME AUTO SYNC
+    // Even if an SSE message packet drops, within 2 seconds the display auto-updates!
+    pollInterval = setInterval(() => {
+      if (destroyed) return;
+      axios
+        .get(API_BASE_URL + "/hospital/visits/display/stream/" + doctorId, {
+          headers: { Accept: "application/json" }
+        })
+        .then((res) => {
+          const resData = res && res.data ? res.data : null;
+          if (resData && Array.isArray(resData.queue)) {
+            setDisplay(displayFromSSE(resData));
+          }
+        })
+        .catch(() => { });
+    }, 2000);
 
     return () => {
       destroyed = true;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
   }, [doctorId]);
 
@@ -476,38 +561,22 @@ const QueueDisplayComponent = () => {
     );
   }
 
-  if (loading && !display) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !display) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <p className="text-danger mb-0">{error}</p>
-      </div>
-    );
-  }
-
-  const rawName = display?.doctorName?.trim() ?? "";
-  const rawPoster = display?.posterUrl?.trim() || (display as any)?.imageUrl?.trim() || "";
-  const fallbackAvatar = getDoctorDefaultAvatar(display?.gender);
-  const doctorPosterSrc = rawPoster || fallbackAvatar;
+  // Doctor Data mapping (Safe checks - No `?.` / No `??`)
+  const rawName = (display && display.doctorName && typeof display.doctorName === "string") ? display.doctorName.trim() : "";
+  const rawPoster = (display && display.posterUrl && typeof display.posterUrl === "string")
+    ? display.posterUrl.trim()
+    : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "");
+  const fallbackAvatar = getDoctorDefaultAvatar(display ? display.gender : undefined);
+  const doctorPosterSrc = rawPoster ? rawPoster : fallbackAvatar;
   const doctorName = rawName
-    ? rawName.startsWith("Dr.")
-      ? rawName
-      : `Dr. ${rawName}`
-    : "—";
-  const designation = display?.designation ?? "—";
-  const allQueue = display?.queue ?? [];
-  /** Show everyone still in the live queue; only hide finished / cancelled visits (includes Consulting). */
+    ? (rawName.indexOf("Dr.") === 0 ? rawName : "Dr. " + rawName)
+    : "Doctor OPD";
+  const designation = (display && display.designation) ? display.designation : "Consultant";
+  const allQueue = (display && Array.isArray(display.queue)) ? display.queue : [];
+
   const isTerminalQueueStatus = (status?: string) => {
-    const n = status?.toLowerCase().trim() ?? "";
+    if (!status) return false;
+    const n = status.toLowerCase().trim();
     return (
       n === "completed" ||
       n === "cancelled" ||
@@ -517,6 +586,7 @@ const QueueDisplayComponent = () => {
     );
   };
   const queue = allQueue.filter((entry) => !isTerminalQueueStatus(entry.status));
+
   const timeLabel = now.toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -531,73 +601,76 @@ const QueueDisplayComponent = () => {
 
   const VISIBLE_ROWS = 6;
   const visibleQueue = queue.slice(0, VISIBLE_ROWS);
-  const totalBasis = Math.max(display?.totalPatients ?? 0, queue.length);
+  const totalBasis = Math.max((display && display.totalPatients != null) ? display.totalPatients : 0, queue.length);
   const additionalWaiting = Math.max(0, totalBasis - visibleQueue.length);
 
   return (
     <div
       ref={containerRef}
-      className="min-vh-100 w-100 d-flex flex-column bg-white position-relative"
+      className="min-vh-100 w-100 d-flex flex-column bg-white position-relative overflow-hidden"
+      style={{ height: "100vh" }}
     >
-      {/* Fullscreen toggle - top right */}
+      {/* Fullscreen toggle button */}
       <button
         type="button"
         onClick={toggleFullscreen}
         className="position-fixed top-0 end-0 m-3 btn btn-light btn-lg shadow border d-flex align-items-center justify-content-center rounded-circle p-1 z-3"
-        style={{ width: "clamp(40px, 3vw, 60px)", height: "clamp(40px, 3vw, 60px)" }}
+        style={{ width: "48px", height: "48px" }}
         aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
         title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
       >
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
+
       {/* Header */}
       <div
-        className="bg-white border-bottom px-3 px-md-4 px-lg-5 py-1 d-grid align-items-center gap-2 gap-md-3 w-100"
-        style={{ gridTemplateColumns: "1fr auto 1fr" }}
+        className="bg-white border-bottom px-4 py-1 d-flex align-items-center justify-content-between w-100"
+        style={{ height: "10vh", minHeight: "56px" }}
       >
-        <div className="min-w-0" style={{ justifySelf: "start" }}>
+        <div className="d-flex align-items-center gap-2">
           <img
             src="/JJM Logo.png"
             alt="JJM Hospital"
-            style={{ height: "clamp(34px, 3.8vw, 72px)", width: "auto", objectFit: "contain" }}
+            style={{ height: "7vh", maxHeight: "64px", width: "auto", objectFit: "contain" }}
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         </div>
-        <div className="text-center" style={{ justifySelf: "center" }}>
+
+        <div className="text-center">
           <h1
             className="mb-0 fw-bold"
             style={{
-              fontSize: "clamp(1rem, 2vw, 2.4rem)",
+              fontSize: "2vw",
               lineHeight: 1.1,
               color: HEADER_PURPLE,
             }}
           >
             JJM Hospital
           </h1>
-         
         </div>
-        <div
-          className="d-flex align-items-center justify-content-end gap-2 text-end pe-5 pe-md-6 min-w-0"
-          style={{ justifySelf: "end" }}
-        >
+
+        <div className="d-flex align-items-center justify-content-end gap-2 text-end pe-5">
           <span aria-hidden style={{ color: HEADER_PURPLE }}>
-            <Clock size={48} strokeWidth={1.6} />
+            <Clock size={42} strokeWidth={1.8} />
           </span>
           <div>
             <p
               className="mb-0 fw-bold"
-              style={{ fontSize: "clamp(0.82rem, 1.3vw, 1.4rem)", color: HEADER_PURPLE }}
+              style={{ fontSize: "1.4vw", color: HEADER_PURPLE, lineHeight: 1.1 }}
             >
               {timeLabel}
             </p>
-            <p className="mb-0 text-muted fw-medium" style={{ fontSize: "clamp(0.58rem, 0.75vw, 0.86rem)" }}>
+            <p className="mb-0 text-muted fw-semibold" style={{ fontSize: "0.85vw" }}>
               {dateLabel}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Priority notice strip */}
       <div
-        className="bg-white text-dark py-0 px-3 px-md-4 px-lg-5 text-center w-100 border-bottom"
-        style={{ fontSize: "clamp(0.75rem, 1vw, 1.2rem)" }}
+        className="bg-white text-dark py-1 px-4 text-center w-100 border-bottom"
+        style={{ fontSize: "1vw", height: "3.5vh" }}
       >
         <span
           className="d-inline-flex align-items-center justify-content-center gap-2 fw-semibold"
@@ -608,22 +681,27 @@ const QueueDisplayComponent = () => {
         </span>
       </div>
 
-      {/* Main content: doctor info left, queue right */}
-      <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-stretch px-2 px-md-3 px-lg-4 px-xl-4 py-1 py-md-2 gap-3 gap-md-4 gap-xl-4 w-100 overflow-hidden">
-        {/* Left: Doctor info */}
+      {/* Main content: Left Doctor Info, Right Queue Table */}
+      <div
+        className="flex-grow-1 d-flex flex-row align-items-stretch px-3 py-2 gap-3 w-100 overflow-hidden"
+        style={{ height: "79vh" }}
+      >
+        {/* Left: Doctor Card */}
         <div
-          className="flex-shrink-0 w-100 rounded-3 border bg-white shadow-sm text-center order-2 order-md-1 d-flex flex-column"
+          className="flex-shrink-0 rounded-3 border bg-white shadow-sm text-center d-flex flex-column p-2"
           style={{
-            maxWidth: "clamp(240px, 22%, 420px)",
-            padding: "clamp(0.2rem, 0.45vw, 0.45rem)",
-            height: "76vh",
+            width: "23%",
+            minWidth: "260px",
+            maxWidth: "380px",
+            height: "100%",
           }}
         >
           <div
-            className="bg-light  flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
-            style={{ 
-              width: "clamp(148px, 16.2vw, 260px)", 
-              height: "clamp(184px, 22.5vw, 330px)",
+            className="bg-light flex-shrink-0 overflow-hidden rounded-2 mx-auto position-relative"
+            style={{
+              width: "85%",
+              height: "36vh",
+              marginBottom: "8px",
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -639,18 +717,19 @@ const QueueDisplayComponent = () => {
               }}
             />
           </div>
+
           <h2
-            className="fw-bold mb-2 mx-auto"
+            className="fw-bold mb-2 mx-auto text-truncate w-100"
             style={{
               color: HEADER_PURPLE,
-              fontSize: "clamp(1rem, 1.75vw, 3rem)",
-              maxWidth: "clamp(220px, 20vw, 380px)",
+              fontSize: "1.6vw",
               lineHeight: 1.2,
             }}
           >
             {doctorName}
           </h2>
-          <div className="mt-1 d-flex flex-column gap-1">
+
+          <div className="mt-1 d-flex flex-column gap-2 flex-grow-1 justify-content-start">
             <div
               className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
@@ -658,10 +737,10 @@ const QueueDisplayComponent = () => {
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(28px, 2vw, 42px)",
-                  height: "clamp(28px, 2vw, 42px)",
+                  width: "36px",
+                  height: "36px",
                   backgroundColor: HEADER_PURPLE,
-                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  fontSize: "1.2vw",
                   flexShrink: 0,
                 }}
               >
@@ -670,15 +749,16 @@ const QueueDisplayComponent = () => {
               <div className="text-start">
                 <p
                   className="mb-0 fw-semibold"
-                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                  style={{ color: HEADER_PURPLE, fontSize: "0.85vw" }}
                 >
                   Designation
                 </p>
-                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
-                  {designation || "Consultant"}
+                <p className="mb-0 text-dark fw-bold" style={{ fontSize: "1vw" }}>
+                  {designation}
                 </p>
               </div>
             </div>
+
             <div
               className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
@@ -686,10 +766,10 @@ const QueueDisplayComponent = () => {
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(28px, 2vw, 42px)",
-                  height: "clamp(28px, 2vw, 42px)",
+                  width: "36px",
+                  height: "36px",
                   backgroundColor: HEADER_PURPLE,
-                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  fontSize: "1.2vw",
                   flexShrink: 0,
                 }}
               >
@@ -698,17 +778,18 @@ const QueueDisplayComponent = () => {
               <div className="text-start">
                 <p
                   className="mb-0 fw-semibold"
-                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                  style={{ color: HEADER_PURPLE, fontSize: "0.85vw" }}
                 >
                   Experience
                 </p>
-                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
-                  {display?.yearsOfExperience != null
-                    ? `${display.yearsOfExperience}+ Years`
+                <p className="mb-0 text-dark fw-bold" style={{ fontSize: "1vw" }}>
+                  {display && display.yearsOfExperience != null
+                    ? display.yearsOfExperience + "+ Years"
                     : "N/A"}
                 </p>
               </div>
             </div>
+
             <div
               className="d-flex align-items-center gap-2 rounded-2 p-2"
               style={{ backgroundColor: DOCTOR_INFO_BG }}
@@ -716,10 +797,10 @@ const QueueDisplayComponent = () => {
               <span
                 className="d-inline-flex align-items-center justify-content-center rounded-circle text-white"
                 style={{
-                  width: "clamp(28px, 2vw, 42px)",
-                  height: "clamp(28px, 2vw, 42px)",
+                  width: "36px",
+                  height: "36px",
                   backgroundColor: HEADER_PURPLE,
-                  fontSize: "clamp(1rem, 1.35vw, 1.65rem)",
+                  fontSize: "1.2vw",
                   flexShrink: 0,
                 }}
               >
@@ -728,118 +809,165 @@ const QueueDisplayComponent = () => {
               <div className="text-start">
                 <p
                   className="mb-0 fw-semibold"
-                  style={{ color: HEADER_PURPLE, fontSize: "clamp(0.78rem, 0.94vw, 1.08rem)" }}
+                  style={{ color: HEADER_PURPLE, fontSize: "0.85vw" }}
                 >
                   Timings
                 </p>
-                <p className="mb-0 text-dark fw-semibold" style={{ fontSize: "clamp(0.82rem, 1.08vw, 1.26rem)" }}>
-                  {display?.shift || "N/A"}
+                <p className="mb-0 text-dark fw-bold" style={{ fontSize: "1vw" }}>
+                  {(display && display.shift) ? display.shift : "Regular OPD"}
                 </p>
-                <p className="mb-0 text-muted fw-medium" style={{ fontSize: "clamp(0.7rem, 0.9vw, 1.02rem)" }}>
-                  Session: {display?.currentSessionSlot || "All Day"}
+                <p className="mb-0 text-muted fw-semibold" style={{ fontSize: "0.8vw" }}>
+                  Session: {(display && display.currentSessionSlot) ? display.currentSessionSlot : "All Day"}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Queue table */}
+        {/* Right: Queue Table */}
         <div
-          className="flex-grow-1 min-w-0 rounded-3 border shadow-sm order-1 order-md-2 d-flex flex-column overflow-hidden"
-          style={{ minWidth: "0", height: "76vh" }}
+          className="flex-grow-1 min-w-0 rounded-3 border shadow-sm d-flex flex-column overflow-hidden"
+          style={{ height: "100%" }}
         >
           <div className="table-responsive w-100 flex-grow-1">
-            <table className="table mb-0 w-100">
+            <table className="table mb-0 w-100" style={{ tableLayout: "fixed" }}>
               <thead className="position-sticky top-0 z-1" style={{ backgroundColor: "#EFE8F8" }}>
                 <tr>
-                  <th className="text-center" style={{ 
-                    backgroundColor: "#EFE8F8",
-                    padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
-                    color: HEADER_PURPLE
-                  }}>Token No</th>
-                  <th className="text-center" style={{ 
-                    backgroundColor: "#EFE8F8",
-                    padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
-                    color: HEADER_PURPLE
-                  }}>Status</th>
-                  <th className="text-center" style={{ 
-                    backgroundColor: "#EFE8F8",
-                    padding: "clamp(0.5rem, 1.5vw, 4rem) clamp(0.75rem, 2vw, 5rem)",
-                    fontSize: "clamp(0.875rem, 1.5vw, 5rem)",
-                    color: HEADER_PURPLE
-                  }}>MRD No</th>
+                  <th
+                    className="text-center"
+                    style={{
+                      width: "32%",
+                      backgroundColor: "#EFE8F8",
+                      padding: "1.4vh 1vw",
+                      fontSize: "1.6vw",
+                      color: HEADER_PURPLE,
+                      fontWeight: 800,
+                    }}
+                  >
+                    Token No
+                  </th>
+                  <th
+                    className="text-center"
+                    style={{
+                      width: "44%",
+                      backgroundColor: "#EFE8F8",
+                      padding: "1.4vh 1vw",
+                      fontSize: "1.6vw",
+                      color: HEADER_PURPLE,
+                      fontWeight: 800,
+                    }}
+                  >
+                    Status
+                  </th>
+                  <th
+                    className="text-center"
+                    style={{
+                      width: "24%",
+                      backgroundColor: "#EFE8F8",
+                      padding: "1.4vh 1vw",
+                      fontSize: "1.6vw",
+                      color: HEADER_PURPLE,
+                      fontWeight: 800,
+                    }}
+                  >
+                    MRD No
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {queue.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="text-center text-muted" style={{ 
-                      padding: "clamp(2rem, 4vw, 8rem)",
-                      fontSize: "clamp(0.875rem, 1.5vw, 5rem)"
-                    }}>
-                      No patients in queue
+                    <td
+                      colSpan={3}
+                      className="text-center text-muted"
+                      style={{
+                        padding: "12vh 2vw",
+                        fontSize: "1.8vw",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <div className="mb-2" style={{ fontSize: "3vw", color: "#C3B6E0" }}>
+                        👥🕒
+                      </div>
+                      <div className="fw-bold text-dark">No patients in queue</div>
+                      <div className="small text-muted mt-1">New patient tokens will appear here</div>
                     </td>
                   </tr>
                 ) : (
                   <>
                     {visibleQueue.map((entry) => {
-                    const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
-                    const tokenLabel = formatTokenWithVisitPrefix(entry.tokenNumber, entry.visitType);
-                    return (
-                      <tr key={entry._id} style={statusDisplay.rowStyle}>
-                        <td className={`fw-semibold align-middle text-center ${statusDisplay.textClass}`} style={{
-                          ...statusDisplay.rowStyle,
-                          padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
-                          fontSize: "clamp(1rem, 1.8vw, 5.5rem)"
-                        }}>
-                          {tokenLabel}
-                          <span
-                            className="ms-2 fw-medium"
-                            style={{ fontSize: "0.42em", letterSpacing: "0.02em", opacity: 0.92 }}
+                      const statusDisplay = getStatusDisplay(entry.status, entry.visitType);
+                      const tokenLabel = formatTokenWithVisitPrefix(entry.tokenNumber, entry.visitType);
+                      const mrdText = (entry.patient && entry.patient.mrd) ? entry.patient.mrd : "—";
+
+                      return (
+                        <tr key={entry._id} style={statusDisplay.rowStyle}>
+                          <td
+                            className={`fw-bold align-middle text-center ${statusDisplay.textClass}`}
+                            style={{
+                              ...statusDisplay.rowStyle,
+                              padding: "1.3vh 1vw",
+                              fontSize: "1.8vw",
+                            }}
                           >
-                            {getSessionSlotBadge(entry.sessionSlot)}
-                          </span>
-                        </td>
-                        <td className={`align-middle text-center ${statusDisplay.textClass}`} style={{
-                          ...statusDisplay.rowStyle,
-                          padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
-                          fontSize: "clamp(1rem, 1.8vw, 5.5rem)"
-                        }}>
-                          <span className="d-inline-flex align-items-center justify-content-center gap-2">
-                            {entry.visitType === "Emergency" && (
-                              <Ambulance style={{ 
-                                width: "clamp(20px, 2vw, 80px)", 
-                                height: "clamp(20px, 2vw, 80px)" 
-                              }} color="#dc2626" aria-label="Emergency" />
-                            )}
-                            {statusDisplay.label}
-                          </span>
-                        </td>
-                        <td className={`align-middle fw-medium text-center ${statusDisplay.textClass}`} style={{
-                          ...statusDisplay.rowStyle,
-                          padding: "clamp(0.75rem, 2vw, 6rem) clamp(0.75rem, 2vw, 5rem)",
-                          fontSize: "clamp(1rem, 1.8vw, 5.5rem)"
-                        }}>
-                          {entry.patient?.mrd ?? "—"}
-                        </td>
-                      </tr>
-                    );
+                            {tokenLabel}
+                            <span
+                              className="ms-2 fw-semibold px-2 py-1 rounded"
+                              style={{
+                                fontSize: "0.5em",
+                                background: "rgba(255, 255, 255, 0.35)",
+                                letterSpacing: "0.02em",
+                              }}
+                            >
+                              {getSessionSlotBadge(entry.sessionSlot)}
+                            </span>
+                          </td>
+                          <td
+                            className={`align-middle text-center fw-bold ${statusDisplay.textClass}`}
+                            style={{
+                              ...statusDisplay.rowStyle,
+                              padding: "1.3vh 1vw",
+                              fontSize: "1.8vw",
+                            }}
+                          >
+                            <span className="d-inline-flex align-items-center justify-content-center gap-2">
+                              {entry.visitType === "Emergency" && (
+                                <Ambulance
+                                  style={{ width: "2vw", height: "2vw" }}
+                                  color="#dc2626"
+                                  aria-label="Emergency"
+                                />
+                              )}
+                              {statusDisplay.label}
+                            </span>
+                          </td>
+                          <td
+                            className={`align-middle fw-bold text-center ${statusDisplay.textClass}`}
+                            style={{
+                              ...statusDisplay.rowStyle,
+                              padding: "1.3vh 1vw",
+                              fontSize: "1.8vw",
+                            }}
+                          >
+                            {mrdText}
+                          </td>
+                        </tr>
+                      );
                     })}
+
                     {additionalWaiting > 0 ? (
                       <tr>
                         <td
                           colSpan={3}
-                          className="text-center fw-semibold"
+                          className="text-center fw-bold"
                           style={{
-                            padding: "clamp(0.5rem, 1vw, 2rem)",
-                            fontSize: "clamp(0.8rem, 1.4vw, 3rem)",
+                            padding: "1.2vh 1vw",
+                            fontSize: "1.3vw",
                             backgroundColor: "#f8f9fa",
-                            color: "#000",
+                            color: "#111827",
                           }}
                         >
-                          {`${additionalWaiting} more ${additionalWaiting === 1 ? "patient is" : "patients are"} waiting`}
+                          {additionalWaiting + " more " + (additionalWaiting === 1 ? "patient is" : "patients are") + " waiting"}
                         </td>
                       </tr>
                     ) : null}
@@ -851,18 +979,24 @@ const QueueDisplayComponent = () => {
         </div>
       </div>
 
-      {/* Scrolling info strip */}
+      {/* Bottom Scrolling Hindi Ticker Strip */}
       <div
-        className="w-100 py-2 mt-0"
-        style={{ backgroundColor: "#704E8E", overflow: "hidden" }}
+        className="w-100 py-1"
+        style={{
+          backgroundColor: "#704E8E",
+          overflow: "hidden",
+          height: "6.5vh",
+          display: "flex",
+          alignItems: "center",
+        }}
       >
         <div
-          className="text-white fw-semibold"
+          className="text-white fw-bold"
           style={{
             whiteSpace: "nowrap",
             display: "inline-block",
-            animation: "qd-strip-scroll 140s linear infinite",
-            fontSize: "clamp(1.6rem, 3vw, 4.5rem)",
+            animation: "qd-strip-scroll 120s linear infinite",
+            fontSize: "1.4vw",
           }}
         >
           24×7 इमरजेंसी केयर&nbsp;•&nbsp;

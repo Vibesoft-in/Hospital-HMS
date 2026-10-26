@@ -63,10 +63,23 @@ export const INTERNAL_DB_FIELDS: string[] = [
   "procedureObjectId",
 ];
 
+import mongoose from "mongoose";
+
+function isObjectId(val: any): boolean {
+  if (!val) return false;
+  return (
+    val._bsontype === "ObjectId" ||
+    val._bsontype === "ObjectID" ||
+    val instanceof mongoose.Types.ObjectId ||
+    (typeof val === "object" && val.constructor?.name === "ObjectId")
+  );
+}
+
 /** Helper to convert Mongoose documents to plain objects */
 function toPlainObject(item: any): any {
   if (!item || typeof item !== "object") return item;
-  if (item instanceof Date) return item;
+  if (item instanceof Date || Buffer.isBuffer(item)) return item;
+  if (isObjectId(item)) return item.toString();
   if (Array.isArray(item)) return item.map(toPlainObject);
   if (typeof item.toObject === "function") {
     return item.toObject();
@@ -314,7 +327,8 @@ export function sanitizeSessionForRole(session: any, role?: string): any {
  */
 export function sanitizeResponseData(data: any, role?: string): any {
   if (!data || typeof data !== "object") return data;
-  if (data instanceof Date) return data;
+  if (data instanceof Date || Buffer.isBuffer(data)) return data;
+  if (isObjectId(data)) return data.toString();
 
   if (Array.isArray(data)) {
     return data.map((item) => sanitizeResponseData(item, role));

@@ -9,6 +9,7 @@ import {
 } from "../dtos/hospital-doctor.dto";
 import { HospitalDoctor } from "../models/hospital-doctor.types";
 import hospitalUserService from "@src/modules/hospital-auth/services/hospital-user.service";
+import { APIError } from "@src/shared";
 
 class HospitalDoctorService {
   async createHospitalDoctor(
@@ -91,13 +92,25 @@ class HospitalDoctorService {
   }
 
   async getHospitalDoctorById(id: string): Promise<HospitalDoctorResponseDTO> {
-    const doctor = await HospitalDoctorModel.findOne({ 
-      _id: id,
-      isDeleted: { $ne: true } // Exclude soft deleted
-    });
+    const isMongoId = mongoose.Types.ObjectId.isValid(id);
+    let doctor = null;
+
+    if (isMongoId) {
+      doctor = await HospitalDoctorModel.findOne({ 
+        _id: id,
+        isDeleted: { $ne: true } // Exclude soft deleted
+      });
+    }
+
+    if (!doctor) {
+      doctor = await HospitalDoctorModel.findOne({
+        doctorId: id,
+        isDeleted: { $ne: true }
+      });
+    }
     
     if (!doctor) {
-      throw new Error(`Doctor with ID '${id}' not found`);
+      throw new APIError(404, "Doctor Not Found", `Doctor with ID '${id}' not found`);
     }
     
     // Transform S3 URLs to signed URLs
@@ -160,17 +173,30 @@ class HospitalDoctorService {
       });
     }
 
-    const updatedDoctor = await HospitalDoctorModel.findOneAndUpdate(
-      { _id: id, isDeleted: { $ne: true } },
+    const isMongoId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isMongoId
+      ? { _id: id, isDeleted: { $ne: true } }
+      : { doctorId: id, isDeleted: { $ne: true } };
+
+    let updatedDoctor = await HospitalDoctorModel.findOneAndUpdate(
+      filter,
       { $set: updateData },
       { new: true }
     );
 
-    if (!updatedDoctor) throw new Error(`Doctor with ID '${id}' not found`);
+    if (!updatedDoctor && isMongoId) {
+      updatedDoctor = await HospitalDoctorModel.findOneAndUpdate(
+        { doctorId: id, isDeleted: { $ne: true } },
+        { $set: updateData },
+        { new: true }
+      );
+    }
+
+    if (!updatedDoctor) throw new APIError(404, "Doctor Not Found", `Doctor with ID '${id}' not found`);
 
     // Sync email/password to linked user if either changed
     if (doctorUpdates.email || password) {
-      await hospitalUserService.syncDoctorUser(id, {
+      await hospitalUserService.syncDoctorUser(String((updatedDoctor as any)._id), {
         email: doctorUpdates.email,
         password,
       });

@@ -286,7 +286,7 @@ const DoctorsComponent = () => {
                             <ul className="dropdown-menu">
                               <li>
                                 <Link
-                                  href={all_routes.editDoctors}
+                                  href={`${all_routes.editDoctors}?id=${doc._id}`}
                                   className="dropdown-item d-flex align-items-center"
                                 >
                                   Edit

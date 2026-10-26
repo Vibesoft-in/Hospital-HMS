@@ -80,23 +80,39 @@ export async function getS3FileBase64(key: string): Promise<string | null> {
   }
 }
 
+import mongoose from "mongoose";
+
+function isObjectId(val: any): boolean {
+  if (!val) return false;
+  return (
+    val._bsontype === "ObjectId" ||
+    val._bsontype === "ObjectID" ||
+    val instanceof mongoose.Types.ObjectId ||
+    (typeof val === "object" && val.constructor?.name === "ObjectId")
+  );
+}
+
 /**
  * Recursively transform any S3 key/URL strings in a response object to signed URLs.
  * Detects both raw keys (uploads/...) and full S3 URLs.
  */
 export function transformS3Urls(obj: any): any {
   if (!obj) return obj;
-  if (obj instanceof Date) return obj;
+  if (obj instanceof Date || Buffer.isBuffer(obj)) return obj;
+  if (isObjectId(obj)) return obj.toString();
   if (Array.isArray(obj)) return obj.map(transformS3Urls);
   if (typeof obj !== "object") return obj;
 
   const raw = (obj && typeof obj.toObject === "function") ? obj.toObject() : obj;
-  if (raw instanceof Date) return raw;
+  if (raw instanceof Date || Buffer.isBuffer(raw)) return raw;
+  if (isObjectId(raw)) return raw.toString();
 
   const result: any = { ...raw };
   for (const [k, v] of Object.entries(result)) {
-    if (v instanceof Date) {
+    if (v instanceof Date || Buffer.isBuffer(v)) {
       result[k] = v;
+    } else if (isObjectId(v)) {
+      result[k] = (v as any).toString();
     } else if (typeof v === "string" && isS3Path(v)) {
       // Replace synchronously with a placeholder — callers should use transformS3UrlsAsync for real signed URLs
       // For backward compat keep sync version returning the value as-is
@@ -113,18 +129,22 @@ export function transformS3Urls(obj: any): any {
  */
 export async function transformS3UrlsAsync(obj: any): Promise<any> {
   if (!obj) return obj;
-  if (obj instanceof Date) return obj;
+  if (obj instanceof Date || Buffer.isBuffer(obj)) return obj;
+  if (isObjectId(obj)) return (obj as any).toString();
   if (Array.isArray(obj)) return Promise.all(obj.map(transformS3UrlsAsync));
   if (typeof obj !== "object") return obj;
 
   const raw = (obj && typeof obj.toObject === "function") ? obj.toObject() : obj;
-  if (raw instanceof Date) return raw;
+  if (raw instanceof Date || Buffer.isBuffer(raw)) return raw;
+  if (isObjectId(raw)) return (raw as any).toString();
 
   const result: any = { ...raw };
   await Promise.all(
     Object.entries(result).map(async ([k, v]) => {
-      if (v instanceof Date) {
+      if (v instanceof Date || Buffer.isBuffer(v)) {
         result[k] = v;
+      } else if (isObjectId(v)) {
+        result[k] = (v as any).toString();
       } else if (typeof v === "string" && isS3Path(v)) {
         result[k] = await getS3SignedUrl(v);
       } else if (v !== null && typeof v === "object") {

@@ -269,7 +269,7 @@ export const Gender = [
   { value: "Select", label: "Select" },
   { value: "Male", label: "Male" },
   { value: "Female", label: "Female" },
-  { value: "Others", label: "Others" },
+  { value: "Other", label: "Other" },
 ];
 export const Marital_Status = [
   { value: "Select", label: "Select" },
@@ -285,9 +285,9 @@ export const Title = [
   { value: "Mrs.", label: "Mrs." },
   { value: "Ms.", label: "Ms." },
   { value: "Baby", label: "Baby" },
+  { value: "Baby of", label: "Baby of" },
   { value: "Master", label: "Master" },
   { value: "Dr.", label: "Dr." },
-  { value: "Prof.", label: "Prof." },
 ];
 export const Appointment_Type = [
   { value: "OPD", label: "OPD" },

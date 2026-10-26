@@ -47,17 +47,28 @@ async function readHospitalDoctor(
   const { id } = request.params;
   const user = (request as any).hospitalUser;
   
-  // DOCTOR role can only read their own linked doctor profile
-  if (user?.role === "DOCTOR") {
-    if (!user.linkedDoctorId || user.linkedDoctorId !== id) {
-      return next(new APIError(403, "Forbidden", "You can only view your own doctor profile."));
-    }
-  }
-  
   try {
     const doctor = await hospitalDoctorService.getHospitalDoctorById(id);
+
+    // DOCTOR role can only read their own linked doctor profile
+    if (user?.role === "DOCTOR") {
+      const docMongoId = (doctor as any)?._id?.toString();
+      const docCode = (doctor as any)?.doctorId;
+      if (!user.linkedDoctorId || (user.linkedDoctorId !== id && user.linkedDoctorId !== docMongoId && user.linkedDoctorId !== docCode)) {
+        return next(new APIError(403, "Forbidden", "You can only view your own doctor profile."));
+      }
+    }
+
     return response.success({ doctor }, "Doctor retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError) {
+      return next(err);
+    }
+    if (err?.message?.includes("not found")) {
+      return next(
+        new APIError(404, "Doctor Not Found", err.message || `Doctor with ID '${id}' not found.`)
+      );
+    }
     return next(
       new AppError(500, "Unable to get doctor", err.message ?? undefined)
     );
@@ -75,6 +86,14 @@ async function searchHospitalDoctorByDoctorId(
     const doctor = await hospitalDoctorService.getHospitalDoctor(doctorId);
     return response.success({ doctor }, "Doctor retrieved successfully");
   } catch (err: any) {
+    if (err instanceof APIError) {
+      return next(err);
+    }
+    if (err?.message?.includes("not found")) {
+      return next(
+        new APIError(404, "Doctor Not Found", err.message || `Doctor with ID '${doctorId}' not found.`)
+      );
+    }
     return next(
       new AppError(500, "Unable to get doctor", err.message ?? undefined)
     );
@@ -105,6 +124,14 @@ async function updateHospitalDoctor(
     const updatedDoctor = await hospitalDoctorService.updateHospitalDoctorById(id, input);
     return response.success({ doctor: updatedDoctor }, "Doctor updated successfully");
   } catch (err: any) {
+    if (err instanceof APIError) {
+      return next(err);
+    }
+    if (err?.message?.includes("not found")) {
+      return next(
+        new APIError(404, "Doctor Not Found", err.message || `Doctor with ID '${id}' not found.`)
+      );
+    }
     return next(
       new AppError(500, "Unable to update doctor", err.message ?? undefined)
     );

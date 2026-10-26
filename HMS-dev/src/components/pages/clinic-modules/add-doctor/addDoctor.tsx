@@ -54,7 +54,7 @@ const AddDoctorComponent = () => {
   const [opdNumber, setOpdNumber] = useState<string>("");
   const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState<string>("");
   const [address, setAddress] = useState<string>("");
-  // const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [sessions, setSessions] = useState<Option[]>([]);
   const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
@@ -77,9 +77,9 @@ const AddDoctorComponent = () => {
     if (file && type === "poster") {
       setPosterFile(file);
     }
-    // if (file && type === "photo") {
-    //   setPhotoFile(file);
-    // }
+    if (file && type === "photo") {
+      setPhotoFile(file);
+    }
   };
 
   const handleVisitTypeChange = (index: number, charge: string) => {
@@ -146,11 +146,15 @@ const AddDoctorComponent = () => {
 
       setLoading(true);
 
-      // let uploadedImageUrl = "";
+      let uploadedImageUrl = "";
       let uploadedPosterUrl = "";
-      // if (photoFile) {
-      //   uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
-      // }
+      if (photoFile) {
+        try {
+          uploadedImageUrl = await uploadFileToS3(photoFile, "doctors_profile");
+        } catch (uploadErr) {
+          console.warn("Photo upload warning, proceeding with doctor creation:", uploadErr);
+        }
+      }
       if (posterFile) {
         try {
           uploadedPosterUrl = await uploadFileToS3(posterFile, "doctors_posters");
@@ -199,7 +203,7 @@ const AddDoctorComponent = () => {
       if (dialysisSlotsData.length > 0) {
         doctorData.dialysisSlots = dialysisSlotsData;
       }
-      // if (uploadedImageUrl) doctorData.imageUrl = uploadedImageUrl;
+      if (uploadedImageUrl) doctorData.imageUrl = uploadedImageUrl;
       if (uploadedPosterUrl) doctorData.posterUrl = uploadedPosterUrl;
       if (formattedDob) doctorData.dob = formattedDob;
       if (genderValue) doctorData.gender = genderValue;
@@ -524,14 +528,53 @@ const AddDoctorComponent = () => {
                             />
                           </div>
                           <div className="row">
-                            {/* Photo upload hidden — poster only for queue display
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label mb-2 fw-medium">Photo</label>
-                                ...
+                                <div
+                                  className="border border-dashed rounded p-3 text-center position-relative"
+                                  style={{
+                                    minHeight: "100px",
+                                    cursor: "pointer",
+                                    backgroundColor: "#f8f9fa",
+                                  }}
+                                  onClick={() => {
+                                    const input = document.getElementById('photo-upload') as HTMLInputElement;
+                                    input?.click();
+                                  }}
+                                >
+                                  <input
+                                    id="photo-upload"
+                                    type="file"
+                                    className="d-none"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileSelect(e, 'photo')}
+                                  />
+                                  {photoFile ? (
+                                    <div>
+                                      <i className="ti ti-file-check fs-24 text-success mb-2"></i>
+                                      <p className="mb-0 text-dark fw-medium">{photoFile.name}</p>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-link text-danger mt-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPhotoFile(null);
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <i className="ti ti-upload fs-24 text-muted mb-2"></i>
+                                      <p className="mb-1 text-dark fw-medium">Click to upload photo</p>
+                                      <p className="mb-0 text-muted fs-13">JPG, PNG (max. 5MB)</p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            */}
                             <div className="col-lg-6">
                               <div className="mb-3">
                                 <label className="form-label mb-2 fw-medium">Poster</label>
