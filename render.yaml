@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: hospital-backend
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: pathbyte-backend-hospital
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set your MongoDB Atlas connection string in Render Dashboard
+      - key: ALLOWED_ORIGINS
+        sync: false # Comma-separated frontend URL(s), e.g. https://your-frontend.vercel.app
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: HOSPITAL_NAME
+        value: My Hospital
+      - key: HOSPITAL_VISIT_PREFIX
+        value: OPD
+      - key: HOSPITAL_DAYCARE_PREFIX
+        value: DC
+      - key: HOSPITAL_IPD_PREFIX
+        value: IPD

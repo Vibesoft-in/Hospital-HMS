@@ -14,8 +14,9 @@ async function startServer() {
   try {
     const expressApp = express();
     await app({ expressApp });
-    expressApp.listen(process.env.PORT, () =>
-      logger.info(`API listening on :${process.env.PORT}`)
+    const PORT = process.env.PORT || 3000;
+    expressApp.listen(PORT, () =>
+      logger.info(`API listening on :${PORT}`)
     );
   } catch (err) {
     logger.error({ err }, "Failed to start server");
