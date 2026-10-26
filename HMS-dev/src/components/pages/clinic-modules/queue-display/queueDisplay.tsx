@@ -28,13 +28,13 @@ if (typeof window !== "undefined") {
   if (typeof (window as any).globalThis === "undefined") {
     (window as any).globalThis = window;
   }
-  if (!Promise.allSettled) {
-    Promise.allSettled = function (promises: Iterable<any>) {
+  if (!(Promise as any).allSettled) {
+    (Promise as any).allSettled = function (promises: Iterable<any>) {
       return Promise.all(
         Array.from(promises).map(function (p) {
           return Promise.resolve(p).then(
-            function (value) { return { status: "fulfilled", value: value }; },
-            function (reason) { return { status: "rejected", reason: reason }; }
+            function (value) { return { status: "fulfilled" as const, value: value }; },
+            function (reason) { return { status: "rejected" as const, reason: reason }; }
           );
         })
       );
@@ -105,17 +105,19 @@ function sortAndComputeQueue(queue: IQueuePatient[], queueSortBy: IQueueSortBy =
   return { queue: sorted, totalPatients, emergencyCount, regularCount };
 }
 
-/** Normalize SSE visit to IQueuePatient (Zero `?.` / Zero `??` - Safe for Chrome 66) */
+/** Normalize SSE/REST visit to IQueuePatient (Zero `?.` / Zero `??` - Safe for Chrome 66) */
 function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
   const patient = (visit && visit.patient) ? (visit.patient as Record<string, unknown>) : {};
-  const vId = visit && (visit.visitId || visit._id) ? String(visit.visitId || visit._id) : "";
+  const rawId = visit && visit._id ? String(visit._id) : "";
+  const rawVisitId = visit && visit.visitId ? String(visit.visitId) : "";
+  const vId = rawVisitId || rawId || "";
   const tokenNum = (visit && visit.tokenNumber != null) ? Number(visit.tokenNumber) : 0;
   const slot = (visit && visit.sessionSlot) ? parseSessionSlot(visit.sessionSlot) : "Morning";
   const stat = (visit && visit.status) ? String(visit.status) : "Scheduled";
 
   return {
-    _id: vId,
-    visitId: vId,
+    _id: rawId || vId,
+    visitId: rawVisitId || vId,
     appointmentId: visit && visit.appointmentId ? String(visit.appointmentId) : undefined,
     visitType: visit && visit.visitType ? String(visit.visitType) : undefined,
     visitTime: visit && visit.visitTime ? String(visit.visitTime) : undefined,
@@ -123,13 +125,22 @@ function toQueuePatient(visit: Record<string, unknown>): IQueuePatient {
     sessionSlot: slot,
     status: stat,
     patient: {
-      mrd: patient && patient.mrd ? String(patient.mrd) : "—",
+      mrd: patient && (patient.mrd || (patient as any).patientUhid) ? String(patient.mrd || (patient as any).patientUhid) : "—",
       name: patient && patient.name ? String(patient.name) : "—",
       age: patient && patient.age != null ? Number(patient.age) : undefined,
       gender: patient && patient.gender ? String(patient.gender) : undefined,
     },
   };
 }
+
+const isMatchingPatient = (patient: IQueuePatient, targetId: string): boolean => {
+  if (!targetId || !patient) return false;
+  return (
+    patient.visitId === targetId ||
+    patient._id === targetId ||
+    (Boolean(patient.appointmentId) && patient.appointmentId === targetId)
+  );
+};
 
 /** Build IQueueDisplay from SSE payload (Zero `?.` / Zero `??` - Safe for Chrome 66) */
 function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
@@ -353,8 +364,8 @@ const QueueDisplayComponent = () => {
         if (type === "status-change" || type === "status-updated" || type === "visit-status" || type.indexOf("status") !== -1) {
           const vData = (data && data.visit) ? (data.visit as Record<string, unknown>) : data;
           const targetVisitId = String(
-            (vData && (vData.visitId || vData._id || vData.id)) ||
-            (data && (data.visitId || data._id || data.id)) ||
+            (vData && (vData.visitId || vData._id || vData.id || vData.appointmentId)) ||
+            (data && (data.visitId || data._id || data.id || data.appointmentId)) ||
             ""
           );
           const rawNewStatus = String(
@@ -375,9 +386,9 @@ const QueueDisplayComponent = () => {
             setDisplay((prev) => {
               if (!prev) return prev;
               const nextQueue = shouldRemove
-                ? prev.queue.filter((p) => (p.visitId || p._id) !== targetVisitId)
+                ? prev.queue.filter((p) => !isMatchingPatient(p, targetVisitId))
                 : prev.queue.map((p) => {
-                  if ((p.visitId || p._id) === targetVisitId) {
+                  if (isMatchingPatient(p, targetVisitId)) {
                     return { ...p, status: rawNewStatus };
                   }
                   return p;
@@ -405,7 +416,7 @@ const QueueDisplayComponent = () => {
 
               // Update existing or append new
               const existsIdx = prev.queue.findIndex(
-                (p) => (p.visitId || p._id) === (newPatient.visitId || newPatient._id)
+                (p) => isMatchingPatient(p, newPatient.visitId) || isMatchingPatient(p, newPatient._id)
               );
 
               let updatedList: IQueuePatient[];
@@ -439,7 +450,7 @@ const QueueDisplayComponent = () => {
             setDisplay((prev) => {
               if (!prev) return prev;
               const idx = prev.queue.findIndex(
-                (p) => (p.visitId || p._id) === matchId || p._id === String(rawVisit._id)
+                (p) => isMatchingPatient(p, matchId) || (rawVisit._id && isMatchingPatient(p, String(rawVisit._id)))
               );
 
               let nextQueue: IQueuePatient[];
@@ -465,7 +476,7 @@ const QueueDisplayComponent = () => {
           if (delId) {
             setDisplay((prev) => {
               if (!prev) return prev;
-              const nextQueue = prev.queue.filter((p) => (p.visitId || p._id) !== delId);
+              const nextQueue = prev.queue.filter((p) => !isMatchingPatient(p, delId));
               const queueSortBy = parseQueueSortBy(data ? data.queueSortBy : undefined, prev.queueSortBy);
               const { queue, totalPatients, emergencyCount, regularCount } =
                 sortAndComputeQueue(nextQueue, queueSortBy);
@@ -519,22 +530,36 @@ const QueueDisplayComponent = () => {
 
     connect();
 
-    // ULTRA-FAST 2-SECOND REAL-TIME AUTO SYNC
-    // Even if an SSE message packet drops, within 2 seconds the display auto-updates!
-    pollInterval = setInterval(() => {
-      if (destroyed) return;
+    // Fast 3-second auto-sync using REST endpoint (Never hangs or exhausts sockets!)
+    const pollQueue = () => {
+      if (destroyed || !API_BASE_URL || !doctorId) return;
       axios
-        .get(API_BASE_URL + "/hospital/visits/display/stream/" + doctorId, {
-          headers: { Accept: "application/json" }
+        .get(API_BASE_URL + "/hospital/visits/display/queue/" + doctorId, {
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" }
         })
         .then((res) => {
+          if (destroyed) return;
           const resData = res && res.data ? res.data : null;
-          if (resData && Array.isArray(resData.queue)) {
-            setDisplay(displayFromSSE(resData));
+          const displayPayload =
+            (resData && resData.data && resData.data.display)
+              ? resData.data.display
+              : ((resData && resData.display) ? resData.display : (resData && resData.data ? resData.data : resData));
+
+          if (displayPayload && Array.isArray(displayPayload.queue)) {
+            setDisplay((prev) => {
+              const updated = displayFromSSE(displayPayload);
+              if (prev && prev.posterUrl && !updated.posterUrl) {
+                updated.posterUrl = prev.posterUrl;
+              }
+              return updated;
+            });
           }
         })
         .catch(() => { });
-    }, 2000);
+    };
+
+    pollQueue();
+    pollInterval = setInterval(pollQueue, 3000);
 
     return () => {
       destroyed = true;

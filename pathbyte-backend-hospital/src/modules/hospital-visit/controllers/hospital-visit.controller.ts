@@ -50,6 +50,7 @@ async function populateVisitForSSE(visit: any) {
         visitType: visit.visitType,
         appointmentType: visit.appointmentType,
         visitTime: visit.visitTime,
+        sessionSlot: visit.sessionSlot,
         tokenNumber: visit.tokenNumber,
         status: visit.status,
         patient: patient ? {
@@ -61,6 +62,7 @@ async function populateVisitForSSE(visit: any) {
         } : undefined
       },
       doctorInfo: doctor ? {
+        doctorId: doctor.doctorId,
         name: doctor.name,
         department: doctor.department,
         designation: doctor.designation,
@@ -767,14 +769,24 @@ async function streamPatientDisplayQueue(
     
     logger.info({ doctorId }, "Initial SSE data sent");
     
-    // Subscribe to events for this doctor/date
-    let eventKey = visitEventsService.getEventKey(
-      initialQueue.doctorId, // Use MongoDB _id from the response
-      initialQueue.date
-    );
+    // Subscribe to events for this doctor/date on all applicable channels
+    const subscribedKeys = new Set<string>();
+    const registerKeys = (targetDoctorId: string, targetDate: string) => {
+      if (targetDoctorId) {
+        if (targetDate) subscribedKeys.add(visitEventsService.getEventKey(targetDoctorId, targetDate));
+        subscribedKeys.add(`queue:${targetDoctorId}`);
+      }
+      if (doctorId) {
+        if (targetDate) subscribedKeys.add(visitEventsService.getEventKey(doctorId, targetDate));
+        subscribedKeys.add(`queue:${doctorId}`);
+      }
+    };
+    registerKeys(initialQueue.doctorId, initialQueue.date);
     
     const eventHandler = async (eventData: any) => {
       try {
+        const eventType = eventData.eventType || eventData.type || "message";
+        response.write(`event: ${eventType}\ndata: ${JSON.stringify(eventData)}\n\n`);
         response.write(`data: ${JSON.stringify(eventData)}\n\n`);
         if (response.flush) {
           response.flush();
@@ -784,7 +796,7 @@ async function streamPatientDisplayQueue(
       }
     };
     
-    visitEventsService.on(eventKey, eventHandler);
+    subscribedKeys.forEach((key) => visitEventsService.on(key, eventHandler));
     
     // Check for date or session changes every minute
     const dateCheckInterval = setInterval(async () => {
@@ -812,24 +824,22 @@ async function streamPatientDisplayQueue(
           }, "Date or session changed, sending updated queue");
           
           if (dateChanged) {
-            // Unsubscribe from old event key
-            visitEventsService.off(eventKey, eventHandler);
-            // Subscribe to new event key
-            eventKey = visitEventsService.getEventKey(
-              updatedQueue.doctorId,
-              updatedQueue.date
-            );
-            visitEventsService.on(eventKey, eventHandler);
+            subscribedKeys.forEach((key) => visitEventsService.off(key, eventHandler));
+            subscribedKeys.clear();
+            registerKeys(updatedQueue.doctorId, updatedQueue.date);
+            subscribedKeys.forEach((key) => visitEventsService.on(key, eventHandler));
           }
           
           // Send change event
-          response.write(`data: ${JSON.stringify({ 
+          const changePayload = { 
             type: changeType, 
             ...updatedQueue,
             currentTime: newSessionInfo.time,
             previousDate: initialQueue.date,
             previousSessionSlot: initialQueue.currentSessionSlot
-          })}\n\n`);
+          };
+          response.write(`event: ${changeType}\ndata: ${JSON.stringify(changePayload)}\n\n`);
+          response.write(`data: ${JSON.stringify(changePayload)}\n\n`);
           
           if (response.flush) {
             response.flush();
@@ -845,7 +855,7 @@ async function streamPatientDisplayQueue(
       }
     }, 60000); // Check every minute
     
-    // Send keepalive every 30 seconds
+    // Send keepalive every 20 seconds to prevent proxy drop (Render/Nginx)
     const keepAliveInterval = setInterval(() => {
       try {
         response.write(`:keepalive\n\n`);
@@ -855,14 +865,14 @@ async function streamPatientDisplayQueue(
       } catch (err) {
         logger.error({ error: err }, "Error sending keepalive");
       }
-    }, 30000);
+    }, 20000);
     
     // Cleanup on client disconnect
     request.on('close', () => {
       clearInterval(dateCheckInterval);
       clearInterval(keepAliveInterval);
-      visitEventsService.off(eventKey, eventHandler);
-      logger.info({ doctorId, eventKey }, "SSE connection closed");
+      subscribedKeys.forEach((key) => visitEventsService.off(key, eventHandler));
+      logger.info({ doctorId, keysCount: subscribedKeys.size }, "SSE connection closed");
     });
     
   } catch (err: any) {

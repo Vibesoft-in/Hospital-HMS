@@ -110,6 +110,21 @@ class VisitEventsService extends EventEmitter {
     this.setMaxListeners(100); // Allow many TV displays to connect
   }
 
+  private _broadcast(doctorId: string, date: string, eventData: VisitEventData, doctorInfo?: any) {
+    const keys = new Set<string>();
+    if (doctorId) {
+      if (date) keys.add(this.getEventKey(doctorId, date));
+      keys.add(`queue:${doctorId}`);
+    }
+    if (doctorInfo?.doctorId) {
+      if (date) keys.add(this.getEventKey(doctorInfo.doctorId, date));
+      keys.add(`queue:${doctorInfo.doctorId}`);
+    }
+    keys.forEach((key) => {
+      this.emit(key, eventData);
+    });
+  }
+
   // Emit event when visit status changes
   emitVisitStatusChange(doctorId: string, date: string, visit: any, doctorInfo?: any) {
     const eventData: VisitEventData = {
@@ -129,7 +144,7 @@ class VisitEventsService extends EventEmitter {
     
     const eventKey = this.getEventKey(doctorId, date);
     logger.info({ eventKey, visitId: visit.visitId, status: visit.status }, "Emitting visit status change event");
-    this.emit(eventKey, eventData);
+    this._broadcast(doctorId, date, eventData, doctorInfo);
   }
 
   // Emit event when new visit is created
@@ -151,7 +166,7 @@ class VisitEventsService extends EventEmitter {
     
     const eventKey = this.getEventKey(doctorId, date);
     logger.info({ eventKey, visitId: visit.visitId }, "Emitting new visit event");
-    this.emit(eventKey, eventData);
+    this._broadcast(doctorId, date, eventData, doctorInfo);
   }
 
   // Emit event when visit is updated
@@ -173,7 +188,7 @@ class VisitEventsService extends EventEmitter {
     
     const eventKey = this.getEventKey(doctorId, date);
     logger.info({ eventKey, visitId: visit.visitId }, "Emitting visit updated event");
-    this.emit(eventKey, eventData);
+    this._broadcast(doctorId, date, eventData, doctorInfo);
   }
 
   // Emit event when visit is deleted/cancelled
@@ -194,7 +209,7 @@ class VisitEventsService extends EventEmitter {
     
     const eventKey = this.getEventKey(doctorId, date);
     logger.info({ eventKey, visitId }, "Emitting visit deleted event");
-    this.emit(eventKey, eventData);
+    this._broadcast(doctorId, date, eventData, doctorInfo);
   }
 
   // Emit full queue refresh
@@ -218,7 +233,7 @@ class VisitEventsService extends EventEmitter {
     
     const eventKey = this.getEventKey(doctorId, date);
     logger.info({ eventKey, queueLength: queue.length }, "Emitting queue refresh event");
-    this.emit(eventKey, eventData);
+    this._broadcast(doctorId, date, eventData, doctorInfo);
   }
 
   // Generate event key for specific doctor/date combination (session removed)
