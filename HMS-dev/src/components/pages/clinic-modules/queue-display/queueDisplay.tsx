@@ -270,6 +270,9 @@ const QueueDisplayComponent = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [now, setNow] = useState<Date>(new Date());
+  // Track poster image load error separately so a fresh signed URL from SSE/poll can reset it
+  const [posterImgError, setPosterImgError] = useState(false);
+  const lastPosterUrlRef = useRef<string>("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
@@ -548,7 +551,8 @@ const QueueDisplayComponent = () => {
           if (displayPayload && Array.isArray(displayPayload.queue)) {
             setDisplay((prev) => {
               const updated = displayFromSSE(displayPayload);
-              if (prev && prev.posterUrl && !updated.posterUrl) {
+              // Always prefer fresh signed posterUrl from server; only fall back to prev if server sent nothing
+              if (prev && !updated.posterUrl && prev.posterUrl) {
                 updated.posterUrl = prev.posterUrl;
               }
               return updated;
@@ -578,6 +582,18 @@ const QueueDisplayComponent = () => {
     };
   }, [doctorId]);
 
+  // When SSE/poll delivers a fresh signed posterUrl, reset the image error so it retries
+  const currentPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
+    ? display.posterUrl.trim()
+    : "";
+  useEffect(() => {
+    if (currentPosterUrl && currentPosterUrl !== lastPosterUrlRef.current) {
+      lastPosterUrlRef.current = currentPosterUrl;
+      setPosterImgError(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPosterUrl]);
+
   if (!doctorId) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
@@ -592,7 +608,9 @@ const QueueDisplayComponent = () => {
     ? display.posterUrl.trim()
     : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "");
   const fallbackAvatar = getDoctorDefaultAvatar(display ? display.gender : undefined);
-  const doctorPosterSrc = rawPoster ? rawPoster : fallbackAvatar;
+
+  // Use poster only if it exists AND no load error; otherwise fall back to gender-based icon
+  const doctorPosterSrc = (rawPoster && !posterImgError) ? rawPoster : fallbackAvatar;
   const doctorName = rawName
     ? (rawName.indexOf("Dr.") === 0 ? rawName : "Dr. " + rawName)
     : "Doctor OPD";
@@ -735,10 +753,10 @@ const QueueDisplayComponent = () => {
               alt={doctorName}
               className="position-absolute top-0 start-0 w-100 h-100"
               style={{ objectFit: "cover", objectPosition: "top" }}
-              onError={(e) => {
-                if (e.currentTarget.src !== fallbackAvatar) {
-                  e.currentTarget.src = fallbackAvatar;
-                }
+              onError={() => {
+                // Mark error so we fall back to gender icon;
+                // posterImgError will be reset if SSE/poll delivers a fresh signed URL
+                setPosterImgError(true);
               }}
             />
           </div>
