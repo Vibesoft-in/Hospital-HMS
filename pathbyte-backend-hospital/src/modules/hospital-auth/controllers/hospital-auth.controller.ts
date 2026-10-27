@@ -9,10 +9,13 @@ import changePasswordSchema from "../validators/change-password.json";
 import updateProfileSchema from "../validators/update-profile.json";
 
 function setRefreshCookie(res: Response, token: string) {
+  const isSecure = ["true", "1", "yes"].includes(process.env.COOKIE_SECURE as string);
   res.cookie("hospital_refresh_token", token, {
     httpOnly: true,
-    secure: ["true", "1", "yes"].includes(process.env.COOKIE_SECURE as string),
-    sameSite: "strict",
+    secure: isSecure,
+    // "none" is required for cross-site cookie delivery (Vercel frontend <-> Render backend).
+    // sameSite: "none" MUST be paired with secure: true — COOKIE_SECURE=true is set in render.yaml.
+    sameSite: isSecure ? "none" : "lax",
     domain:
       process.env.NODE_ENV === "production"
         ? process.env.COOKIE_DOMAIN || undefined
@@ -163,10 +166,12 @@ async function logout(req: Request, res: Response) {
     logger.warn({ error: err.message }, "Error during tokenVersion increment on logout");
   }
 
+  const isSecureClear = ["true", "1", "yes"].includes(process.env.COOKIE_SECURE as string);
   res.clearCookie("hospital_refresh_token", {
     httpOnly: true,
-    secure: ["true", "1", "yes"].includes(process.env.COOKIE_SECURE as string),
-    sameSite: "strict",
+    secure: isSecureClear,
+    // Must match the options used when setting the cookie so the browser clears it correctly.
+    sameSite: isSecureClear ? "none" : "lax",
     domain: process.env.COOKIE_DOMAIN,
   });
   
