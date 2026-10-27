@@ -270,9 +270,10 @@ const QueueDisplayComponent = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [now, setNow] = useState<Date>(new Date());
-  // Track poster image load error separately so a fresh signed URL from SSE/poll can reset it
-  const [posterImgError, setPosterImgError] = useState(false);
-  const lastPosterUrlRef = useRef<string>("");
+  // activePosterUrl: the URL actually fed to <img src>. Stable — only changes when needed.
+  const [activePosterUrl, setActivePosterUrl] = useState<string>("");
+  // posterLoadedRef: true once the <img> fires onLoad. Prevents re-fetching a working image.
+  const posterLoadedRef = useRef<boolean>(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
@@ -301,46 +302,6 @@ const QueueDisplayComponent = () => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Direct fetch doctor profile to guarantee photo/posterUrl is available
-  useEffect(() => {
-    if (!doctorId || !API_BASE_URL) return;
-
-    const fetchDocProfile = () => {
-      axios
-        .get(API_BASE_URL + "/hospital/doctors/" + doctorId)
-        .then((res) => {
-          const resData = res && res.data ? res.data : null;
-          const doc = (resData && resData.data && resData.data.doctor)
-            ? resData.data.doctor
-            : (resData && resData.doctor ? resData.doctor : (resData && resData.data ? resData.data : resData));
-
-          const photo = doc && (doc.posterUrl || doc.imageUrl);
-          if (photo && typeof photo === "string") {
-            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: (doc && doc.gender) ? doc.gender : prev.gender } : prev));
-          } else if (doc && doc.gender) {
-            setDisplay((prev) => (prev ? { ...prev, gender: doc.gender } : prev));
-          }
-        })
-        .catch((err) => {
-          console.warn("Direct doctor photo fetch warning:", err);
-        });
-    };
-
-    fetchDocProfile();
-
-    const handleDoctorUpdated = (e: any) => {
-      const updatedId = e && e.detail ? e.detail.doctorId : null;
-      if (!updatedId || updatedId === doctorId) {
-        fetchDocProfile();
-      }
-    };
-    window.addEventListener("doctor-updated", handleDoctorUpdated);
-
-    return () => {
-      window.removeEventListener("doctor-updated", handleDoctorUpdated);
-    };
-  }, [doctorId]);
 
   // SSE Stream with Instant Real-Time Updates + 2s Auto-Sync (Zero Refresh Needed!)
   useEffect(() => {
@@ -582,17 +543,27 @@ const QueueDisplayComponent = () => {
     };
   }, [doctorId]);
 
-  // When SSE/poll delivers a fresh signed posterUrl, reset the image error so it retries
-  const currentPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
+  // Stable poster URL management:
+  // Only update activePosterUrl when image has NOT been successfully loaded yet,
+  // or when it previously errored. This prevents the 3s poll (which re-signs the S3 URL
+  // every time, producing a new URL string) from constantly restarting the image fetch.
+  const displayPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
     ? display.posterUrl.trim()
     : "";
   useEffect(() => {
-    if (currentPosterUrl && currentPosterUrl !== lastPosterUrlRef.current) {
-      lastPosterUrlRef.current = currentPosterUrl;
-      setPosterImgError(false);
+    if (!displayPosterUrl) return;
+    // Only push new URL to <img> if: poster never loaded successfully, or it previously errored
+    if (!posterLoadedRef.current) {
+      setActivePosterUrl(displayPosterUrl);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPosterUrl]);
+  }, [displayPosterUrl]);
+
+  // Reset when doctor changes
+  useEffect(() => {
+    posterLoadedRef.current = false;
+    setActivePosterUrl("");
+  }, [doctorId]);
 
   if (!doctorId) {
     return (
@@ -604,13 +575,10 @@ const QueueDisplayComponent = () => {
 
   // Doctor Data mapping (Safe checks - No `?.` / No `??`)
   const rawName = (display && display.doctorName && typeof display.doctorName === "string") ? display.doctorName.trim() : "";
-  const rawPoster = (display && display.posterUrl && typeof display.posterUrl === "string")
-    ? display.posterUrl.trim()
-    : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "");
   const fallbackAvatar = getDoctorDefaultAvatar(display ? display.gender : undefined);
 
-  // Use poster only if it exists AND no load error; otherwise fall back to gender-based icon
-  const doctorPosterSrc = (rawPoster && !posterImgError) ? rawPoster : fallbackAvatar;
+  // doctorPosterSrc: use activePosterUrl if set, else fallback to gender icon
+  const doctorPosterSrc = activePosterUrl ? activePosterUrl : fallbackAvatar;
   const doctorName = rawName
     ? (rawName.indexOf("Dr.") === 0 ? rawName : "Dr. " + rawName)
     : "Doctor OPD";
@@ -753,10 +721,15 @@ const QueueDisplayComponent = () => {
               alt={doctorName}
               className="position-absolute top-0 start-0 w-100 h-100"
               style={{ objectFit: "cover", objectPosition: "top" }}
+              onLoad={() => {
+                // Image loaded successfully — lock it in, stop future poll URLs from re-fetching
+                posterLoadedRef.current = true;
+              }}
               onError={() => {
-                // Mark error so we fall back to gender icon;
-                // posterImgError will be reset if SSE/poll delivers a fresh signed URL
-                setPosterImgError(true);
+                // Image failed (expired S3 URL etc.) — clear activePosterUrl so fallback shows,
+                // and reset posterLoadedRef so next valid URL from poll/SSE will be attempted
+                posterLoadedRef.current = false;
+                setActivePosterUrl("");
               }}
             />
           </div>
