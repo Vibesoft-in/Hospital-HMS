@@ -88,10 +88,16 @@ interface IVisitTypeCharge {
   type?: string;
 }
 
+interface IWeeklyScheduleSlot {
+  session: string;
+  startTime?: string;
+  endTime?: string;
+}
+
 interface IWeeklyScheduleDay {
   dayOfWeek: string;
   mr?: boolean;
-  slots?: unknown[];
+  slots?: IWeeklyScheduleSlot[];
 }
 
 interface IDoctor {
@@ -591,14 +597,63 @@ const NewAppointmentComponent = () => {
     [fetchDoctorsWithSearch]
   );
 
-  // Session options from selected doctor only; empty until doctor is selected
+  // Session options dynamically resolved from selected doctor's actual profile schedule/sessions
   const sessionOptions = useMemo(() => {
     if (!selectedDoctor?.value) return [];
     const doctor = doctors.find((d) => d._id === selectedDoctor.value);
-    const sessions = doctor?.sessions;
-    if (!sessions?.length) return [];
-    return sessions.map((s) => ({ value: s, label: s }));
+    if (!doctor) return [];
+
+    // 1. If doctor has weekly schedule configured, load slots for the selected visitDate's day
+    if (doctor.weeklySchedule && doctor.weeklySchedule.length > 0 && visitDate) {
+      const dayName = dayjs.isDayjs(visitDate)
+        ? visitDate.format("dddd")
+        : dayjs(visitDate).format("dddd");
+      const daySchedule = doctor.weeklySchedule.find((s) => s.dayOfWeek === dayName);
+      if (daySchedule && Array.isArray(daySchedule.slots) && daySchedule.slots.length > 0) {
+        return daySchedule.slots.map((slot) => ({
+          value: slot.session,
+          label: slot.startTime && slot.endTime
+            ? `${slot.session} (${slot.startTime} - ${slot.endTime})`
+            : slot.session,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }));
+      }
+      // If doctor has a weekly schedule set but no slots configured for this day, doctor is not working today
+      return [];
+    }
+
+    // 2. Fallback to doctor's configured profile sessions
+    const sessions = doctor.sessions;
+    if (Array.isArray(sessions) && sessions.length > 0) {
+      return sessions.map((s) => ({ value: s, label: s }));
+    }
+
+    return [];
+  }, [selectedDoctor, visitDate, doctors]);
+
+  const doctorHasAnySchedule = useMemo(() => {
+    if (!selectedDoctor?.value) return true;
+    const doctor = doctors.find((d) => d._id === selectedDoctor.value);
+    if (!doctor) return true;
+    const hasWeekly = Array.isArray(doctor.weeklySchedule) && doctor.weeklySchedule.length > 0;
+    const hasSessions = Array.isArray(doctor.sessions) && doctor.sessions.length > 0;
+    return hasWeekly || hasSessions;
   }, [selectedDoctor, doctors]);
+
+  // Reset sessionSlot when date changes and previously selected slot is no longer valid
+  useEffect(() => {
+    if (sessionSlot && !sessionOptions.some((o) => o.value === sessionSlot.value)) {
+      setSessionSlot(null);
+    }
+  }, [sessionOptions, sessionSlot]);
+
+  const handleSessionSlotChange = useCallback((option: Option | null) => {
+    setSessionSlot(option);
+    if ((option as any)?.startTime) {
+      setVisitTime(dayjs((option as any).startTime, "HH:mm"));
+    }
+  }, []);
 
   const daycareSessionOptions = useMemo(() => {
     if (!daycareSelectedDoctor?.value) return [];
@@ -3271,10 +3326,28 @@ const NewAppointmentComponent = () => {
                               options={sessionOptions}
                               className="select"
                               value={sessionSlot}
-                              onChange={setSessionSlot}
+                              onChange={handleSessionSlotChange}
                               disabled={!selectedDoctor}
-                              placeholder={!selectedDoctor ? "Select doctor first" : undefined}
+                              placeholder={
+                                !selectedDoctor
+                                  ? "Select doctor first"
+                                  : sessionOptions.length === 0
+                                  ? "No sessions scheduled on this day"
+                                  : "Select Session Slot"
+                              }
                             />
+                            {selectedDoctor && !doctorHasAnySchedule && (
+                              <div className="text-danger small mt-1">
+                                <i className="ti ti-alert-triangle me-1" />
+                                Doctor has no schedule or sessions configured. Please configure in Doctors List.
+                              </div>
+                            )}
+                            {selectedDoctor && doctorHasAnySchedule && sessionOptions.length === 0 && (
+                              <div className="text-warning small mt-1">
+                                <i className="ti ti-info-circle me-1" />
+                                Doctor is not scheduled on {dayjs(visitDate).format("dddd")}. Please select another date.
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="col-md-6">

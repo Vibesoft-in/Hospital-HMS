@@ -348,13 +348,15 @@ hospitalVisitSchema.statics = {
 
     // Check if doctor has configured schedule (except for Emergency visits)
     if (newVisit.visitType !== "Emergency") {
-      const hasSchedule = doctor.weeklySchedule && doctor.weeklySchedule.length > 0;
+      const hasWeeklySchedule = Array.isArray(doctor.weeklySchedule) && doctor.weeklySchedule.length > 0;
+      const hasLegacySessions = Array.isArray(doctor.sessions) && doctor.sessions.length > 0;
+      const hasSchedule = hasWeeklySchedule || hasLegacySessions;
       
       if (!hasSchedule) {
         throw new APIError(
           400,
           "Doctor Schedule Not Configured",
-          `Doctor '${doctor.name}' does not have a weekly schedule configured. Please configure the doctor's schedule before creating visits.`
+          `Doctor '${doctor.name}' does not have a weekly schedule or sessions configured. Please configure the doctor's schedule in Doctors List before creating visits.`
         );
       }
     }

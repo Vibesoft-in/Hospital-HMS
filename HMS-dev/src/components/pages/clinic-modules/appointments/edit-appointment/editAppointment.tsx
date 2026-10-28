@@ -30,10 +30,16 @@ interface IVisitTypeCharge {
   type?: string;
 }
 
+interface IWeeklyScheduleSlot {
+  session: string;
+  startTime?: string;
+  endTime?: string;
+}
+
 interface IWeeklyScheduleDay {
   dayOfWeek: string;
   mr?: boolean;
-  slots?: unknown[];
+  slots?: IWeeklyScheduleSlot[];
 }
 
 interface IDoctor {
@@ -280,17 +286,44 @@ const EditAppointmentComponent = () => {
       return;
     }
     const doc = doctors.find((d) => d._id === selectedDoctor.value);
-    if (doc?.sessions?.length) {
-      const opts = doc.sessions.map((s) => ({ value: s, label: s }));
-      setSessionOptions(opts);
-      setSessionSlot((prev) =>
-        prev && opts.some((o: Option) => o.value === prev.value) ? prev : null
-      );
-    } else {
+    if (!doc) {
       setSessionOptions([]);
       setSessionSlot(null);
+      return;
     }
-  }, [selectedDoctor, doctors]);
+
+    let opts: Option[] = [];
+    if (doc.weeklySchedule && doc.weeklySchedule.length > 0 && visitDate) {
+      const dayName = dayjs.isDayjs(visitDate)
+        ? visitDate.format("dddd")
+        : dayjs(visitDate).format("dddd");
+      const daySchedule = doc.weeklySchedule.find((s) => s.dayOfWeek === dayName);
+      if (daySchedule && Array.isArray(daySchedule.slots) && daySchedule.slots.length > 0) {
+        opts = daySchedule.slots.map((slot) => ({
+          value: slot.session,
+          label: slot.startTime && slot.endTime
+            ? `${slot.session} (${slot.startTime} - ${slot.endTime})`
+            : slot.session,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }));
+      }
+    } else if (doc.sessions?.length) {
+      opts = doc.sessions.map((s) => ({ value: s, label: s }));
+    }
+
+    setSessionOptions(opts);
+    setSessionSlot((prev) =>
+      prev && opts.some((o: Option) => o.value === prev.value) ? prev : null
+    );
+  }, [selectedDoctor, visitDate, doctors]);
+
+  const handleEditSessionSlotChange = useCallback((option: Option | null) => {
+    setSessionSlot(option);
+    if ((option as any)?.startTime) {
+      setVisitTime(dayjs((option as any).startTime, "HH:mm"));
+    }
+  }, []);
 
   // Recalculate Total from doctor's visitTypes (new shape: visitType, appointmentType, charge)
   const updateTotalFromDoctorCharge = useCallback(() => {
@@ -855,9 +888,15 @@ const EditAppointmentComponent = () => {
                           options={sessionOptions}
                           className="select"
                           value={sessionSlot}
-                          onChange={setSessionSlot}
+                          onChange={handleEditSessionSlotChange}
                           disabled={!canEditDoctorDetails || !selectedDoctor}
-                          placeholder={!selectedDoctor ? "Select doctor first" : undefined}
+                          placeholder={
+                            !selectedDoctor
+                              ? "Select doctor first"
+                              : sessionOptions.length === 0
+                              ? "No sessions scheduled on this day"
+                              : "Select Session Slot"
+                          }
                         />
                       </div>
                     </div>
