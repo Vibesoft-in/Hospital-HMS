@@ -270,10 +270,16 @@ const QueueDisplayComponent = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [display, setDisplay] = useState<IQueueDisplay | null>(null);
   const [now, setNow] = useState<Date>(new Date());
-  // activePosterUrl: the URL actually fed to <img src>. Stable — only changes when needed.
-  const [activePosterUrl, setActivePosterUrl] = useState<string>("");
-  // posterLoadedRef: true once the <img> fires onLoad. Prevents re-fetching a working image.
-  const posterLoadedRef = useRef<boolean>(false);
+  // Track poster image load error separately so a fresh signed URL from SSE/poll can reset it
+  const [posterImgError, setPosterImgError] = useState(false);
+  const lastPosterUrlRef = useRef<string>("");
+  // Mirrors posterImgError so the SSE/poll closures below (set up once per doctorId,
+  // not on every render) can read the *current* error state instead of a stale one.
+  const posterImgErrorRef = useRef(false);
+  // Caches the poster/gender fetched directly from the doctor profile endpoint, so
+  // it is never lost even if `display` is still null when that fetch resolves
+  // (it can race ahead of the first SSE/poll response).
+  const doctorProfileCacheRef = useRef<{ posterUrl?: string | null; gender?: string | null }>({});
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
@@ -303,6 +309,114 @@ const QueueDisplayComponent = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Strip the query string (S3 signature + expiry) so we can tell whether a freshly
+  // signed poster URL still points at the SAME underlying image as before, or is
+  // genuinely a different file.
+  const posterKeyOf = (url?: string | null): string => {
+    if (!url || typeof url !== "string") return "";
+    const qIdx = url.indexOf("?");
+    return qIdx >= 0 ? url.slice(0, qIdx) : url;
+  };
+
+  // Fills in doctor-profile fields (poster, gender, name, etc.) on a freshly built
+  // display object whenever that particular SSE/poll payload didn't carry them,
+  // falling back to the previous state and then to the direct-profile-fetch cache.
+  // Also avoids swapping the poster <img> src for a same-image-just-re-signed URL,
+  // so a poster that is already showing fine doesn't keep re-fetching every 3s poll
+  // / SSE event (which was causing it to flicker back to the gender icon).
+  const reconcileDoctorProfile = (updated: IQueueDisplay, prev: IQueueDisplay | null): IQueueDisplay => {
+    const cache = doctorProfileCacheRef.current;
+
+    if (!updated.posterUrl) {
+      if (prev && prev.posterUrl) {
+        updated.posterUrl = prev.posterUrl;
+      } else if (cache.posterUrl) {
+        updated.posterUrl = cache.posterUrl;
+      }
+    } else if (prev && prev.posterUrl && !posterImgErrorRef.current) {
+      // Same underlying image, already displaying fine — keep the exact same src
+      // string instead of swapping to a newly (re-)signed one for no reason.
+      if (posterKeyOf(updated.posterUrl) === posterKeyOf(prev.posterUrl)) {
+        updated.posterUrl = prev.posterUrl;
+      }
+    }
+
+    if (!updated.gender) {
+      if (prev && prev.gender) {
+        updated.gender = prev.gender;
+      } else if (cache.gender) {
+        updated.gender = cache.gender;
+      }
+    }
+
+    if ((!updated.doctorName || updated.doctorName === "—") && prev && prev.doctorName && prev.doctorName !== "—") {
+      updated.doctorName = prev.doctorName;
+    }
+    if (!updated.department && prev && prev.department) updated.department = prev.department;
+    if (!updated.specialization && prev && prev.specialization) updated.specialization = prev.specialization;
+    if (!updated.designation && prev && prev.designation) updated.designation = prev.designation;
+    if (updated.yearsOfExperience == null && prev && prev.yearsOfExperience != null) {
+      updated.yearsOfExperience = prev.yearsOfExperience;
+    }
+    if (!updated.opdNumber && prev && prev.opdNumber) updated.opdNumber = prev.opdNumber;
+    if (!updated.shift && prev && prev.shift) updated.shift = prev.shift;
+
+    return updated;
+  };
+
+  // Direct fetch doctor profile to guarantee photo/posterUrl is available
+  useEffect(() => {
+    if (!doctorId || !API_BASE_URL) return;
+
+    const fetchDocProfile = () => {
+      axios
+        .get(API_BASE_URL + "/hospital/doctors/" + doctorId)
+        .then((res) => {
+          const resData = res && res.data ? res.data : null;
+          const doc = (resData && resData.data && resData.data.doctor)
+            ? resData.data.doctor
+            : (resData && resData.doctor ? resData.doctor : (resData && resData.data ? resData.data : resData));
+
+          const photo = doc && (doc.posterUrl || doc.imageUrl);
+          const genderVal = doc && doc.gender ? doc.gender : undefined;
+
+          // Always cache the latest known-good values first — this fetch can resolve
+          // *before* the first SSE/poll response creates `display`, in which case the
+          // setDisplay calls below would otherwise have nothing to merge into and the
+          // fetched poster/gender would be silently dropped.
+          if (photo && typeof photo === "string") {
+            doctorProfileCacheRef.current.posterUrl = photo;
+          }
+          if (genderVal) {
+            doctorProfileCacheRef.current.gender = genderVal;
+          }
+
+          if (photo && typeof photo === "string") {
+            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: genderVal ? genderVal : prev.gender } : prev));
+          } else if (genderVal) {
+            setDisplay((prev) => (prev ? { ...prev, gender: genderVal } : prev));
+          }
+        })
+        .catch((err) => {
+          console.warn("Direct doctor photo fetch warning:", err);
+        });
+    };
+
+    fetchDocProfile();
+
+    const handleDoctorUpdated = (e: any) => {
+      const updatedId = e && e.detail ? e.detail.doctorId : null;
+      if (!updatedId || updatedId === doctorId) {
+        fetchDocProfile();
+      }
+    };
+    window.addEventListener("doctor-updated", handleDoctorUpdated);
+
+    return () => {
+      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+    };
+  }, [doctorId]);
+
   // SSE Stream with Instant Real-Time Updates + 2s Auto-Sync (Zero Refresh Needed!)
   useEffect(() => {
     if (!API_BASE_URL || !doctorId) return;
@@ -320,7 +434,11 @@ const QueueDisplayComponent = () => {
 
         // 1. Initial or Full Queue Refresh
         if (type === "initial" || type === "session-change" || type === "date-change" || type === "queue-refresh" || type === "refresh") {
-          setDisplay(displayFromSSE(data));
+          // IMPORTANT: don't blindly replace the whole display — merge doctor-profile
+          // fields (poster, gender, etc.) with whatever we already had, the same way
+          // pollQueue() does below. Without this, any one of these SSE events that
+          // doesn't carry the poster/gender would wipe it back to the gender icon.
+          setDisplay((prev) => reconcileDoctorProfile(displayFromSSE(data), prev));
           return;
         }
 
@@ -510,14 +628,7 @@ const QueueDisplayComponent = () => {
               : ((resData && resData.display) ? resData.display : (resData && resData.data ? resData.data : resData));
 
           if (displayPayload && Array.isArray(displayPayload.queue)) {
-            setDisplay((prev) => {
-              const updated = displayFromSSE(displayPayload);
-              // Always prefer fresh signed posterUrl from server; only fall back to prev if server sent nothing
-              if (prev && !updated.posterUrl && prev.posterUrl) {
-                updated.posterUrl = prev.posterUrl;
-              }
-              return updated;
-            });
+            setDisplay((prev) => reconcileDoctorProfile(displayFromSSE(displayPayload), prev));
           }
         })
         .catch(() => { });
@@ -543,27 +654,18 @@ const QueueDisplayComponent = () => {
     };
   }, [doctorId]);
 
-  // Stable poster URL management:
-  // Only update activePosterUrl when image has NOT been successfully loaded yet,
-  // or when it previously errored. This prevents the 3s poll (which re-signs the S3 URL
-  // every time, producing a new URL string) from constantly restarting the image fetch.
-  const displayPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
+  // When SSE/poll delivers a fresh signed posterUrl, reset the image error so it retries
+  const currentPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
     ? display.posterUrl.trim()
     : "";
   useEffect(() => {
-    if (!displayPosterUrl) return;
-    // Only push new URL to <img> if: poster never loaded successfully, or it previously errored
-    if (!posterLoadedRef.current) {
-      setActivePosterUrl(displayPosterUrl);
+    if (currentPosterUrl && currentPosterUrl !== lastPosterUrlRef.current) {
+      lastPosterUrlRef.current = currentPosterUrl;
+      posterImgErrorRef.current = false;
+      setPosterImgError(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayPosterUrl]);
-
-  // Reset when doctor changes
-  useEffect(() => {
-    posterLoadedRef.current = false;
-    setActivePosterUrl("");
-  }, [doctorId]);
+  }, [currentPosterUrl]);
 
   if (!doctorId) {
     return (
@@ -575,10 +677,13 @@ const QueueDisplayComponent = () => {
 
   // Doctor Data mapping (Safe checks - No `?.` / No `??`)
   const rawName = (display && display.doctorName && typeof display.doctorName === "string") ? display.doctorName.trim() : "";
+  const rawPoster = (display && display.posterUrl && typeof display.posterUrl === "string")
+    ? display.posterUrl.trim()
+    : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "");
   const fallbackAvatar = getDoctorDefaultAvatar(display ? display.gender : undefined);
 
-  // doctorPosterSrc: use activePosterUrl if set, else fallback to gender icon
-  const doctorPosterSrc = activePosterUrl ? activePosterUrl : fallbackAvatar;
+  // Use poster only if it exists AND no load error; otherwise fall back to gender-based icon
+  const doctorPosterSrc = (rawPoster && !posterImgError) ? rawPoster : fallbackAvatar;
   const doctorName = rawName
     ? (rawName.indexOf("Dr.") === 0 ? rawName : "Dr. " + rawName)
     : "Doctor OPD";
@@ -721,15 +826,12 @@ const QueueDisplayComponent = () => {
               alt={doctorName}
               className="position-absolute top-0 start-0 w-100 h-100"
               style={{ objectFit: "cover", objectPosition: "top" }}
-              onLoad={() => {
-                // Image loaded successfully — lock it in, stop future poll URLs from re-fetching
-                posterLoadedRef.current = true;
-              }}
               onError={() => {
-                // Image failed (expired S3 URL etc.) — clear activePosterUrl so fallback shows,
-                // and reset posterLoadedRef so next valid URL from poll/SSE will be attempted
-                posterLoadedRef.current = false;
-                setActivePosterUrl("");
+                // Mark error so we fall back to gender icon; this also tells the next
+                // SSE/poll cycle (via posterImgErrorRef) to accept a freshly re-signed
+                // URL instead of assuming the already-broken one is still fine.
+                posterImgErrorRef.current = true;
+                setPosterImgError(true);
               }}
             />
           </div>
