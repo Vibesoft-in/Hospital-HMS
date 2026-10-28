@@ -314,6 +314,8 @@ export interface DatatableProps {
   pageSize?: number;
   /** Server-side pagination: called when page or page size changes */
   onPaginationChange?: (page: number, pageSize: number) => void;
+  /** Loading state for table */
+  loading?: boolean;
 }
 
 export interface CountriesData {

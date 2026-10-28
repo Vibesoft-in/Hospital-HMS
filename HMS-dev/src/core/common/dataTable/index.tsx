@@ -44,12 +44,19 @@ const Datatable: React.FC<DatatableProps> = ({
   currentPage,
   pageSize: serverPageSize,
   onPaginationChange,
+  loading,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [Selections, setSelections] = useState<any>(true);
   const [filteredDataSource, setFilteredDataSource] = useState(dataSource);
   const [pageSize, setPageSize] = useState(serverPageSize ?? 10);
   const isServerPagination = serverTotal !== undefined && onPaginationChange;
+
+  useEffect(() => {
+    if (serverPageSize !== undefined) {
+      setPageSize(serverPageSize);
+    }
+  }, [serverPageSize]);
 
   useEffect(() => {
     setSelections(Selection);
@@ -125,6 +132,7 @@ const Datatable: React.FC<DatatableProps> = ({
     <Table
       className="table datatable datatable-fit"
       tableLayout="fixed"
+      loading={loading}
       rowSelection={Selections ? rowSelection : undefined}
       columns={fittedColumns}
       rowHoverable={false}
@@ -152,7 +160,7 @@ const Datatable: React.FC<DatatableProps> = ({
                   Rows per page:
                   <Select
                     value={serverPageSize ?? 10}
-                    onChange={(value) => onPaginationChange?.(currentPage ?? 1, value)}
+                    onChange={(value) => onPaginationChange?.(1, value)}
                     style={{ width: 80 }}
                     popupMatchSelectWidth={false}
                   >

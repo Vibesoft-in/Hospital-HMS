@@ -142,21 +142,27 @@ const DoctorsListComponent = () => {
   };
 
   const handlePaginationChange = (newPage: number, newPageSize: number) => {
-    setPage(newPage);
-    setLimit(newPageSize);
+    if (newPageSize !== limit) {
+      setPage(1);
+      setLimit(newPageSize);
+    } else {
+      setPage(newPage);
+    }
   };
 
   const columns = [
     {
       title: "Doctor ID",
       dataIndex: "doctorId",
+      width: 100,
       sorter: false,
       showSorterTooltip: false,
-      render: (text: string) => <span className="text-dark">{text}</span>,
+      render: (text: string) => <span className="text-dark fw-medium">{text}</span>,
     },
     {
       title: "Name",
       dataIndex: "name",
+      width: 220,
       sorter: false,
       showSorterTooltip: false,
       render: (text: string, record: IDoctor) => (
@@ -175,6 +181,7 @@ const DoctorsListComponent = () => {
     {
       title: "Department",
       dataIndex: "department",
+      width: 170,
       sorter: false,
       showSorterTooltip: false,
       render: (text: string) => <span className="text-dark">{text}</span>,
@@ -182,6 +189,7 @@ const DoctorsListComponent = () => {
     {
       title: "Designation",
       dataIndex: "designation",
+      width: 150,
       sorter: false,
       showSorterTooltip: false,
       render: (text: string) => <span className="text-dark">{text}</span>,
@@ -189,6 +197,7 @@ const DoctorsListComponent = () => {
     {
       title: "Phone",
       dataIndex: "phone",
+      width: 140,
       sorter: false,
       showSorterTooltip: false,
       render: (text: string) => <span className="text-dark">{text}</span>,
@@ -196,6 +205,7 @@ const DoctorsListComponent = () => {
     {
       title: "Email",
       dataIndex: "email",
+      width: 220,
       sorter: false,
       showSorterTooltip: false,
       render: (text: string) => <span className="text-dark">{text}</span>,
@@ -203,19 +213,24 @@ const DoctorsListComponent = () => {
     {
       title: "Experience",
       dataIndex: "yearsOfExperience",
+      width: 110,
       sorter: false,
       showSorterTooltip: false,
       render: (text: number) => <span className="text-dark">{text} years</span>,
     },
     {
-      title: "",
+      title: "Action",
+      width: 140,
+      align: "right" as const,
       sorter: false,
       showSorterTooltip: false,
-      render: (_: unknown, record: IDoctor) => {
+      render: (_: unknown, record: IDoctor, index: number) => {
         const queueHref = `/qd/${record.doctorId || record._id}`;
         const profileHref = `/doctor-details?id=${record._id || record.doctorId}`;
+        const isNearBottom = index >= doctors.length - 2 && doctors.length > 2;
+
         return (
-          <div className="d-flex align-items-center gap-1 gap-sm-2 flex-nowrap">
+          <div className="d-flex align-items-center justify-content-end gap-2 flex-nowrap">
             <Link
               href={queueHref}
               target="_blank"
@@ -223,47 +238,69 @@ const DoctorsListComponent = () => {
               className="btn btn-soft-primary btn-sm d-inline-flex align-items-center gap-1 text-nowrap"
               title="View queue display"
             >
-              <i className="ti ti-presentation fs-16" />
-              <span className="d-none d-sm-inline">Queue</span>
+              <i className="ti ti-presentation fs-14" />
+              <span>Queue</span>
             </Link>
-            <div className="action-item">
-              <Link
-                href={profileHref}
-                title="View Doctor Profile"
-              >
-                <i className="ti ti-user fs-16" />
-              </Link>
-            </div>
-            <div className="action-item">
-              <Link
-                href="#"
-                data-bs-toggle="modal"
-                data-bs-target="#schedule_details"
-                data-doctor-id={record._id}
+            <div className={`dropdown doctor-action-dropdown ${isNearBottom ? "dropup" : ""}`}>
+              <button
+                type="button"
+                className="btn-action-dots"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                title="More actions"
                 onClick={(e) => e.stopPropagation()}
-                title="Schedule"
               >
-                <i className="ti ti-clock fs-16" />
-              </Link>
-            </div>
-            <div className="action-item">
-              <Link
-                href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
-                title="Edit"
-              >
-                <i className="ti ti-edit fs-16" />
-              </Link>
-            </div>
-            <div className="action-item">
-              <Link
-                href="#"
-                data-bs-toggle="modal"
-                data-bs-target="#delete_modal"
-                data-doctor-id={record._id}
-                title="Delete"
-              >
-                <i className="ti ti-trash fs-16 text-danger" />
-              </Link>
+                <i className="ti ti-dots-vertical fs-16" />
+              </button>
+              <ul className="dropdown-menu dropdown-menu-end shadow-sm">
+                <li>
+                  <Link
+                    href={profileHref}
+                    className="dropdown-item d-flex align-items-center gap-2 py-2"
+                  >
+                    <i className="ti ti-user fs-16 text-primary" />
+                    <span>View Profile</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#"
+                    data-bs-toggle="modal"
+                    data-bs-target="#schedule_details"
+                    data-doctor-id={record._id}
+                    onClick={(e) => e.stopPropagation()}
+                    className="dropdown-item d-flex align-items-center gap-2 py-2"
+                  >
+                    <i className="ti ti-clock fs-16 text-info" />
+                    <span>Schedule Details</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
+                    className="dropdown-item d-flex align-items-center gap-2 py-2"
+                  >
+                    <i className="ti ti-edit fs-16 text-success" />
+                    <span>Edit Doctor</span>
+                  </Link>
+                </li>
+                <li>
+                  <hr className="dropdown-divider my-1" />
+                </li>
+                <li>
+                  <Link
+                    href="#"
+                    data-bs-toggle="modal"
+                    data-bs-target="#delete_modal"
+                    data-doctor-id={record._id}
+                    onClick={(e) => e.stopPropagation()}
+                    className="dropdown-item d-flex align-items-center gap-2 py-2 text-danger"
+                  >
+                    <i className="ti ti-trash fs-16 text-danger" />
+                    <span>Delete Doctor</span>
+                  </Link>
+                </li>
+              </ul>
             </div>
           </div>
         );
@@ -394,7 +431,7 @@ const DoctorsListComponent = () => {
 
           {/* Desktop Table View (>=md) */}
           <div className="table-responsive d-none d-md-block">
-            {loading ? (
+            {loading && doctors.length === 0 ? (
               <div className="text-center py-5">
                 <div className="spinner-border text-primary" role="status">
                   <span className="visually-hidden">Loading...</span>
@@ -410,6 +447,7 @@ const DoctorsListComponent = () => {
                 currentPage={page}
                 pageSize={limit}
                 onPaginationChange={handlePaginationChange}
+                loading={loading}
               />
             )}
           </div>
@@ -515,43 +553,66 @@ const DoctorsListComponent = () => {
                                 <span>Queue</span>
                               </Link>
 
-                              <div className="d-flex align-items-center gap-1">
-                                <div className="action-item">
-                                  <Link href={profileHref} title="View Doctor Profile">
-                                    <i className="ti ti-user fs-15" />
-                                  </Link>
-                                </div>
-                                <div className="action-item">
-                                  <Link
-                                    href="#"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#schedule_details"
-                                    data-doctor-id={record._id}
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Schedule"
-                                  >
-                                    <i className="ti ti-clock fs-15" />
-                                  </Link>
-                                </div>
-                                <div className="action-item">
-                                  <Link
-                                    href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
-                                    title="Edit"
-                                  >
-                                    <i className="ti ti-edit fs-15" />
-                                  </Link>
-                                </div>
-                                <div className="action-item">
-                                  <Link
-                                    href="#"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#delete_modal"
-                                    data-doctor-id={record._id}
-                                    title="Delete"
-                                  >
-                                    <i className="ti ti-trash fs-15 text-danger" />
-                                  </Link>
-                                </div>
+                              <div className="dropdown doctor-action-dropdown">
+                                <button
+                                  type="button"
+                                  className="btn-action-dots"
+                                  data-bs-toggle="dropdown"
+                                  aria-expanded="false"
+                                  title="More actions"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <i className="ti ti-dots-vertical fs-16" />
+                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end shadow-sm">
+                                  <li>
+                                    <Link
+                                      href={profileHref}
+                                      className="dropdown-item d-flex align-items-center gap-2 py-2"
+                                    >
+                                      <i className="ti ti-user fs-16 text-primary" />
+                                      <span>View Profile</span>
+                                    </Link>
+                                  </li>
+                                  <li>
+                                    <Link
+                                      href="#"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#schedule_details"
+                                      data-doctor-id={record._id}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="dropdown-item d-flex align-items-center gap-2 py-2"
+                                    >
+                                      <i className="ti ti-clock fs-16 text-info" />
+                                      <span>Schedule Details</span>
+                                    </Link>
+                                  </li>
+                                  <li>
+                                    <Link
+                                      href={`${all_routes.editDoctors}?id=${record._id || record.doctorId}`}
+                                      className="dropdown-item d-flex align-items-center gap-2 py-2"
+                                    >
+                                      <i className="ti ti-edit fs-16 text-success" />
+                                      <span>Edit Doctor</span>
+                                    </Link>
+                                  </li>
+                                  <li>
+                                    <hr className="dropdown-divider my-1" />
+                                  </li>
+                                  <li>
+                                    <Link
+                                      href="#"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#delete_modal"
+                                      data-doctor-id={record._id}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="dropdown-item d-flex align-items-center gap-2 py-2 text-danger"
+                                    >
+                                      <i className="ti ti-trash fs-16 text-danger" />
+                                      <span>Delete Doctor</span>
+                                    </Link>
+                                  </li>
+                                </ul>
                               </div>
                             </div>
                           </div>
@@ -605,6 +666,74 @@ const DoctorsListComponent = () => {
         }
         .page-wrapper {
           overflow-x: hidden;
+        }
+        .doctor-action-dropdown {
+          position: relative;
+          display: inline-block;
+        }
+        .doctor-action-dropdown .btn-action-dots {
+          width: 30px;
+          height: 30px;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+          border: 1px solid #dcdfe4;
+          background: #ffffff;
+          color: #4b5563;
+          transition: all 0.15s ease-in-out;
+          cursor: pointer;
+        }
+        .doctor-action-dropdown .btn-action-dots:hover,
+        .doctor-action-dropdown .btn-action-dots:focus,
+        .doctor-action-dropdown .btn-action-dots[aria-expanded="true"] {
+          background: #f3f4f6;
+          color: #111827;
+          border-color: #9ca3af;
+        }
+        .doctor-action-dropdown .dropdown-menu {
+          min-width: 180px;
+          padding: 6px;
+          margin-top: 2px;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+          border-radius: 8px;
+          z-index: 1050;
+        }
+        /* Open dropdown on hover */
+        .doctor-action-dropdown:hover > .dropdown-menu {
+          display: block;
+        }
+        .doctor-action-dropdown.dropup:hover > .dropdown-menu,
+        .doctor-action-dropdown.dropup > .dropdown-menu.show {
+          top: auto;
+          bottom: 100%;
+          margin-bottom: 4px;
+          margin-top: 0;
+        }
+        .doctor-action-dropdown .dropdown-item {
+          font-size: 13px;
+          font-weight: 500;
+          padding: 7px 12px;
+          border-radius: 6px;
+          transition: background-color 0.15s ease;
+        }
+        .doctor-action-dropdown .dropdown-item:hover {
+          background-color: #f3f4f6;
+        }
+        .doctor-action-dropdown .dropdown-item.text-danger:hover {
+          background-color: #fee2e2;
+          color: #dc2626 !important;
+        }
+        .table-responsive .ant-table-tbody > tr:hover,
+        .table-responsive .ant-table-tbody > tr:has(.doctor-action-dropdown:hover),
+        .table-responsive .ant-table-tbody > tr:has(.dropdown-menu.show) {
+          position: relative;
+          z-index: 40;
+        }
+        .table-responsive .ant-table-cell:last-child {
+          overflow: visible !important;
         }
         @media (max-width: 767.98px) {
           .doctors-list-search-wrapper .search-set,
