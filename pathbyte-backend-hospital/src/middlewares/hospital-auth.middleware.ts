@@ -70,7 +70,27 @@ export function requireHospitalAuth(requiredRole?: HospitalUserRole) {
             // Doctor with no linked profile sees nothing
             req.ownershipFilter = { doctorId: "__NO_LINKED_DOCTOR__" };
           } else {
-            req.ownershipFilter = { doctorId: user.linkedDoctorId };
+            try {
+              const HospitalDoctorModel = (await import("@src/modules/hospital-doctor/models/hospital-doctor.model")).default;
+              const mongoose = (await import("mongoose")).default;
+              const isObjectId = mongoose.Types.ObjectId.isValid(user.linkedDoctorId);
+              const doc = await HospitalDoctorModel.findOne({
+                $or: [
+                  ...(isObjectId ? [{ _id: user.linkedDoctorId }] : []),
+                  { doctorId: user.linkedDoctorId },
+                ],
+                isDeleted: { $ne: true },
+              }).select("_id doctorId").lean();
+
+              if (doc) {
+                const ids = [doc._id.toString(), (doc as any).doctorId].filter(Boolean);
+                req.ownershipFilter = { doctorId: { $in: ids } };
+              } else {
+                req.ownershipFilter = { doctorId: user.linkedDoctorId };
+              }
+            } catch {
+              req.ownershipFilter = { doctorId: user.linkedDoctorId };
+            }
           }
           break;
 

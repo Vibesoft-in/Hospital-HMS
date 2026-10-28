@@ -14,6 +14,7 @@ export interface HospitalVisit {
   visitType: "New" | "Emergency" | "Follow-up" | "Follow-up-report" | "MR";
   appointmentType: "OPD" | "Day Care" | "IPD" | "ICU" | "Emergency";
   reason?: string;
+  notes?: string;
   visitDate: Date;
   visitTime?: string; // Time of visit in HH:MM format (24-hour) - Optional
   sessionSlot?: "Morning" | "Noon" | "Afternoon" | "Evening" | "Night"; // Optional - for informational purposes
@@ -55,7 +56,7 @@ export interface HospitalVisitModel extends Model<HospitalVisitDoc> {
   validateVisitCreation(newVisit: Partial<HospitalVisit>): Promise<void>;
   createHospitalVisit(newVisit: HospitalVisit): Promise<HospitalVisit>;
   readHospitalVisits(query: any, search: any, skip: number, limit: number): Promise<any>;
-  readHospitalVisit(visitId: string): Promise<any>;
+  readHospitalVisit(visitId: string, filter?: any): Promise<any>;
   updateHospitalVisit(visitId: string, updates: Partial<HospitalVisit>): Promise<HospitalVisit>;
   deleteHospitalVisit(visitId: string): Promise<void>;
   getVisitsByPatient(patientId: string): Promise<any[]>;

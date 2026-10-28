@@ -545,8 +545,27 @@ class HospitalDashboardService {
           },
         },
       },
-      { $lookup: { from: "hospitaldoctors",  localField: "_doctorObjId",  foreignField: "_id", as: "doctor"  } },
-      { $unwind: { path: "$doctor",  preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "hospitaldoctors",
+          let: { docId: "$doctorId", docObjId: "$_doctorObjId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $ne: ["$$docObjId", null] }, { $eq: ["$_id", "$$docObjId"] }] },
+                    { $and: [{ $ne: ["$$docId", null] }, { $ne: ["$$docId", ""] }, { $eq: ["$doctorId", "$$docId"] }] },
+                  ],
+                },
+              },
+            },
+            { $project: { name: 1, doctorId: 1 } },
+          ],
+          as: "doctor",
+        },
+      },
+      { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
       { $lookup: { from: "hospitalpatients", localField: "_patientObjId", foreignField: "_id", as: "patient" } },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
       {

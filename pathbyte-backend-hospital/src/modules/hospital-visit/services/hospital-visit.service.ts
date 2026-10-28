@@ -592,12 +592,19 @@ class HospitalVisitService {
           }
         }
         
-        // Fetch doctor details
-        if (visit.doctorId) {
+        // Fetch doctor details (only if not already populated)
+        if (visit.doctorId && !visit.doctor) {
           try {
             const HospitalDoctorModel = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
-            const doctor = await HospitalDoctorModel.findById(visit.doctorId)
-              .select("name department designation opdNumber posterUrl -phone -medicalLicenseNo")
+            const isDocObjectId = mongoose.Types.ObjectId.isValid(visit.doctorId);
+            const doctor = await HospitalDoctorModel.findOne({
+              $or: [
+                ...(isDocObjectId ? [{ _id: visit.doctorId }] : []),
+                { doctorId: visit.doctorId }
+              ],
+              isDeleted: { $ne: true }
+            })
+              .select("name department designation opdNumber posterUrl doctorId -phone -medicalLicenseNo")
               .lean();
             
             if (doctor) {
@@ -641,8 +648,8 @@ class HospitalVisitService {
     return visitsWithDetails;
   }
 
-  async getHospitalVisit(visitId: string): Promise<HospitalVisitResponseDTO> {
-    const visit = await HospitalVisitModel.readHospitalVisit(visitId);
+  async getHospitalVisit(visitId: string, filter: any = {}): Promise<HospitalVisitResponseDTO> {
+    const visit = await HospitalVisitModel.readHospitalVisit(visitId, filter);
     
     // Get MongoDB _id from visit to fetch transactions
     const mongoId = visit._id?.toString();
@@ -706,19 +713,36 @@ class HospitalVisitService {
       },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
       
-      // Lookup doctor details using doctorId
+      // Lookup doctor details using doctorId (supports both MongoDB _id and readable doctorId)
       {
         $addFields: {
-          doctorObjectId: { $toObjectId: "$doctorId" }
+          doctorObjectId: {
+            $cond: {
+              if: { $regexMatch: { input: { $ifNull: ["$doctorId", ""] }, regex: /^[0-9a-fA-F]{24}$/ } },
+              then: { $toObjectId: "$doctorId" },
+              else: null
+            }
+          }
         }
       },
       {
         $lookup: {
           from: "hospitaldoctors",
-          localField: "doctorObjectId",
-          foreignField: "_id",
-          as: "doctor",
-          pipeline: [{ $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }]
+          let: { docId: "$doctorId", docObjId: "$doctorObjectId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $ne: ["$$docObjId", null] }, { $eq: ["$_id", "$$docObjId"] }] },
+                    { $and: [{ $ne: ["$$docId", null] }, { $ne: ["$$docId", ""] }, { $eq: ["$doctorId", "$$docId"] }] }
+                  ]
+                }
+              }
+            },
+            { $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }
+          ],
+          as: "doctor"
         }
       },
       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
@@ -1357,9 +1381,16 @@ class HospitalVisitService {
   }
 
   async getPatientDisplayQueueByReadableId(readableDoctorId: string, date?: Date, overrideSessionSlot?: string): Promise<any> {
-    // Find doctor by readable doctorId
+    // Find doctor by readable doctorId or ObjectId
     const HospitalDoctor = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
-    const doctor = await HospitalDoctor.findOne({ doctorId: readableDoctorId, isDeleted: { $ne: true } });
+    const isObjectId = mongoose.Types.ObjectId.isValid(readableDoctorId);
+    const doctor = await HospitalDoctor.findOne({
+      $or: [
+        { doctorId: readableDoctorId },
+        ...(isObjectId ? [{ _id: readableDoctorId }] : []),
+      ],
+      isDeleted: { $ne: true }
+    });
     
     if (!doctor) {
       throw new APIError(
@@ -1594,10 +1625,10 @@ class HospitalVisitService {
     }
   }
 
-  async getHospitalVisitByAppointmentId(appointmentId: string): Promise<HospitalVisitResponseDTO> {
+  async getHospitalVisitByAppointmentId(appointmentId: string, filter: any = {}): Promise<HospitalVisitResponseDTO> {
     // Use aggregation to populate patient and doctor
     const pipeline: any[] = [
-      { $match: { appointmentId, isDeleted: { $ne: true } } },
+      { $match: { appointmentId, isDeleted: { $ne: true }, ...(filter || {}) } },
       
       // Lookup patient details using patientId
       {
@@ -1615,17 +1646,35 @@ class HospitalVisitService {
       },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
       
-      // Lookup doctor details using doctorId
+      // Lookup doctor details using doctorId (supports both MongoDB _id and readable doctorId)
       {
         $addFields: {
-          doctorObjectId: { $toObjectId: "$doctorId" }
+          doctorObjectId: {
+            $cond: {
+              if: { $regexMatch: { input: { $ifNull: ["$doctorId", ""] }, regex: /^[0-9a-fA-F]{24}$/ } },
+              then: { $toObjectId: "$doctorId" },
+              else: null
+            }
+          }
         }
       },
       {
         $lookup: {
           from: "hospitaldoctors",
-          localField: "doctorObjectId",
-          foreignField: "_id",
+          let: { docId: "$doctorId", docObjId: "$doctorObjectId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $ne: ["$$docObjId", null] }, { $eq: ["$_id", "$$docObjId"] }] },
+                    { $and: [{ $ne: ["$$docId", null] }, { $ne: ["$$docId", ""] }, { $eq: ["$doctorId", "$$docId"] }] }
+                  ]
+                }
+              }
+            },
+            { $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }
+          ],
           as: "doctor"
         }
       },

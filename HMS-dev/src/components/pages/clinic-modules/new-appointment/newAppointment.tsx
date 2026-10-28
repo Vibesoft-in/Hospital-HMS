@@ -230,6 +230,8 @@ const NewAppointmentComponent = () => {
   const doctorSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const procedureSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ipdOpdConvertPrefillRef = useRef(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [currentDoctorInfo, setCurrentDoctorInfo] = useState<{ id?: string; code?: string; name?: string } | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Option | null>(null);
   const [visitType, setVisitType] = useState<Option | null>(Visit_Type.find(v => v.value === "New") || Visit_Type[0] || null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
@@ -583,6 +585,94 @@ const NewAppointmentComponent = () => {
       window.removeEventListener("doctor-updated", handleDoctorUpdated);
     };
   }, [fetchDoctorsWithSearch]);
+
+  // Read logged-in user role and linked doctor from authUser
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const role = parsed?.role ? String(parsed.role).trim().toUpperCase() : null;
+        setCurrentUserRole(role);
+        if (role === "DOCTOR") {
+          setCurrentDoctorInfo({
+            id: parsed.linkedDoctorId,
+            code: parsed.linkedDoctorCode,
+            name: parsed.name || parsed.username,
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // If logged in as DOCTOR, ensure doctor object is loaded even if not in first page
+  useEffect(() => {
+    if (currentUserRole !== "DOCTOR" || !API_BASE_URL) return;
+    const docIdentifier = currentDoctorInfo?.code || currentDoctorInfo?.id;
+    if (!docIdentifier) return;
+    axios
+      .get(`${API_BASE_URL}/hospital/doctors/${docIdentifier}`)
+      .then((res) => {
+        if (res.data?.code === 200 && res.data?.data?.doctor) {
+          const doc = res.data.data.doctor;
+          setDoctors((prev) => {
+            if (prev.some((d) => d._id === doc._id || d.name === doc.name)) return prev;
+            return [doc, ...prev];
+          });
+          setDoctorOptions((prev) => {
+            if (prev.some((o) => o.value === doc._id)) return prev;
+            return [
+              {
+                value: typeof doc._id === "string" ? doc._id : String(doc._id),
+                label: doc.department ? `${doc.name} (${doc.department})` : doc.name,
+                imageUrl: doc.imageUrl,
+                gender: doc.gender,
+              },
+              ...prev,
+            ];
+          });
+        }
+      })
+      .catch(() => {});
+  }, [currentUserRole, currentDoctorInfo?.code, currentDoctorInfo?.id]);
+
+  // Auto-select doctor when logged in as DOCTOR
+  useEffect(() => {
+    if (currentUserRole !== "DOCTOR" || !doctors.length) return;
+    const match = doctors.find((d: any) => {
+      if (currentDoctorInfo?.id && (d._id === currentDoctorInfo.id || d.doctorId === currentDoctorInfo.id)) return true;
+      if (currentDoctorInfo?.code && (d.doctorId === currentDoctorInfo.code || d._id === currentDoctorInfo.code)) return true;
+      if (currentDoctorInfo?.name && d.name?.toLowerCase().trim() === currentDoctorInfo.name.toLowerCase().trim()) return true;
+      return false;
+    }) || doctors[0];
+
+    if (match) {
+      const opt: Option = {
+        value: typeof match._id === "string" ? match._id : String(match._id),
+        label: match.department ? `${match.name} (${match.department})` : match.name,
+        imageUrl: match.imageUrl,
+        gender: match.gender,
+      };
+      if (selectedDoctor?.value !== opt.value) {
+        setSelectedDoctor(opt);
+      }
+      if (daycareSelectedDoctor?.value !== opt.value) {
+        setDaycareSelectedDoctor(opt);
+      }
+      if (ipdSelectedDoctor?.value !== opt.value) {
+        setIpdSelectedDoctor(opt);
+      }
+    }
+  }, [
+    currentUserRole,
+    currentDoctorInfo,
+    doctors,
+    selectedDoctor?.value,
+    daycareSelectedDoctor?.value,
+    ipdSelectedDoctor?.value,
+  ]);
 
   const handleDoctorInputChange = useCallback(
     (value: string) => {
@@ -3289,6 +3379,7 @@ const NewAppointmentComponent = () => {
                               onInputChange={handleDoctorInputChange}
                               isLoading={doctorSearchLoading}
                               placeholder="Select or Search Doctor"
+                              disabled={currentUserRole === "DOCTOR"}
                             />
                           </div>
                         </div>
@@ -3739,6 +3830,7 @@ const NewAppointmentComponent = () => {
                                         onInputChange={handleDoctorInputChange}
                                         isLoading={doctorSearchLoading}
                                         placeholder="Search doctor..."
+                                        disabled={currentUserRole === "DOCTOR"}
                                       />
                                     </div>
                                     <div style={{ width: "35%", minWidth: 0 }}>
@@ -4345,6 +4437,7 @@ const NewAppointmentComponent = () => {
                                     onInputChange={handleDoctorInputChange}
                                     isLoading={doctorSearchLoading}
                                     placeholder="Search doctor..."
+                                    disabled={currentUserRole === "DOCTOR"}
                                   />
                                 </div>
                                 <div className="flex-shrink-0">

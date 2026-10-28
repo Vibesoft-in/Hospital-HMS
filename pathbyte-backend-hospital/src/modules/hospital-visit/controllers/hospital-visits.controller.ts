@@ -74,7 +74,7 @@ async function readHospitalVisits(
       search.appointmentType = appointmentType;
     }
     
-    if (doctorId) {
+    if (doctorId && (request as any).hospitalUser?.role !== "DOCTOR") {
       search.doctorId = doctorId;
     }
 
@@ -151,7 +151,7 @@ async function readHospitalVisits(
       const countResult = await HospitalVisitModel.aggregate(countPipeline);
       totalCount = countResult[0]?.count || 0;
     } else {
-      totalCount = await HospitalVisitModel.countDocuments({ isDeleted: { $ne: true }, ...ownerFilter, ...search });
+      totalCount = await HospitalVisitModel.countDocuments({ isDeleted: { $ne: true }, ...search, ...ownerFilter });
     }
 
     const visits = await hospitalVisitService.getHospitalVisits(

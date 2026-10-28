@@ -60,6 +60,7 @@ const hospitalVisitSchema = new Schema<HospitalVisitDoc>(
       enum: ["Scheduled", "In Progress", "Completed", "Cancelled", "No Show"],
       default: "Scheduled"
     },
+    notes: { type: String },
     // Attendant information
     attendantName: { type: String },
     attendantRelation: { type: String },
@@ -690,8 +691,8 @@ hospitalVisitSchema.statics = {
 
     const preMatchQuery = { 
       isDeleted: { $ne: true }, // Exclude soft deleted
-      ...query, 
-      ...regularSearch 
+      ...regularSearch,
+      ...query // Ownership query must override search filters
     };
 
     const pipeline: any[] = [
@@ -710,6 +711,40 @@ hospitalVisitSchema.statics = {
         }
       },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
+
+      // Lookup doctor details using doctorId (supports both MongoDB _id and readable doctorId)
+      {
+        $addFields: {
+          doctorObjectId: {
+            $cond: {
+              if: { $regexMatch: { input: { $ifNull: ["$doctorId", ""] }, regex: /^[0-9a-fA-F]{24}$/ } },
+              then: { $toObjectId: "$doctorId" },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "hospitaldoctors",
+          let: { docId: "$doctorId", docObjId: "$doctorObjectId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $ne: ["$$docObjId", null] }, { $eq: ["$_id", "$$docObjId"] }] },
+                    { $and: [{ $ne: ["$$docId", null] }, { $ne: ["$$docId", ""] }, { $eq: ["$doctorId", "$$docId"] }] }
+                  ]
+                }
+              }
+            },
+            { $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }
+          ],
+          as: "doctor"
+        }
+      },
+      { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
     ];
 
     // After lookup, apply $or that includes both visit fields AND patient.name
@@ -757,7 +792,7 @@ hospitalVisitSchema.statics = {
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limit },
-      { $project: { __v: 0, patientObjectId: 0, createdByObjectId: 0, "patient.__v": 0, "createdByUser.__v": 0 } }
+      { $project: { __v: 0, patientObjectId: 0, doctorObjectId: 0, createdByObjectId: 0, "patient.__v": 0, "doctor.__v": 0, "createdByUser.__v": 0 } }
     );
 
     const visits = await this.aggregate(pipeline);
@@ -768,14 +803,15 @@ hospitalVisitSchema.statics = {
       if (visit.createdAt instanceof Date) visit.createdAt = visit.createdAt.toISOString();
       if (visit.updatedAt instanceof Date) visit.updatedAt = visit.updatedAt.toISOString();
       if (visit.patient?._id && typeof visit.patient._id === 'object') visit.patient._id = visit.patient._id.toString();
+      if (visit.doctor?._id && typeof visit.doctor._id === 'object') visit.doctor._id = visit.doctor._id.toString();
       if (visit.createdByUser?._id && typeof visit.createdByUser._id === 'object') visit.createdByUser._id = visit.createdByUser._id.toString();
       return visit;
     });
   },
 
-  async readHospitalVisit(visitId: string) {
+  async readHospitalVisit(visitId: string, filter: any = {}) {
     const pipeline: any[] = [
-      { $match: { visitId, isDeleted: { $ne: true } } },
+      { $match: { visitId, isDeleted: { $ne: true }, ...(filter || {}) } },
       
       // Lookup patient details using patientId
       {
@@ -793,17 +829,35 @@ hospitalVisitSchema.statics = {
       },
       { $unwind: { path: "$patient", preserveNullAndEmptyArrays: true } },
       
-      // Lookup doctor details using doctorId
+      // Lookup doctor details using doctorId (supports both MongoDB _id and readable doctorId)
       {
         $addFields: {
-          doctorObjectId: { $toObjectId: "$doctorId" }
+          doctorObjectId: {
+            $cond: {
+              if: { $regexMatch: { input: { $ifNull: ["$doctorId", ""] }, regex: /^[0-9a-fA-F]{24}$/ } },
+              then: { $toObjectId: "$doctorId" },
+              else: null
+            }
+          }
         }
       },
       {
         $lookup: {
           from: "hospitaldoctors",
-          localField: "doctorObjectId",
-          foreignField: "_id",
+          let: { docId: "$doctorId", docObjId: "$doctorObjectId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $and: [{ $ne: ["$$docObjId", null] }, { $eq: ["$_id", "$$docObjId"] }] },
+                    { $and: [{ $ne: ["$$docId", null] }, { $ne: ["$$docId", ""] }, { $eq: ["$doctorId", "$$docId"] }] }
+                  ]
+                }
+              }
+            },
+            { $project: { name: 1, department: 1, designation: 1, opdNumber: 1, posterUrl: 1, doctorId: 1 } }
+          ],
           as: "doctor"
         }
       },

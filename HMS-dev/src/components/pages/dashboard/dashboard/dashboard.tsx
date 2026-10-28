@@ -729,6 +729,71 @@ const DashboardComponent = () => {
               <DaycareRevenueChart />
             </div>
           </div>
+          {/* start row - Recent Appointments */}
+          <div className="row mb-3">
+            <div className="col-12 d-flex">
+              <div className="card shadow-sm flex-fill w-100">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                  <h5 className="fw-bold mb-0">Recent Appointments</h5>
+                  <Link href={all_routes.appointments} className="btn btn-sm btn-outline-primary">
+                    View All
+                  </Link>
+                </div>
+                <div className="card-body">
+                  {recentLoading ? (
+                    <p className="mb-0 text-muted">Loading…</p>
+                  ) : recentAppointments.length === 0 ? (
+                    <p className="mb-0 text-muted">No recent appointments</p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th className="text-end">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recentAppointments.map((appt) => (
+                            <tr key={appt.id}>
+                              <td className="fw-semibold text-dark">{appt.patientName}</td>
+                              <td>
+                                <span className="fw-medium text-dark">{appt.doctorName}</span>
+                              </td>
+                              <td>{appt.dateTime || "—"}</td>
+                              <td>
+                                <span className="badge bg-light text-dark border">
+                                  {appt.appointmentType}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`badge ${getStatusBadgeClass(appt.status)}`}>
+                                  {appt.status}
+                                </span>
+                              </td>
+                              <td className="text-end">
+                                <Link
+                                  href={`${all_routes.editAppointment}/${appt.id}`}
+                                  className="btn btn-sm btn-icon btn-light"
+                                  title="Edit Appointment"
+                                >
+                                  <i className="ti ti-edit text-primary fs-16" />
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
           {/* start row - Recent Transactions */}
           <div className="row">
             <div className="col-12 d-flex">

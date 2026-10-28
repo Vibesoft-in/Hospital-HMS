@@ -33,6 +33,7 @@ const Sidebar = () => {
   const [sidebarUserRole, setSidebarUserRole] = useState("Unknown Role");
   const [sidebarUserInitials, setSidebarUserInitials] = useState("JA");
   const [sidebarUserRoleRaw, setSidebarUserRoleRaw] = useState<string | null>(null);
+  const [sidebarDoctorId, setSidebarDoctorId] = useState<string | null>(null);
   const dispatch = useDispatch();
 
   const toggleSidebar = (title: any) => {
@@ -168,10 +169,17 @@ const Sidebar = () => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { name?: string; username?: string; role?: string } | null;
+      const parsed = JSON.parse(raw) as {
+        name?: string;
+        username?: string;
+        role?: string;
+        linkedDoctorId?: string;
+        linkedDoctorCode?: string;
+      } | null;
       if (!parsed) return;
       const name = (parsed.name || parsed.username || "").trim();
       const role = (parsed.role || "").trim();
+      const doctorIdVal = (parsed.linkedDoctorCode || parsed.linkedDoctorId || "").trim();
       if (name) {
         setSidebarUserName(name);
         const parts = name.split(" ").filter(Boolean);
@@ -185,10 +193,44 @@ const Sidebar = () => {
       } else {
         setSidebarUserRoleRaw(null);
       }
+      if (doctorIdVal) {
+        setSidebarDoctorId(doctorIdVal);
+      }
     } catch {
       // ignore parse/storage errors
     }
   }, []);
+
+  // Fallback: If logged in as DOCTOR but linkedDoctorId/Code was not in authUser, resolve it from doctors API
+  useEffect(() => {
+    if (sidebarUserRoleRaw?.trim().toUpperCase() === "DOCTOR" && !sidebarDoctorId && typeof window !== "undefined") {
+      const raw = localStorage.getItem("authUser");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const email = parsed?.email;
+          const name = parsed?.name;
+          import("@/environment").then(({ API_BASE_URL }) => {
+            if (!API_BASE_URL) return;
+            import("axios").then(({ default: axios }) => {
+              axios.get(`${API_BASE_URL}/hospital/doctors`, { params: { search: email || name, limit: 1 } })
+                .then((res) => {
+                  const doc = res.data?.data?.doctors?.[0];
+                  if (doc) {
+                    const id = doc.doctorId || doc._id;
+                    setSidebarDoctorId(id);
+                    localStorage.setItem("authUser", JSON.stringify({ ...parsed, linkedDoctorId: doc._id, linkedDoctorCode: doc.doctorId }));
+                  }
+                })
+                .catch(() => {});
+            });
+          });
+        } catch {
+          // ignore error
+        }
+      }
+    }
+  }, [sidebarUserRoleRaw, sidebarDoctorId]);
 
   
 
@@ -452,6 +494,24 @@ const Sidebar = () => {
                 </div>
               </div>
               <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                {sidebarUserRoleRaw?.trim().toUpperCase() === "DOCTOR" && (
+                  <a
+                    href={sidebarDoctorId ? `/qd/${sidebarDoctorId}` : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1 px-2"
+                    title="Open Doctor Live Queue in New Tab"
+                    onClick={(e) => {
+                      if (!sidebarDoctorId) {
+                        e.preventDefault();
+                        alert("Doctor profile is still loading or not linked.");
+                      }
+                    }}
+                  >
+                    <i className="ti ti-screen-share fs-16" />
+                    <span className="fs-12 fw-medium">Queue</span>
+                  </a>
+                )}
                 {sidebarUserRoleRaw?.trim().toUpperCase() === "ADMIN" && (
                   <button
                     type="button"

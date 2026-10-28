@@ -8,9 +8,31 @@ import HospitalUserModel from "../models/hospital-user.model";
 import { hashPassword, comparePassword } from "@src/libs/password";
 import { signAccessToken, signRefreshToken } from "@src/libs/jwt";
 
-function toAuthUser(u: any): AuthUserDTO {
-  const { _id, userId, username, email, name, phoneNumber, role, isActive, tokenVersion, createdAt, updatedAt } = u;
-  return { _id, userId, username, email, name, phoneNumber, role, isActive, tokenVersion, createdAt, updatedAt };
+async function toAuthUser(u: any): Promise<AuthUserDTO> {
+  const { _id, userId, username, email, name, phoneNumber, role, linkedDoctorId, isActive, tokenVersion, createdAt, updatedAt } = u;
+  let linkedDoctorCode: string | undefined;
+
+  if (role === "DOCTOR" && linkedDoctorId) {
+    try {
+      const HospitalDoctorModel = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
+      const isObjectId = (await import("mongoose")).default.Types.ObjectId.isValid(linkedDoctorId);
+      const doctor = await HospitalDoctorModel.findOne({
+        $or: [
+          ...(isObjectId ? [{ _id: linkedDoctorId }] : []),
+          { doctorId: linkedDoctorId },
+        ],
+        isDeleted: { $ne: true },
+      }).select("doctorId").lean();
+
+      if (doctor) {
+        linkedDoctorCode = (doctor as any).doctorId;
+      }
+    } catch {
+      // ignore lookup failures
+    }
+  }
+
+  return { _id, userId, username, email, name, phoneNumber, role, linkedDoctorId, linkedDoctorCode, isActive, tokenVersion, createdAt, updatedAt };
 }
 
 class HospitalAuthService {
@@ -33,8 +55,10 @@ class HospitalAuthService {
       tokenVersion: user.tokenVersion ?? 0,
     };
     
+    const authUser = await toAuthUser(user);
+
     return {
-      user: toAuthUser(user),
+      user: authUser,
       accessToken: signAccessToken(payload),
       refreshToken: signRefreshToken(payload),
     };
@@ -56,7 +80,7 @@ class HospitalAuthService {
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
     
-    return toAuthUser(user.toObject());
+    return await toAuthUser(user.toObject());
   }
 }
 

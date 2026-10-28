@@ -28,8 +28,16 @@ async function populateVisitForSSE(visit: any) {
     // Fetch patient info
     const patient = await HospitalPatientModel.findById(visit.patientId).lean();
     
-    // Fetch doctor info
-    const doctor = await HospitalDoctorModel.findById(visit.doctorId).lean();
+    // Fetch doctor info (supports both MongoDB _id and readable doctorId)
+    const mongoose = (await import("mongoose")).default;
+    const isDocObjectId = mongoose.Types.ObjectId.isValid(visit.doctorId);
+    const doctor = await HospitalDoctorModel.findOne({
+      $or: [
+        ...(isDocObjectId ? [{ _id: visit.doctorId }] : []),
+        { doctorId: visit.doctorId },
+      ],
+      isDeleted: { $ne: true },
+    }).lean();
     
     // Calculate shift from weeklySchedule for the visit date
     const visitDate = visit.visitDate ? new Date(visit.visitDate) : new Date();
@@ -94,6 +102,32 @@ async function populateVisitForSSE(visit: any) {
   }
 }
 
+// Helper to automatically assign doctorId when a DOCTOR creates a visit
+async function enforceDoctorOwnershipForCreate(request: Request, input: any): Promise<void> {
+  const user = (request as any).hospitalUser;
+  if (user?.role === "DOCTOR") {
+    const rawDoctorId = user.linkedDoctorId;
+    if (!rawDoctorId) {
+      throw new APIError(403, "Forbidden", "Doctor user does not have a linked doctor profile.");
+    }
+    const HospitalDoctor = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
+    const mongoose = (await import("mongoose")).default;
+    const isObjectId = mongoose.Types.ObjectId.isValid(rawDoctorId);
+    const doctor = await HospitalDoctor.findOne({
+      $or: [
+        ...(isObjectId ? [{ _id: rawDoctorId }] : []),
+        { doctorId: rawDoctorId },
+      ],
+      isDeleted: { $ne: true },
+    }).select("_id doctorId").lean();
+
+    if (!doctor) {
+      throw new APIError(404, "Doctor Not Found", "Linked doctor profile was not found.");
+    }
+    input.doctorId = doctor._id.toString();
+  }
+}
+
 // Create visit with existing patient ID (simple)
 async function createHospitalVisit(
   request: Request,
@@ -101,6 +135,11 @@ async function createHospitalVisit(
   next: NextFunction
 ) {
   const input: CreateHospitalVisitDTO = request.body;
+  try {
+    await enforceDoctorOwnershipForCreate(request, input);
+  } catch (err) {
+    return next(err);
+  }
   const validation = validate(input, hospitalVisitNewSchema);
   
   if (!validation.valid) {
@@ -154,6 +193,11 @@ async function createHospitalVisitWithTransaction(
   next: NextFunction
 ) {
   const input: CreateHospitalVisitWithTransactionDTO = request.body;
+  try {
+    await enforceDoctorOwnershipForCreate(request, input);
+  } catch (err) {
+    return next(err);
+  }
   
   // Validate visit data with transaction schema
   const validation = validate(input, hospitalVisitWithTransactionNewSchema);
@@ -210,6 +254,11 @@ async function createHospitalVisitWithPatient(
   next: NextFunction
 ) {
   const input: CreateHospitalVisitWithPatientDTO = request.body;
+  try {
+    await enforceDoctorOwnershipForCreate(request, input);
+  } catch (err) {
+    return next(err);
+  }
   
   // Use Pagia validator if SYSTEM=pagia, otherwise use pathlab validator
   const schema = isPagiaSystem() ? hospitalVisitWithPatientPagiaNewSchema : hospitalVisitWithPatientNewSchema;
@@ -294,9 +343,10 @@ async function searchHospitalVisitByVisitId(
   next: NextFunction
 ) {
   const { visitId } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const visit = await hospitalVisitService.getHospitalVisit(visitId);
+    const visit = await hospitalVisitService.getHospitalVisit(visitId, ownershipFilter);
     return response.success({ visit }, "Visit retrieved successfully");
   } catch (err: any) {
     logger.error({ error: err.message, visitId }, "Failed to retrieve visit by visitId");
@@ -616,9 +666,10 @@ async function searchByAppointmentId(
   next: NextFunction
 ) {
   const { appointmentId } = request.params;
+  const ownershipFilter = request.ownershipFilter || {};
   
   try {
-    const visit = await hospitalVisitService.getHospitalVisitByAppointmentId(appointmentId);
+    const visit = await hospitalVisitService.getHospitalVisitByAppointmentId(appointmentId, ownershipFilter);
     return response.success({ visit }, "Visit retrieved successfully");
   } catch (err: any) {
     logger.error({ error: err.message, appointmentId }, "Failed to retrieve visit by appointmentId");
@@ -653,6 +704,14 @@ async function searchByTokenNumber(
     return next(new APIError(400, "Bad Request", "doctorId parameter is required for token search"));
   }
   
+  // Doctor role check: ensure requested doctorId matches their linked doctor
+  if ((request as any).hospitalUser?.role === "DOCTOR") {
+    const ownershipFilter = request.ownershipFilter?.doctorId;
+    if (ownershipFilter?.$in && !ownershipFilter.$in.includes(doctorId)) {
+      return next(new APIError(403, "Forbidden", "You do not have permission to view other doctors' tokens."));
+    }
+  }
+
   try {
     const visit = await hospitalVisitService.getVisitByTokenNumber(
       parseInt(tokenNumber), 

@@ -123,6 +123,9 @@
     "reason": {
       "type": "string"
     },
+    "notes": {
+      "type": "string"
+    },
     "visitDate": {
       "type": "string",
       "format": "date"

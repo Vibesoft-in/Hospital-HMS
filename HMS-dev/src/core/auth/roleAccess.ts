@@ -68,6 +68,7 @@ const ROLE_PATH_PREFIXES: Record<string, string[]> = {
     all_routes.editPatient,
   ],
   DOCTOR: [
+    all_routes.newAppointment,
     all_routes.appointments,
     all_routes.appointmentDetails,
     all_routes.editAppointment,
@@ -163,7 +164,7 @@ export const isSidebarItemLinkAllowed = (role: string, link: string | undefined)
 
 export const canShowNewAppointmentSidebarCta = (role: string): boolean => {
   const r = normalizeRole(role);
-  return isAdminRole(r) || r === "RECEPTIONIST";
+  return isAdminRole(r) || r === "RECEPTIONIST" || r === "DOCTOR";
 };
 
 /** Drop sidebar entries the role cannot access; recurse into nested submenuItems. */

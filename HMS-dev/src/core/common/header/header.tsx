@@ -21,6 +21,22 @@ const Header = () => {
   const [isHiddenLayoutActive, setIsHiddenLayoutActive] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpened, setIsSidebarOpened] = useState(false);
+  const [headerUserName, setHeaderUserName] = useState("Administrator");
+  const [headerUserRole, setHeaderUserRole] = useState("Administrator");
+  const [headerDoctorId, setHeaderDoctorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.name || parsed.username) setHeaderUserName(parsed.name || parsed.username);
+        if (parsed.role) setHeaderUserRole(parsed.role);
+        const docId = parsed.linkedDoctorCode || parsed.linkedDoctorId;
+        if (docId) setHeaderDoctorId(docId);
+      }
+    } catch {}
+  }, []);
 
   // Load hidden layout state from localStorage on client only
   useEffect(() => {
@@ -518,10 +534,27 @@ const Header = () => {
                     alt=""
                   />
                   <div className="ms-2">
-                    <p className="fw-medium text-dark mb-0">Jimmy Anderson</p>
-                    <span className="d-block fs-13">Administrator</span>
+                    <p className="fw-medium text-dark mb-0">{headerUserName}</p>
+                    <span className="d-block fs-13">{headerUserRole}</span>
                   </div>
                 </div>
+                {headerUserRole.trim().toUpperCase() === "DOCTOR" && (
+                  <a
+                    href={headerDoctorId ? `/qd/${headerDoctorId}` : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="dropdown-item text-primary fw-medium"
+                    onClick={(e) => {
+                      if (!headerDoctorId) {
+                        e.preventDefault();
+                        alert("Doctor profile is still loading or not linked.");
+                      }
+                    }}
+                  >
+                    <i className="ti ti-screen-share me-1 align-middle" />
+                    <span className="align-middle">Live Queue</span>
+                  </a>
+                )}
                 {/* Item*/}
                 <Link href={all_routes.profilesettings} className="dropdown-item">
                   <i className="ti ti-user-circle me-1 align-middle" />

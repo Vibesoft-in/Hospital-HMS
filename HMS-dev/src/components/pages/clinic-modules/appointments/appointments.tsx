@@ -97,6 +97,17 @@ const AppointmentsComponent = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<ITransformedAppointment | null>(null);
   const [selectedAppointmentDetails, setSelectedAppointmentDetails] = useState<any>(null);
   const [showPrint, setShowPrint] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setCurrentUserRole(parsed?.role ? String(parsed.role).trim().toUpperCase() : null);
+      }
+    } catch {}
+  }, []);
 
   const handlePrint = (record: any) => {
     setSelectedAppointment(record);
@@ -791,21 +802,23 @@ const AppointmentsComponent = () => {
           >
             <i className="ti ti-download fs-16" />
           </Link>
-          <button
-            type="button"
-            className="btn btn-link text-danger p-0 border-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              setVisitDeleteTarget({
-                id: String(record.id ?? ""),
-                label: String(record.Case_ID ?? record.id ?? ""),
-              });
-            }}
-            title="Delete visit"
-            aria-label="Delete visit"
-          >
-            <i className="ti ti-trash fs-16" />
-          </button>
+          {currentUserRole !== "DOCTOR" && (
+            <button
+              type="button"
+              className="btn btn-link text-danger p-0 border-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setVisitDeleteTarget({
+                  id: String(record.id ?? ""),
+                  label: String(record.Case_ID ?? record.id ?? ""),
+                });
+              }}
+              title="Delete visit"
+              aria-label="Delete visit"
+            >
+              <i className="ti ti-trash fs-16" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -930,16 +943,18 @@ const AppointmentsComponent = () => {
                   </div>
                   <form onSubmit={handleApplyFilter}>
                     <div className="filter-body p-3">
-                      <div className="mb-3">
-                        <label className="form-label mb-1">Doctor</label>
-                        <CommonSelect
-                          options={doctorOptions}
-                          value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
-                          onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
-                          placeholder="All"
-                          className="w-100"
-                        />
-                      </div>
+                      {currentUserRole !== "DOCTOR" && (
+                        <div className="mb-3">
+                          <label className="form-label mb-1">Doctor</label>
+                          <CommonSelect
+                            options={doctorOptions}
+                            value={doctorOptions.find((o) => o.value === filterDoctorId) ?? null}
+                            onChange={(opt) => setFilterDoctorId(opt?.value ?? "")}
+                            placeholder="All"
+                            className="w-100"
+                          />
+                        </div>
+                      )}
                       <div className="mb-3">
                         <label className="form-label mb-1">Visit Type</label>
                         <CommonSelect

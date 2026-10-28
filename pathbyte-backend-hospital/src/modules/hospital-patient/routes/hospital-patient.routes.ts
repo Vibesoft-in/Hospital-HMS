@@ -22,7 +22,7 @@ router.use(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", 
 router
   .route("")
   .get(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY", "DOCTOR"), readHospitalPatients)
-  .post(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY"), createHospitalPatient);
+  .post(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY", "DOCTOR"), createHospitalPatient);
 
 // Search by readable MRD
 router
@@ -38,7 +38,7 @@ router
 router
   .route("/:id")
   .get(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "DIALYSIS", "PHARMACIST", "XRAY", "DOCTOR"), readHospitalPatient)
-  .patch(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY"), updateHospitalPatient)
+  .patch(requireAnyRole("ADMIN", "RECEPTIONIST", "RECEPTIONIST2", "XRAY", "DOCTOR"), updateHospitalPatient)
   .delete(requireHospitalAdmin(), deleteHospitalPatient); // Only admin can delete
 
 // Restore soft deleted patient (admin only)

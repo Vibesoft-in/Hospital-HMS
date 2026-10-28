@@ -1,6 +1,11 @@
 "use client";
 
 
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "@/environment";
+import { all_routes } from "@/routes/all_routes";
+import dayjs from "dayjs";
 import Modals from "./modals/modals";
 import SCol20Chart from "./charts/scol20";
 import SCol5Chart from "./charts/scol5";
@@ -12,6 +17,41 @@ import ImageWithBasePath from "@/core/imageWithBasePath";
 import DoctorAvatar from "@/components/common/DoctorAvatar";
 
 const DoctorDashboardComponent = () => {
+  const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<any[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("authUser") : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const docId = parsed.linkedDoctorCode || parsed.linkedDoctorId;
+        if (docId) {
+          setDoctorId(docId);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!API_BASE_URL) return;
+    setLoadingAppointments(true);
+    axios
+      .get(`${API_BASE_URL}/hospital/visits`, { params: { limit: 10 } })
+      .then((res) => {
+        if (res.data?.code === 200 && Array.isArray(res.data?.data?.visits)) {
+          setRecentAppointments(res.data.data.visits);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching doctor visits:", err);
+      })
+      .finally(() => {
+        setLoadingAppointments(false);
+      });
+  }, []);
+
   return (
     <>
       {/* ========================
@@ -27,21 +67,23 @@ const DoctorDashboardComponent = () => {
             </div>
             <div className="d-flex align-items-center flex-wrap gap-2">
               <Link
-                href="#"
+                href={all_routes.newAppointment}
                 className="btn btn-primary d-inline-flex align-items-center"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#new_appointment"
               >
                 <i className="ti ti-plus me-1" />
                 New Appointment
               </Link>
-              <Link
-                href="#"
-                className="btn btn-outline-white bg-white d-inline-flex align-items-center"
-              >
-                <i className="ti ti-calendar-time me-1" />
-                Schedule Availability
-              </Link>
+              {doctorId && (
+                <a
+                  href={`/qd/${doctorId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-primary d-inline-flex align-items-center"
+                >
+                  <i className="ti ti-screen-share me-1" />
+                  Queue
+                </a>
+              )}
             </div>
           </div>
           {/* End Page Header */}
@@ -405,346 +447,79 @@ const DoctorDashboardComponent = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/profiles/avatar-06.jpg"
-                                  alt="img"
-                                  className="rounded-circle"
-                                />
-                              </Link>
-                              <div>
-                                <h6 className="fs-14 mb-1">
-                                  <Link href="#" className="fw-medium">
-                                    Alberto Ripley
+                        {loadingAppointments ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-4 text-muted">
+                              <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                              Loading your appointments...
+                            </td>
+                          </tr>
+                        ) : recentAppointments.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-4 text-muted">
+                              No appointments found.
+                            </td>
+                          </tr>
+                        ) : (
+                          recentAppointments.map((appt: any) => {
+                            const patientName = appt.patient?.name || appt.patientName || "Unknown Patient";
+                            const patientPhone = appt.patient?.phone || appt.phone || "";
+                            const dateStr = appt.visitDate ? dayjs(appt.visitDate).format("DD MMM YYYY") : "";
+                            const timeStr = appt.visitTime || "";
+                            const dateTime = dateStr && timeStr ? `${dateStr} - ${timeStr}` : dateStr || timeStr || "—";
+                            const fee = (appt.price ?? 0) - (appt.discount ?? 0);
+                            const apptId = appt._id || appt.id;
+
+                            const getStatusBadge = (st: string) => {
+                              switch (st) {
+                                case "Scheduled":
+                                  return "badge-soft-primary text-primary";
+                                case "In Progress":
+                                  return "badge-soft-warning text-warning";
+                                case "Completed":
+                                  return "badge-soft-success text-success";
+                                case "Cancelled":
+                                  return "badge-soft-danger text-danger";
+                                case "No Show":
+                                  return "badge-soft-secondary text-secondary";
+                                default:
+                                  return "badge-soft-info text-info";
+                              }
+                            };
+
+                            return (
+                              <tr key={apptId}>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    <div>
+                                      <h6 className="fs-14 mb-1">
+                                        <span className="fw-medium text-dark">{patientName}</span>
+                                      </h6>
+                                      {patientPhone && <p className="mb-0 fs-13 text-muted">{patientPhone}</p>}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>{dateTime}</td>
+                                <td>{appt.appointmentType || "OPD"}</td>
+                                <td>
+                                  <span className={`badge ${getStatusBadge(appt.status || "Scheduled")} fw-medium`}>
+                                    {appt.status || "Scheduled"}
+                                  </span>
+                                </td>
+                                <td className="fw-semibold text-dark">₹{fee.toFixed(2)}</td>
+                                <td>
+                                  <Link
+                                    href={`${all_routes.editAppointment}/${apptId}`}
+                                    className="btn btn-sm btn-icon btn-light"
+                                    title="Edit Appointment"
+                                  >
+                                    <i className="ti ti-edit text-primary fs-16" />
                                   </Link>
-                                </h6>
-                                <p className="mb-0 fs-13">+1 56556 54565</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>27 May 2025 - 09:30 AM</td>
-                          <td>Online</td>
-                          <td>
-                            <span className="badge bg-success fw-medium">
-                              Checked Out
-                            </span>
-                          </td>
-                          <td className="fw-semibold text-dark">₹400</td>
-                          <td>
-                            <Link
-                              href="#"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1"
-                            >
-                              <i className="ti ti-calendar-plus" />
-                            </Link>
-                            <Link
-                              href="#"
-                              data-bs-toggle="dropdown"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1"
-                            >
-                              <i className="ti ti-dots-vertical" />
-                            </Link>
-                            <ul className="dropdown-menu p-2">
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="offcanvas"
-                                  data-bs-target="#edit_appointment"
-                                >
-                                  <i className="ti ti-edit me-2" />
-                                  Edit
-                                </Link>
-                              </li>
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_modal"
-                                >
-                                  <i className="ti ti-trash me-2" />
-                                  Delete
-                                </Link>
-                              </li>
-                            </ul>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/profiles/avatar-12.jpg"
-                                  alt="img"
-                                  className="rounded-circle"
-                                />
-                              </Link>
-                              <div>
-                                <h6 className="fs-14 mb-1">
-                                  <Link href="#" className="fw-medium">
-                                    Susan Babin
-                                  </Link>
-                                </h6>
-                                <p className="mb-0 fs-13">+1 65658 95654</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>26 May 2025 - 10:15 AM</td>
-                          <td>Online</td>
-                          <td>
-                            <span className="badge bg-warning fw-medium">
-                              Checked in
-                            </span>
-                          </td>
-                          <td className="fw-semibold text-dark">₹370</td>
-                          <td>
-                            <Link
-                              href="#"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1"
-                            >
-                              <i className="ti ti-calendar-plus" />
-                            </Link>
-                            <Link
-                              href="#"
-                              data-bs-toggle="dropdown"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1"
-                            >
-                              <i className="ti ti-dots-vertical" />
-                            </Link>
-                            <ul className="dropdown-menu p-2">
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="offcanvas"
-                                  data-bs-target="#edit_appointment"
-                                >
-                                  <i className="ti ti-edit me-2" />
-                                  Edit
-                                </Link>
-                              </li>
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_modal"
-                                >
-                                  <i className="ti ti-trash me-2" />
-                                  Delete
-                                </Link>
-                              </li>
-                            </ul>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/profiles/avatar-08.jpg"
-                                  alt="img"
-                                  className="rounded-circle"
-                                />
-                              </Link>
-                              <div>
-                                <h6 className="fs-14 mb-1">
-                                  <Link href="#" className="fw-medium">
-                                    Carol Lam
-                                  </Link>
-                                </h6>
-                                <p className="mb-0 fs-13">+1 55654 56647</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>25 May 2025 - 02:40 PM</td>
-                          <td>In-Person</td>
-                          <td>
-                            <span className="badge bg-danger fw-medium">
-                              Cancelled
-                            </span>
-                          </td>
-                          <td className="fw-semibold text-dark">₹450</td>
-                          <td>
-                            <Link
-                              href="#"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1"
-                            >
-                              <i className="ti ti-calendar-plus" />
-                            </Link>
-                            <Link
-                              href="#"
-                              data-bs-toggle="dropdown"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1"
-                            >
-                              <i className="ti ti-dots-vertical" />
-                            </Link>
-                            <ul className="dropdown-menu p-2">
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="offcanvas"
-                                  data-bs-target="#edit_appointment"
-                                >
-                                  <i className="ti ti-edit me-2" />
-                                  Edit
-                                </Link>
-                              </li>
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_modal"
-                                >
-                                  <i className="ti ti-trash me-2" />
-                                  Delete
-                                </Link>
-                              </li>
-                            </ul>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/profiles/avatar-22.jpg"
-                                  alt="img"
-                                  className="rounded-circle"
-                                />
-                              </Link>
-                              <div>
-                                <h6 className="fs-14 mb-1">
-                                  <Link href="#" className="fw-medium">
-                                    Marsha Noland
-                                  </Link>
-                                </h6>
-                                <p className="mb-0 fs-13">+1 65668 54558</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>24 May 2025 - 11:30 AM</td>
-                          <td>In-Person</td>
-                          <td>
-                            <span className="badge bg-info fw-medium">
-                              Schedule
-                            </span>
-                          </td>
-                          <td className="fw-semibold text-dark">₹310</td>
-                          <td>
-                            <Link
-                              href="#"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1"
-                            >
-                              <i className="ti ti-calendar-plus" />
-                            </Link>
-                            <Link
-                              href="#"
-                              data-bs-toggle="dropdown"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1"
-                            >
-                              <i className="ti ti-dots-vertical" />
-                            </Link>
-                            <ul className="dropdown-menu p-2">
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="offcanvas"
-                                  data-bs-target="#edit_appointment"
-                                >
-                                  <i className="ti ti-edit me-2" />
-                                  Edit
-                                </Link>
-                              </li>
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_modal"
-                                >
-                                  <i className="ti ti-trash me-2" />
-                                  Delete
-                                </Link>
-                              </li>
-                            </ul>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Link href="#" className="avatar me-2">
-                                <ImageWithBasePath
-                                  src="assets/img/profiles/avatar-25.jpg"
-                                  alt="img"
-                                  className="rounded-circle"
-                                />
-                              </Link>
-                              <div>
-                                <h6 className="fs-14 mb-1">
-                                  <Link href="#" className="fw-medium">
-                                    John Elsass
-                                  </Link>
-                                </h6>
-                                <p className="mb-0 fs-13">47851263</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>23 May 2025 - 04:10 PM</td>
-                          <td>Online</td>
-                          <td>
-                            <span className="badge bg-info fw-medium">
-                              Schedule
-                            </span>
-                          </td>
-                          <td className="fw-semibold text-dark">₹400</td>
-                          <td>
-                            <Link
-                              href="#"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1 me-1"
-                            >
-                              <i className="ti ti-calendar-plus" />
-                            </Link>
-                            <Link
-                              href="#"
-                              data-bs-toggle="dropdown"
-                              className="shadow-sm fs-14 d-inline-flex border rounded-2 p-1"
-                            >
-                              <i className="ti ti-dots-vertical" />
-                            </Link>
-                            <ul className="dropdown-menu p-2">
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="offcanvas"
-                                  data-bs-target="#edit_appointment"
-                                >
-                                  <i className="ti ti-edit me-2" />
-                                  Edit
-                                </Link>
-                              </li>
-                              <li>
-                                <Link
-                                  href="#"
-                                  className="dropdown-item d-flex align-items-center"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#delete_modal"
-                                >
-                                  <i className="ti ti-trash me-2" />
-                                  Delete
-                                </Link>
-                              </li>
-                            </ul>
-                          </td>
-                        </tr>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>

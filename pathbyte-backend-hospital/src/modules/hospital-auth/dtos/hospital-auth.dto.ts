@@ -49,6 +49,8 @@ export interface AuthUserDTO {
   name: string;
   phoneNumber?: string;
   role: HospitalUserRole;
+  linkedDoctorId?: string;
+  linkedDoctorCode?: string;
   tokenVersion?: number;
   isActive: boolean;
   createdAt?: Date;

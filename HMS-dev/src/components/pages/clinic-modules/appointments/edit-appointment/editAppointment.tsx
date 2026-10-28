@@ -53,6 +53,14 @@ interface IDoctor {
   weeklySchedule?: IWeeklyScheduleDay[];
 }
 
+const APPOINTMENT_STATUS_LIST: Option[] = [
+  { value: "Scheduled", label: "Scheduled" },
+  { value: "In Progress", label: "In Progress" },
+  { value: "Completed", label: "Completed" },
+  { value: "Cancelled", label: "Cancelled" },
+  { value: "No Show", label: "No Show" },
+];
+
 const EditAppointmentComponent = () => {
   const params = useParams();
   const router = useRouter();
@@ -73,7 +81,8 @@ const EditAppointmentComponent = () => {
   const [visitType, setVisitType] = useState<Option | null>(null);
   const [appointmentType, setAppointmentType] = useState<string>("OPD");
   const [reason, setReason] = useState<string>("");
-  const [visitStatus, setVisitStatus] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [visitStatus, setVisitStatus] = useState<string>("Scheduled");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -164,7 +173,8 @@ const EditAppointmentComponent = () => {
         setVisitTime(v.visitTime ? dayjs(v.visitTime, "HH:mm") : null);
         setVisitType(Visit_Type.find((vt) => vt.value === v.visitType) || null);
         setAppointmentType(v.appointmentType || "OPD");
-        setReason(v.reason || "");
+        setReason(v.reason || v.notes || "");
+        setNotes(v.notes || v.reason || "");
         setAttendantName((v as any).attendantName || "");
         setAttendantRelation((v as any).attendantRelation || "");
         const priceNum = v.price != null ? Number(v.price) : 0;
@@ -421,8 +431,7 @@ const EditAppointmentComponent = () => {
     return Number.isFinite(n) && !Number.isNaN(n) ? Math.max(0, n) : 0;
   };
 
-  const canEditDoctorDetails =
-    visitStatus === "Scheduled" || visitStatus === "No Show";
+  const canEditDoctorDetails = true;
 
   const getDobValue = () => {
     if (!dob) return undefined;
@@ -461,6 +470,32 @@ const EditAppointmentComponent = () => {
     setLoading(true);
     setError("");
     try {
+      if (patientId) {
+        try {
+          const patientPayload: Record<string, unknown> = {
+            title: title?.value && title.value !== "Select" ? title.value : "Mr.",
+            name: name.trim(),
+            phone: formatPatientPhoneForApi(phone),
+            email: email || undefined,
+            age: calculatePatientAgeYears(),
+            months: parseAgeComponent(ageMonths),
+            days: parseAgeComponent(ageDays),
+            gender: gender?.value === "Others" ? "Other" : (gender?.value || "Male"),
+            bloodGroup: bloodGroup?.value !== "Select" ? bloodGroup?.value : undefined,
+            address: address || undefined,
+            aadharNo: aadharNo || undefined,
+            ayushmanCardNo: ayushmanNo || undefined,
+          };
+          const dobVal = getDobValue();
+          if (dobVal) {
+            patientPayload.dob = dayjs(dobVal).format("YYYY-MM-DD");
+          }
+          await axios.patch(`${API_BASE_URL}/hospital/patients/${patientId}`, patientPayload);
+        } catch (patientErr) {
+          console.warn("Could not update patient details:", patientErr);
+        }
+      }
+
       const discountNum = Number(discount) || 0;
       const payload: Record<string, unknown> = {
         visitDate: visitDate ? dayjs(visitDate).format("YYYY-MM-DD") : undefined,
@@ -468,7 +503,9 @@ const EditAppointmentComponent = () => {
         sessionSlot: sessionSlot?.value,
         visitType: visitType?.value !== "Select" ? visitType?.value : undefined,
         appointmentType: appointmentType,
-        reason: reason || undefined,
+        status: visitStatus || undefined,
+        reason: notes || reason || undefined,
+        notes: notes || reason || undefined,
         attendantName: attendantName || undefined,
         attendantRelation: attendantRelation || undefined,
         discount: discountNum,
@@ -701,48 +738,44 @@ const EditAppointmentComponent = () => {
                       <label className="form-label mb-1 fw-medium">Phone Number</label>
                       <IndianPhoneSearchInput
                         value={phone}
-                        readOnly
-                        disabled
-                        className="bg-light"
-                        inputClassName="bg-light"
+                        onChange={(e) => setPhone(e.target.value)}
                       />
                     </div>
                   </div>
                   <div className="col-md-2">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Title</label>
-                      <CommonSelect options={Title} className="select" value={title} onChange={() => {}} disabled />
+                      <CommonSelect options={Title} className="select" value={title} onChange={(opt) => setTitle(opt)} />
                     </div>
                   </div>
                   <div className="col-md-4">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Name</label>
-                      <input type="text" className="form-control bg-light" value={name} readOnly disabled />
+                      <input type="text" className="form-control" value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Gender</label>
-                      <CommonSelect options={Gender} className="select" value={gender} onChange={() => {}} disabled />
+                      <CommonSelect options={Gender} className="select" value={gender} onChange={(opt) => setGender(opt)} />
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Email</label>
-                      <input type="email" className="form-control bg-light" value={email} readOnly disabled />
+                      <input type="email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                   </div>
                   <div className="col-md-2">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">DOB</label>
                       <DatePicker
-                        className="form-control w-100 bg-light"
+                        className="form-control w-100"
                         format="DD-MM-YYYY"
                         getPopupContainer={getModalContainer}
                         value={getDobValue()}
-                        onChange={() => {}}
-                        allowClear={false}
-                        disabled
+                        onChange={handleDobChange}
+                        allowClear
                       />
                     </div>
                   </div>
@@ -751,13 +784,13 @@ const EditAppointmentComponent = () => {
                       <label className="form-label mb-1 fw-medium">Age (Y/M/D)</label>
                       <div className="row g-1">
                         <div className="col-4">
-                          <input type="text" className="form-control bg-light" placeholder="Y" value={ageYears} readOnly disabled />
+                          <input type="text" className="form-control" placeholder="Y" value={ageYears} onChange={(e) => setAgeYears(e.target.value)} />
                         </div>
                         <div className="col-4">
-                          <input type="text" className="form-control bg-light" placeholder="M" value={ageMonths} readOnly disabled />
+                          <input type="text" className="form-control" placeholder="M" value={ageMonths} onChange={(e) => setAgeMonths(e.target.value)} />
                         </div>
                         <div className="col-4">
-                          <input type="text" className="form-control bg-light" placeholder="D" value={ageDays} readOnly disabled />
+                          <input type="text" className="form-control" placeholder="D" value={ageDays} onChange={(e) => setAgeDays(e.target.value)} />
                         </div>
                       </div>
                     </div>
@@ -765,19 +798,19 @@ const EditAppointmentComponent = () => {
                   <div className="col-md-3">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Blood Group</label>
-                      <CommonSelect options={Blood_Group} className="select" value={bloodGroup} onChange={() => {}} disabled />
+                      <CommonSelect options={Blood_Group} className="select" value={bloodGroup} onChange={(opt) => setBloodGroup(opt)} />
                     </div>
                   </div>
                   <div className="col-md-5">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Address</label>
-                      <input type="text" className="form-control bg-light" value={address} readOnly disabled />
+                      <input type="text" className="form-control" value={address} onChange={(e) => setAddress(e.target.value)} />
                     </div>
                   </div>
                   <div className="col-md-4">
                     <div className="mb-3">
                       <label className="form-label mb-1 fw-medium">Aadhar No</label>
-                      <input type="text" className="form-control bg-light" value={aadharNo} readOnly disabled />
+                      <input type="text" className="form-control" value={aadharNo} onChange={(e) => setAadharNo(e.target.value)} />
                     </div>
                   </div>
                   <div className="col-md-3">
@@ -785,10 +818,9 @@ const EditAppointmentComponent = () => {
                       <label className="form-label mb-1 fw-medium">Ayushman No</label>
                       <input
                         type="text"
-                        className="form-control bg-light"
+                        className="form-control"
                         value={ayushmanNo}
-                        readOnly
-                        disabled
+                        onChange={(e) => setAyushmanNo(e.target.value)}
                       />
                     </div>
                   </div>
@@ -799,10 +831,9 @@ const EditAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium">Attendant Name</label>
                           <input
                             type="text"
-                            className="form-control bg-light"
+                            className="form-control"
                             value={attendantName}
-                            readOnly
-                            disabled
+                            onChange={(e) => setAttendantName(e.target.value)}
                           />
                         </div>
                       </div>
@@ -811,10 +842,9 @@ const EditAppointmentComponent = () => {
                           <label className="form-label mb-1 fw-medium">Relation to Patient</label>
                           <input
                             type="text"
-                            className="form-control bg-light"
+                            className="form-control"
                             value={attendantRelation}
-                            readOnly
-                            disabled
+                            onChange={(e) => setAttendantRelation(e.target.value)}
                           />
                         </div>
                       </div>
@@ -946,6 +976,33 @@ const EditAppointmentComponent = () => {
                             );
                           })}
                         </div>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Status</label>
+                        <CommonSelect
+                          options={APPOINTMENT_STATUS_LIST}
+                          className="select"
+                          value={APPOINTMENT_STATUS_LIST.find((s) => s.value === visitStatus) || null}
+                          onChange={(opt) => setVisitStatus(opt?.value || "Scheduled")}
+                          placeholder="Select Status"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="mb-3">
+                        <label className="form-label mb-1 fw-medium">Notes / Reason for Visit</label>
+                        <textarea
+                          className="form-control"
+                          rows={3}
+                          value={notes}
+                          onChange={(e) => {
+                            setNotes(e.target.value);
+                            setReason(e.target.value);
+                          }}
+                          placeholder="Enter notes or reason for appointment"
+                        />
                       </div>
                     </div>
                   </div>

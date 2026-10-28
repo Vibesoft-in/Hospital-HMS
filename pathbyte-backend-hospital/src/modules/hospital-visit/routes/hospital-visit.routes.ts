@@ -1,7 +1,7 @@
 import express from "express";
 import { hospitalVisitHandler, hospitalVisitsHandler } from "../controllers/";
 import exportHospitalVisitsHandler from "../controllers/hospital-visit-export.controller";
-import { requireHospitalUser, requireHospitalAdmin, requireAnyRole, blockDoctorWrite } from "@src/middlewares/hospital-auth.middleware";
+import { requireHospitalUser, requireHospitalAdmin, requireAnyRole } from "@src/middlewares/hospital-auth.middleware";
 
 const router = express.Router();
 const { readHospitalVisits } = hospitalVisitsHandler;
@@ -36,7 +36,7 @@ router.use(requireAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR", "DIALYSIS"));
 router
   .route("")
   .get(readHospitalVisits)
-  .post(blockDoctorWrite(), createHospitalVisit); // DOCTOR cannot create
+  .post(createHospitalVisit);
 
 // Export visits to Excel
 router.route("/export").get(exportHospitalVisits);
@@ -49,12 +49,12 @@ router
 // Create visit with existing patient and optional transaction
 router
   .route("/with-transaction")
-  .post(blockDoctorWrite(), createHospitalVisitWithTransaction);
+  .post(createHospitalVisitWithTransaction);
 
 // Create visit with new patient data and optional transaction
 router
   .route("/with-patient")
-  .post(blockDoctorWrite(), createHospitalVisitWithPatient);
+  .post(createHospitalVisitWithPatient);
 
 router
   .route("/patient/:mrd")
@@ -68,13 +68,13 @@ router
 router
   .route("/:id")
   .get(readHospitalVisit)
-  .patch(blockDoctorWrite(), updateHospitalVisit) // DOCTOR cannot update
+  .patch(updateHospitalVisit)
   .delete(requireHospitalAdmin(), deleteHospitalVisit); // Only admin can delete
 
 // Reorder token number within same day
 router
   .route("/:id/reorder-token")
-  .patch(blockDoctorWrite(), reorderVisitToken);
+  .patch(reorderVisitToken);
 
 // Search by readable visitId
 router
