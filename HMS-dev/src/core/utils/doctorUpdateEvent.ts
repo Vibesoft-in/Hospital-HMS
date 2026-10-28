@@ -23,5 +23,24 @@ export const broadcastDoctorUpdate = (payload: IDoctorUpdatePayload) => {
     } catch (err) {
       console.warn("Failed to dispatch doctor-updated window event:", err);
     }
+
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        const bc = new BroadcastChannel("hms_doctor_updates");
+        bc.postMessage(payload);
+        bc.close();
+      }
+    } catch {
+      // BroadcastChannel optional fallback
+    }
+
+    try {
+      localStorage.setItem(
+        "hms_last_doctor_update",
+        JSON.stringify({ ...payload, _t: Date.now() })
+      );
+    } catch {
+      // localStorage optional fallback
+    }
   }
 };

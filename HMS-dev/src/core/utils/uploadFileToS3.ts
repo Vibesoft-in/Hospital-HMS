@@ -13,9 +13,7 @@ export const uploadFileToS3 = async (file: File, folder: string): Promise<string
 
   // 1. Try primary hospital upload route
   try {
-    const res = await axios.post(`${API_BASE_URL}/upload/hospital?folder=${folder}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await axios.post(`${API_BASE_URL}/upload/hospital?folder=${folder}`, formData);
     const d = res.data;
     const signedUrl = d?.data?.signedUrl || "";
     if (signedUrl) return signedUrl.split("?")[0];
@@ -24,9 +22,7 @@ export const uploadFileToS3 = async (file: File, folder: string): Promise<string
   } catch (errHospital) {
     // 2. Try legacy pathlab upload route
     try {
-      const res = await axios.post(`${API_BASE_URL}/upload/pathlab?folder=${folder}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(`${API_BASE_URL}/upload/pathlab?folder=${folder}`, formData);
       const d = res.data;
       const signedUrl = d?.data?.signedUrl || "";
       if (signedUrl) return signedUrl.split("?")[0];

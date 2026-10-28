@@ -1340,8 +1340,11 @@ class HospitalVisitService {
       department: doctor.department || null,
       designation: doctor.designation || null,
       yearsOfExperience: doctor.yearsOfExperience ?? null,
-      opdNumber: (doctor as any).opdNumber || null,
-      posterUrl: (doctor as any).posterUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).posterUrl) : null,
+      posterUrl: (doctor as any).posterUrl
+        ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).posterUrl)
+        : ((doctor as any).imageUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).imageUrl) : null),
+      imageUrl: (doctor as any).imageUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).imageUrl) : null,
+      gender: doctor.gender || null,
       shift: doctor.weeklySchedule ? formatDoctorShift(doctor.weeklySchedule, date) : null,
       currentSessionSlot: activeSessionSlot,
       queueSortBy,
@@ -1544,9 +1547,10 @@ class HospitalVisitService {
       const HospitalDoctor = (await import("../../hospital-doctor/models/hospital-doctor.model")).default;
       const doctor = await HospitalDoctor.findById(doctorId);
       let posterUrl: string | undefined;
-      if ((doctor as any)?.posterUrl) {
+      const rawPoster = (doctor as any)?.posterUrl || (doctor as any)?.imageUrl;
+      if (rawPoster) {
         const { getS3SignedUrl } = await import("@src/libs/utils/s3Upload");
-        posterUrl = await getS3SignedUrl((doctor as any).posterUrl);
+        posterUrl = await getS3SignedUrl(rawPoster);
       }
       const doctorInfo = doctor ? {
         name: doctor.name,
@@ -1554,7 +1558,9 @@ class HospitalVisitService {
         designation: doctor.designation,
         yearsOfExperience: doctor.yearsOfExperience,
         opdNumber: (doctor as any).opdNumber,
-        posterUrl
+        posterUrl,
+        imageUrl: (doctor as any)?.imageUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).imageUrl) : undefined,
+        gender: doctor.gender
       } : undefined;
 
       // Emit queue refresh event for SSE clients

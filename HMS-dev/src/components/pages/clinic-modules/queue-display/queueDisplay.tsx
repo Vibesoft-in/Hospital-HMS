@@ -142,6 +142,31 @@ const isMatchingPatient = (patient: IQueuePatient, targetId: string): boolean =>
   );
 };
 
+/** Safely normalize doctor poster/image URL to prevent S3-wrapped data URL 400 Bad Request errors */
+export function normalizeDoctorPosterUrl(url?: string | null): string {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+  if (
+    trimmed.includes("amazonaws.com/data%3Aimage") ||
+    trimmed.includes("amazonaws.com/data:image") ||
+    trimmed.includes("/data%3Aimage") ||
+    trimmed.includes("/data:image")
+  ) {
+    const dataIdx = trimmed.indexOf("data");
+    const afterData = trimmed.slice(dataIdx);
+    try {
+      return decodeURIComponent(afterData);
+    } catch {
+      return afterData;
+    }
+  }
+  return trimmed;
+}
+
 /** Build IQueueDisplay from SSE payload (Zero `?.` / Zero `??` - Safe for Chrome 66) */
 function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
   const rawQueue = (data && Array.isArray(data.queue))
@@ -161,9 +186,9 @@ function displayFromSSE(data: Record<string, unknown>): IQueueDisplay {
 
   let posterUrl: string | null = null;
   if (data && typeof data.posterUrl === "string" && data.posterUrl.trim()) {
-    posterUrl = data.posterUrl.trim();
+    posterUrl = normalizeDoctorPosterUrl(data.posterUrl.trim());
   } else if (data && typeof data.imageUrl === "string" && data.imageUrl.trim()) {
-    posterUrl = data.imageUrl.trim();
+    posterUrl = normalizeDoctorPosterUrl(data.imageUrl.trim());
   }
 
   const currentSlot = parseCurrentSessionSlot(data);
@@ -283,6 +308,7 @@ const QueueDisplayComponent = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(2000);
+  const pollQueueRef = useRef<() => void>(() => {});
 
   const toggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -309,13 +335,16 @@ const QueueDisplayComponent = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Strip the query string (S3 signature + expiry) so we can tell whether a freshly
-  // signed poster URL still points at the SAME underlying image as before, or is
-  // genuinely a different file.
+  // Strip query string (S3 signature) or generate base64 fingerprint so we can tell
+  // whether a poster URL points to the same underlying image or is genuinely different.
   const posterKeyOf = (url?: string | null): string => {
     if (!url || typeof url !== "string") return "";
-    const qIdx = url.indexOf("?");
-    return qIdx >= 0 ? url.slice(0, qIdx) : url;
+    const norm = normalizeDoctorPosterUrl(url);
+    if (norm.startsWith("data:") || norm.startsWith("blob:")) {
+      return norm.slice(0, 100) + "_" + norm.length;
+    }
+    const qIdx = norm.indexOf("?");
+    return qIdx >= 0 ? norm.slice(0, qIdx) : norm;
   };
 
   // Fills in doctor-profile fields (poster, gender, name, etc.) on a freshly built
@@ -364,56 +393,75 @@ const QueueDisplayComponent = () => {
     return updated;
   };
 
-  // Direct fetch doctor profile to guarantee photo/posterUrl is available
+  // Listen for doctor updates across windows / tabs and re-sync queue display immediately
   useEffect(() => {
-    if (!doctorId || !API_BASE_URL) return;
+    if (!doctorId) return;
 
-    const fetchDocProfile = () => {
-      axios
-        .get(API_BASE_URL + "/hospital/doctors/" + doctorId)
-        .then((res) => {
-          const resData = res && res.data ? res.data : null;
-          const doc = (resData && resData.data && resData.data.doctor)
-            ? resData.data.doctor
-            : (resData && resData.doctor ? resData.doctor : (resData && resData.data ? resData.data : resData));
-
-          const photo = doc && (doc.posterUrl || doc.imageUrl);
-          const genderVal = doc && doc.gender ? doc.gender : undefined;
-
-          // Always cache the latest known-good values first — this fetch can resolve
-          // *before* the first SSE/poll response creates `display`, in which case the
-          // setDisplay calls below would otherwise have nothing to merge into and the
-          // fetched poster/gender would be silently dropped.
-          if (photo && typeof photo === "string") {
-            doctorProfileCacheRef.current.posterUrl = photo;
-          }
-          if (genderVal) {
-            doctorProfileCacheRef.current.gender = genderVal;
-          }
-
-          if (photo && typeof photo === "string") {
-            setDisplay((prev) => (prev ? { ...prev, posterUrl: photo, gender: genderVal ? genderVal : prev.gender } : prev));
-          } else if (genderVal) {
-            setDisplay((prev) => (prev ? { ...prev, gender: genderVal } : prev));
-          }
-        })
-        .catch((err) => {
-          console.warn("Direct doctor photo fetch warning:", err);
-        });
-    };
-
-    fetchDocProfile();
-
-    const handleDoctorUpdated = (e: any) => {
-      const updatedId = e && e.detail ? e.detail.doctorId : null;
-      if (!updatedId || updatedId === doctorId) {
-        fetchDocProfile();
+    const handleDoctorUpdated = (payload?: any) => {
+      const updatedDoctorId = payload?.doctorId || payload?.doctorData?.doctorId || payload?.doctorData?._id;
+      if (
+        !updatedDoctorId ||
+        updatedDoctorId === doctorId ||
+        String(updatedDoctorId).toUpperCase() === String(doctorId).toUpperCase()
+      ) {
+        const rawP =
+          payload?.doctorData?.posterUrl ||
+          payload?.doctorData?.imageUrl ||
+          payload?.posterUrl ||
+          payload?.imageUrl;
+        const normalizedP = normalizeDoctorPosterUrl(rawP);
+        if (normalizedP) {
+          doctorProfileCacheRef.current.posterUrl = normalizedP;
+          lastPosterUrlRef.current = normalizedP;
+          posterImgErrorRef.current = false;
+          setPosterImgError(false);
+          setDisplay((prev) => (prev ? { ...prev, posterUrl: normalizedP } : prev));
+        }
+        const gVal = payload?.doctorData?.gender || payload?.gender;
+        if (gVal) {
+          doctorProfileCacheRef.current.gender = gVal;
+          setDisplay((prev) => (prev ? { ...prev, gender: gVal } : prev));
+        }
+        // Immediately fetch the fresh display queue from the server
+        if (pollQueueRef.current) {
+          pollQueueRef.current();
+        }
       }
     };
-    window.addEventListener("doctor-updated", handleDoctorUpdated);
+
+    // 1. Same-window custom event
+    const onWindowEvent = (e: any) => handleDoctorUpdated(e?.detail);
+    window.addEventListener("doctor-updated", onWindowEvent);
+
+    // 2. Cross-tab BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        bc = new BroadcastChannel("hms_doctor_updates");
+        bc.onmessage = (ev) => handleDoctorUpdated(ev.data);
+      }
+    } catch {
+      // BroadcastChannel fallback
+    }
+
+    // 3. Cross-tab localStorage event
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "hms_last_doctor_update" && e.newValue) {
+        try {
+          handleDoctorUpdated(JSON.parse(e.newValue));
+        } catch {
+          // parse error
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
 
     return () => {
-      window.removeEventListener("doctor-updated", handleDoctorUpdated);
+      window.removeEventListener("doctor-updated", onWindowEvent);
+      window.removeEventListener("storage", onStorage);
+      if (bc) {
+        bc.close();
+      }
     };
   }, [doctorId]);
 
@@ -634,6 +682,7 @@ const QueueDisplayComponent = () => {
         .catch(() => { });
     };
 
+    pollQueueRef.current = pollQueue;
     pollQueue();
     pollInterval = setInterval(pollQueue, 3000);
 
@@ -656,10 +705,10 @@ const QueueDisplayComponent = () => {
 
   // When SSE/poll delivers a fresh signed posterUrl, reset the image error so it retries
   const currentPosterUrl = (display && display.posterUrl && typeof display.posterUrl === "string")
-    ? display.posterUrl.trim()
+    ? normalizeDoctorPosterUrl(display.posterUrl)
     : "";
   useEffect(() => {
-    if (currentPosterUrl && currentPosterUrl !== lastPosterUrlRef.current) {
+    if (currentPosterUrl && posterKeyOf(currentPosterUrl) !== posterKeyOf(lastPosterUrlRef.current)) {
       lastPosterUrlRef.current = currentPosterUrl;
       posterImgErrorRef.current = false;
       setPosterImgError(false);
@@ -677,9 +726,11 @@ const QueueDisplayComponent = () => {
 
   // Doctor Data mapping (Safe checks - No `?.` / No `??`)
   const rawName = (display && display.doctorName && typeof display.doctorName === "string") ? display.doctorName.trim() : "";
-  const rawPoster = (display && display.posterUrl && typeof display.posterUrl === "string")
-    ? display.posterUrl.trim()
-    : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "");
+  const rawPoster = normalizeDoctorPosterUrl(
+    (display && display.posterUrl && typeof display.posterUrl === "string")
+      ? display.posterUrl.trim()
+      : ((display && (display as any).imageUrl && typeof (display as any).imageUrl === "string") ? (display as any).imageUrl.trim() : "")
+  );
   const fallbackAvatar = getDoctorDefaultAvatar(display ? display.gender : undefined);
 
   // Use poster only if it exists AND no load error; otherwise fall back to gender-based icon

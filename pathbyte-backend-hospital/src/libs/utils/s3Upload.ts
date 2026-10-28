@@ -48,6 +48,39 @@ export async function uploadToS3(
 
 export async function getS3SignedUrl(key: string, expiresIn: number = SIGNED_URL_EXPIRES): Promise<string> {
   if (!key) return "";
+
+  // 1. Data URLs or blob URLs should never be sent to S3 presigner
+  if (key.startsWith("data:") || key.startsWith("blob:")) {
+    return key;
+  }
+
+  // 2. If key mistakenly contains an S3 bucket URL wrapping a data URL (from previous presigner error)
+  if (
+    key.includes("amazonaws.com/data%3Aimage") ||
+    key.includes("amazonaws.com/data:image") ||
+    key.includes("/data%3Aimage") ||
+    key.includes("/data:image")
+  ) {
+    const dataIdx = key.indexOf("data");
+    const afterData = key.slice(dataIdx);
+    try {
+      return decodeURIComponent(afterData);
+    } catch {
+      return afterData;
+    }
+  }
+
+  // 3. If it's already an external HTTP/HTTPS URL not on our S3
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    if (!key.includes("amazonaws.com/")) {
+      return key;
+    }
+    // 4. If it's an amazonaws.com URL that is ALREADY presigned, return as is
+    if (key.includes("X-Amz-Signature") || key.includes("Signature=")) {
+      return key;
+    }
+  }
+
   const cleanKey = key.includes("amazonaws.com/") ? key.split("amazonaws.com/")[1] : key;
   try {
     return await getSignedUrl(
@@ -156,6 +189,8 @@ export async function transformS3UrlsAsync(obj: any): Promise<any> {
 }
 
 function isS3Path(value: string): boolean {
+  if (!value || typeof value !== "string") return false;
+  if (value.startsWith("data:") || value.startsWith("blob:")) return false;
   return (
     value.includes("amazonaws.com/") ||
     value.startsWith("uploads/") ||

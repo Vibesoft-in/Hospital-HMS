@@ -425,9 +425,9 @@ const EditDoctorComponent = () => {
             : savedImageUrl;
 
         broadcastDoctorUpdate({
-          doctorId: targetId,
+          doctorId: doctorReadableId || targetId,
           imageUrl: finalImageUrl,
-          doctorData: { ...doctorData, _id: targetId, doctorId: doctorReadableId },
+          doctorData: { ...doctorData, _id: targetId, doctorId: doctorReadableId || targetId },
         });
 
         message.success("Doctor details updated successfully!");

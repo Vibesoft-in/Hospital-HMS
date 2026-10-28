@@ -540,6 +540,7 @@ const Modals = ({ onDoctorUpdated }: { onDoctorUpdated?: (doctor: any) => void }
   const [sessions, setSessions] = useState<Option[]>([]);
   const [queueSortBy, setQueueSortBy] = useState<Option | null>(Queue_Sort_By[0] || null);
   const [dialysisSlots, setDialysisSlots] = useState<IDialysisSlotForm[]>([]);
+  const [readableDoctorId, setReadableDoctorId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [visitTypes, setVisitTypes] = useState([
     { type: "OPD", charge: "" },
@@ -574,6 +575,7 @@ const Modals = ({ onDoctorUpdated }: { onDoctorUpdated?: (doctor: any) => void }
     setSavedPosterUrl("");
     setPhotoRemoved(false);
     setPosterRemoved(false);
+    setReadableDoctorId("");
     setSessions([]);
     setQueueSortBy(Queue_Sort_By[0] || null);
     setDialysisSlots([]);
@@ -600,6 +602,7 @@ const Modals = ({ onDoctorUpdated }: { onDoctorUpdated?: (doctor: any) => void }
 
       if (response.data?.code === 200 && response.data?.data?.doctor) {
         const doctor = response.data.data.doctor;
+        setReadableDoctorId(doctor.doctorId || "");
         setName(doctor.name || "");
         setPhone(doctor.phone || undefined);
         setEmail(doctor.email || "");
@@ -928,13 +931,14 @@ const Modals = ({ onDoctorUpdated }: { onDoctorUpdated?: (doctor: any) => void }
 
       if (isSuccess || hasSuccessCode) {
         // Broadcast doctor update to Redux store and window event so all pages re-render without full page reload
+        const effectiveDoctorId = readableDoctorId || doctorId;
         broadcastDoctorUpdate({
-          doctorId,
+          doctorId: effectiveDoctorId,
           imageUrl: (doctorData.imageUrl as string) || "",
-          doctorData: { ...doctorData, _id: doctorId },
+          doctorData: { ...doctorData, _id: doctorId, doctorId: effectiveDoctorId },
         });
 
-        onDoctorUpdated?.({ ...doctorData, _id: doctorId });
+        onDoctorUpdated?.({ ...doctorData, _id: doctorId, doctorId: effectiveDoctorId });
 
         // Close offcanvas modal
         const modalElement = document.getElementById("edit_doctor");

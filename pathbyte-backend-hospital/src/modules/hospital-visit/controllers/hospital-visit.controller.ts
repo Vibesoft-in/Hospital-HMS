@@ -37,9 +37,10 @@ async function populateVisitForSSE(visit: any) {
     
     // Generate signed posterUrl if present
     let posterUrl: string | undefined;
-    if ((doctor as any)?.posterUrl) {
+    const rawPoster = (doctor as any)?.posterUrl || (doctor as any)?.imageUrl;
+    if (rawPoster) {
       const { getS3SignedUrl } = await import("@src/libs/utils/s3Upload");
-      posterUrl = await getS3SignedUrl((doctor as any).posterUrl);
+      posterUrl = await getS3SignedUrl(rawPoster);
     }
     
     return {
@@ -69,6 +70,8 @@ async function populateVisitForSSE(visit: any) {
         yearsOfExperience: doctor.yearsOfExperience,
         opdNumber: (doctor as any).opdNumber,
         posterUrl,
+        imageUrl: (doctor as any)?.imageUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).imageUrl) : undefined,
+        gender: doctor.gender,
         shift
       } : undefined
     };
@@ -421,9 +424,10 @@ async function deleteHospitalVisit(
     const doctor = await HospitalDoctorModel.findById(visit.doctorId).lean();
     const shift = doctor?.weeklySchedule ? formatDoctorShift(doctor.weeklySchedule, new Date(visit.visitDate)) : undefined;
     let posterUrl: string | undefined;
-    if ((doctor as any)?.posterUrl) {
+    const rawPoster = (doctor as any)?.posterUrl || (doctor as any)?.imageUrl;
+    if (rawPoster) {
       const { getS3SignedUrl } = await import("@src/libs/utils/s3Upload");
-      posterUrl = await getS3SignedUrl((doctor as any).posterUrl);
+      posterUrl = await getS3SignedUrl(rawPoster);
     }
     const doctorInfo = doctor ? {
       name: doctor.name,
@@ -432,6 +436,8 @@ async function deleteHospitalVisit(
       yearsOfExperience: doctor.yearsOfExperience,
       opdNumber: (doctor as any).opdNumber,
       posterUrl,
+      imageUrl: (doctor as any)?.imageUrl ? await (await import("@src/libs/utils/s3Upload")).getS3SignedUrl((doctor as any).imageUrl) : undefined,
+      gender: doctor.gender,
       shift
     } : undefined;
     
