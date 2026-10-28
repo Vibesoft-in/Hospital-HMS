@@ -80,8 +80,20 @@ class HospitalDoctorService {
       limit
     );
 
-    // Transform S3 URLs to signed URLs for all doctors
-    return Promise.all(doctors.map((doctor: any) => transformS3UrlsAsync(doctor)));
+    // Transform S3 URLs to signed URLs for all doctors (fast and targeted)
+    const { getS3SignedUrl } = await import("@src/libs/utils/s3Upload");
+    return Promise.all(
+      doctors.map(async (doctor: any) => {
+        const item = { ...doctor };
+        if (item.imageUrl && typeof item.imageUrl === "string") {
+          item.imageUrl = await getS3SignedUrl(item.imageUrl);
+        }
+        if (item.posterUrl && typeof item.posterUrl === "string") {
+          item.posterUrl = await getS3SignedUrl(item.posterUrl);
+        }
+        return item;
+      })
+    );
   }
 
   async getHospitalDoctor(doctorId: string): Promise<HospitalDoctorResponseDTO> {

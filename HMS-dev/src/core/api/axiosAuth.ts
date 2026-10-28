@@ -2,7 +2,7 @@ import axios from "axios";
 import { getAccessToken, silentRefresh } from "@/core/auth/inMemoryToken";
 
 let axiosAuthInitialized = false;
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 45000;
 const parsedTimeout = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
 const requestTimeoutMs =
   Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : DEFAULT_TIMEOUT_MS;

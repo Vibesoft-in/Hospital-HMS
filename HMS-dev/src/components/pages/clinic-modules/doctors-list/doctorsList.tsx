@@ -103,7 +103,7 @@ const DoctorsListComponent = () => {
     };
   }, []);
 
-  const fetchDoctors = async () => {
+  const fetchDoctors = async (retryCount = 0) => {
     try {
       setLoading(true);
       const params: Record<string, string | number> = { page, limit };
@@ -129,8 +129,13 @@ const DoctorsListComponent = () => {
           setTotalCount(typeof total === "number" ? total : list.length);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching doctors:", error);
+      // Auto-retry once after 1.5 seconds if timeout occurred (e.g. backend waking up from cold start)
+      if (retryCount === 0 && (error?.code === "ECONNABORTED" || error?.message?.includes("timeout"))) {
+        setTimeout(() => fetchDoctors(1), 1500);
+        return;
+      }
     } finally {
       setLoading(false);
     }

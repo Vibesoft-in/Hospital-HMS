@@ -82,14 +82,24 @@ export async function getS3SignedUrl(key: string, expiresIn: number = SIGNED_URL
   }
 
   const cleanKey = key.includes("amazonaws.com/") ? key.split("amazonaws.com/")[1] : key;
+
+  // 5. If AWS credentials are not configured, do not call S3 presigner (which would hang or fail)
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return key.startsWith("http") ? key : `https://${getBucket()}.s3.${process.env.AWS_REGION || REGION}.amazonaws.com/${cleanKey}`;
+  }
+
   try {
-    return await getSignedUrl(
+    const signPromise = getSignedUrl(
       getS3Client(),
       new GetObjectCommand({ Bucket: getBucket(), Key: cleanKey }),
       { expiresIn }
     );
+    const timeoutPromise = new Promise<string>((_, reject) =>
+      setTimeout(() => reject(new Error("S3 presign timeout")), 2500)
+    );
+    return await Promise.race([signPromise, timeoutPromise]);
   } catch {
-    return key;
+    return key.startsWith("http") ? key : `https://${getBucket()}.s3.${process.env.AWS_REGION || REGION}.amazonaws.com/${cleanKey}`;
   }
 }
 
