@@ -21,8 +21,54 @@ import {
 } from "@src/middlewares/rate-limit.middleware";
 
 export default async ({ app }: { app: express.Application }) => {
-  // Enable trust proxy to get real IP from nginx
+  // Enable trust proxy to get real IP from nginx, Cloudflare, and Render
   app.enable("trust proxy");
+
+  // CORS configuration - MUST be the very first middleware so all requests, preflights, and error responses carry CORS headers
+  const isProduction = process.env.NODE_ENV === "production";
+  const allowedOrigins = process.env.ALLOWED_ORIGINS;
+
+  if (isProduction && (!allowedOrigins || allowedOrigins.trim() === "" || allowedOrigins.trim() === "*")) {
+    const errorMessage =
+      "FATAL: ALLOWED_ORIGINS must be explicitly set to specific origin(s) in production and cannot be unset or '*'. " +
+      "Running with credentials: true and wildcard or permissive origins in production is prohibited.";
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  const explicitAllowedOrigins = allowedOrigins && allowedOrigins !== "*"
+    ? allowedOrigins.split(",").map((o) => o.trim()).filter(Boolean)
+    : [];
+
+  const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+      // Allow requests without Origin header (curl, mobile apps, server-to-server)
+      if (!origin || !isProduction) {
+        return callback(null, true);
+      }
+      // Check explicit allowed origins list
+      if (explicitAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // Allow Vercel preview and production deployments, or localhost
+      try {
+        const parsed = new URL(origin);
+        if (parsed.hostname.endsWith(".vercel.app") || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+          return callback(null, true);
+        }
+      } catch {
+        // Invalid origin format
+      }
+      logger.warn({ origin }, "Origin rejected by CORS policy");
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    optionsSuccessStatus: 200,
+  };
+
+  app.use(cors(corsOptions));
 
   // Security headers via Helmet
   app.use(
@@ -44,31 +90,6 @@ export default async ({ app }: { app: express.Application }) => {
   app.use(blockScanners);
   app.use(trackEnumeration);
   app.use(validateRequest);
-
-  // CORS configuration - MUST be before any other middleware
-  const isProduction = process.env.NODE_ENV === "production";
-  const allowedOrigins = process.env.ALLOWED_ORIGINS;
-
-  if (isProduction && (!allowedOrigins || allowedOrigins.trim() === "" || allowedOrigins.trim() === "*")) {
-    const errorMessage =
-      "FATAL: ALLOWED_ORIGINS must be explicitly set to specific origin(s) in production and cannot be unset or '*'. " +
-      "Running with credentials: true and wildcard or permissive origins in production is prohibited.";
-    logger.error(errorMessage);
-    throw new Error(errorMessage);
-  }
-
-  const corsOrigins = allowedOrigins && allowedOrigins !== "*"
-    ? allowedOrigins.split(",").map((o) => o.trim())
-    : true;
-
-  const corsOptions: cors.CorsOptions = {
-    origin: corsOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    optionsSuccessStatus: 200,
-  };
-
-  app.use(cors(corsOptions));
 
   // Body parsing
   app.use(express.json({ limit: "10mb" }));

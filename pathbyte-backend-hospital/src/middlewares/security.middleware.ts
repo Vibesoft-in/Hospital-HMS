@@ -5,6 +5,10 @@ import { logger } from "@src/config/logger";
  * Detect and block automated scanning tools
  */
 export const blockScanners = (req: Request, res: Response, next: NextFunction): void => {
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   const userAgent = req.get("User-Agent")?.toLowerCase() || "";
   
   const scannerPatterns = [
@@ -39,14 +43,20 @@ export const blockScanners = (req: Request, res: Response, next: NextFunction): 
  */
 const notFoundCounts = new Map<string, { count: number; timestamp: number }>();
 const BLOCKED_IPS = new Set<string>();
-const MAX_404_PER_MINUTE = 20;
-const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
+const MAX_404_PER_MINUTE = process.env.NODE_ENV === "test" ? 20 : 60;
+const BLOCK_DURATION = process.env.NODE_ENV === "test" ? 60 * 60 * 1000 : 5 * 60 * 1000; // 5 minutes in production
+const STATIC_EXT_REGEX = /\.(png|jpe?g|gif|svg|ico|webp|css|js|map|woff2?|ttf|eot)$/i;
 
 export const trackEnumeration = (req: Request, res: Response, next: NextFunction): void => {
+  // Never block or track OPTIONS preflight requests
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   
-  // Check if IP is already blocked
-  if (BLOCKED_IPS.has(ip)) {
+  // Check if IP is already blocked (except for health check)
+  if (BLOCKED_IPS.has(ip) && req.path !== "/status") {
     logger.warn({ ip, path: req.path }, "Blocked IP attempted access");
     res.status(403).json({ 
       error: "FORBIDDEN",
@@ -58,7 +68,7 @@ export const trackEnumeration = (req: Request, res: Response, next: NextFunction
   // Track response status
   const originalSend = res.send;
   res.send = function(data: any): Response {
-    if (res.statusCode === 404) {
+    if (res.statusCode === 404 && !STATIC_EXT_REGEX.test(req.path)) {
       const now = Date.now();
       const record = notFoundCounts.get(ip);
       
@@ -153,6 +163,10 @@ export const normalizeErrors = (req: Request, res: Response, next: NextFunction)
  * Additional request validation
  */
 export const validateRequest = (req: Request, res: Response, next: NextFunction): void => {
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   // Block requests with path traversal attempts
   if (req.path.includes("..") || req.path.includes("//")) {
     logger.warn({

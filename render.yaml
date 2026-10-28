@@ -14,7 +14,7 @@ services:
       - key: DATABASE_URL
         sync: false # Set your MongoDB Atlas connection string in Render Dashboard
       - key: ALLOWED_ORIGINS
-        sync: false # Comma-separated frontend URL(s), e.g. https://your-frontend.vercel.app
+        value: https://hospital-hms-bihh.vercel.app,https://hospital-hms.vercel.app,http://localhost:3000
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
